@@ -265,6 +265,8 @@ export class FunctionLinker extends Visitor {
       // console.log("Linker Visiting: " + source.internalPath);
       FunctionLinker.SN.visitSource(source);
     }
+    console.log("Functions: ");
+    FunctionLinker.SN.sD.fns.forEach(v => console.log("  " + toString(v.node)))
   }
 
   // static getFunction(fnName: Expression, path: string[] | null = null): FunctionData | null {
@@ -282,7 +284,7 @@ export class FunctionLinker extends Visitor {
   ): FunctionData | null {
     const name = getFnName(fnName, path);
     if (name == "console.log") return null;
-    if (DEBUG) console.log("Looking for: " + name);
+    // if (DEBUG) console.log("Looking for: " + name);
     const source = fnName.range.source;
     const sourceData = FunctionLinker.SN.sourceData.find(
       (v) => v.source.internalPath == source.internalPath,

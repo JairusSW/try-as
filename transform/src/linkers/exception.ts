@@ -66,7 +66,7 @@ export class ExceptionLinker extends Visitor {
 
   public imports: Set<string> = new Set<string>();
 
-  public callStack: FunctionData[] = [];
+  public linked: Set<string> = new Set<string>();
 
   visitCallExpression(
     node: CallExpression,
@@ -279,7 +279,7 @@ export class ExceptionLinker extends Visitor {
           );
       }
 
-      if (!linked.linked) {
+      if (!linked.linked && !this.linked.has(linkedFn.name.text)) {
         const linkedBody = linkedFn.body;
         const overrideFn = Node.createFunctionDeclaration(
           Node.createIdentifierExpression(
@@ -297,15 +297,16 @@ export class ExceptionLinker extends Visitor {
         );
 
         linked.linked = true;
+        this.linked.add(linkedFn.name.text)
         // console.log("Set Fn " + overrideFn.name.text);
         const lastFn = this.fn;
         this.fn = overrideFn;
-        this.fn = lastFn;
         // console.log("Release Fn " + overrideFn.name.text)
         // if (DEBUG) console.log("Linked Fn: " + toString(overrideFn));
         // console.log(toString(this.currentSource))
         // console.log("Visit Override Fn: " + "__try_" + linkedFn.name.text);
         super.visit(overrideFn, ref);
+        this.fn = lastFn;
         replaceRef(linkedFn, [linkedFn, overrideFn], linked.ref);
         // console.log(toString(linkedFn.range.source))
       }
