@@ -2,6 +2,10 @@
 
 ## 2025-05-10 - 0.1.0
 
+- Change package name from as-try to try-as
+
+## 2025-05-10 - 0.1.0
+
 ### Added
 
 - Initial proof of concept for exception-like control flow in AssemblyScript
