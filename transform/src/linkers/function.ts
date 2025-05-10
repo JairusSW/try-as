@@ -266,7 +266,9 @@ export class FunctionLinker extends Visitor {
       FunctionLinker.SN.visitSource(source);
     }
     console.log("Functions: ");
-    FunctionLinker.SN.sD.fns.forEach(v => console.log("  " + toString(v.node)))
+    FunctionLinker.SN.sD.fns.forEach((v) =>
+      console.log("  " + toString(v.node)),
+    );
   }
 
   // static getFunction(fnName: Expression, path: string[] | null = null): FunctionData | null {

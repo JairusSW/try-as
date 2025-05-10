@@ -224,18 +224,18 @@ export class TryTransform extends Visitor {
         ),
       );
 
-      if (relPath.includes("node_modules" + path.sep + "as-try"))
+      if (relPath.includes("node_modules" + path.sep + "try-as"))
         relPath =
-          "as-try" +
+          "try-as" +
           relPath.slice(
-            relPath.indexOf("node_modules" + path.sep + "as-try") + 19,
+            relPath.indexOf("node_modules" + path.sep + "try-as") + 19,
           );
       // console.log("rel path: " + relPath)
 
       if (
         !relPath.startsWith(".") &&
         !relPath.startsWith("/") &&
-        !relPath.startsWith("as-try")
+        !relPath.startsWith("try-as")
       ) {
         relPath = "./" + relPath;
       }

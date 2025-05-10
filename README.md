@@ -1,10 +1,10 @@
 <h5 align="center">
   <pre>
-<span style="font-size: 0.8em;">     █████  ███████       ████████ ██████  ██    ██
-    ██   ██ ██               ██    ██   ██  ██  ██ 
-    ███████ ███████ █████    ██    ██████    ████  
-    ██   ██      ██          ██    ██   ██    ██   
-    ██   ██ ███████          ██    ██   ██    ██   </span>
+<span style="font-size: 0.8em;">████████ ██████  ██    ██        █████  ███████ 
+   ██    ██   ██  ██  ██        ██   ██ ██      
+   ██    ██████    ████   █████ ███████ ███████ 
+   ██    ██   ██    ██          ██   ██      ██ 
+   ██    ██   ██    ██          ██   ██ ███████ </span>
     AssemblyScript - v0.1.0
   </pre>
 </h5>
@@ -28,13 +28,13 @@ The exception handling is in the early stages of development. Its not recommende
 ## 💾 Installation
 
 ```bash
-npm install as-try
+npm install try-as
 ```
 
 Add the `--transform` to your `asc` command (e.g. in package.json)
 
 ```bash
---transform as-try/transform
+--transform try-as/transform
 ```
 
 Alternatively, add it to your `asconfig.json`
@@ -42,7 +42,7 @@ Alternatively, add it to your `asconfig.json`
 ```json
 {
   // ...
-  "options": { "transform": ["as-try/transform"] }
+  "options": { "transform": ["try-as/transform"] }
 }
 ```
 

@@ -43,15 +43,15 @@ export default class Transformer extends Transform {
     if (
       isLib &&
       !sources.some((v) =>
-        v.normalizedPath.startsWith("~lib/as-try/assembly/types/exception.ts"),
+        v.normalizedPath.startsWith("~lib/try-as/assembly/types/exception.ts"),
       )
     ) {
-      // console.log("Added source: ~lib/as-try/assembly/types/exception.ts");
+      // console.log("Added source: ~lib/try-as/assembly/types/exception.ts");
       parser.parseFile(
         fs
           .readFileSync(path.join(baseDir, "assembly", "types", "exception.ts"))
           .toString(),
-        "~lib/as-try/assembly/types/exception.ts",
+        "~lib/try-as/assembly/types/exception.ts",
         false,
       );
     }
@@ -77,18 +77,18 @@ export default class Transformer extends Transform {
       isLib &&
       !sources.some((v) =>
         v.normalizedPath.startsWith(
-          "~lib/as-try/assembly/types/unreachable.ts",
+          "~lib/try-as/assembly/types/unreachable.ts",
         ),
       )
     ) {
-      // console.log("Added source: ~lib/as-try/assembly/types/unreachable.ts");
+      // console.log("Added source: ~lib/try-as/assembly/types/unreachable.ts");
       parser.parseFile(
         fs
           .readFileSync(
             path.join(baseDir, "assembly", "types", "unreachable.ts"),
           )
           .toString(),
-        "~lib/as-try/assembly/types/unreachable.ts",
+        "~lib/try-as/assembly/types/unreachable.ts",
         false,
       );
     }

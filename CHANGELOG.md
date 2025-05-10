@@ -3,6 +3,7 @@
 ## 2025-05-10 - 0.1.0
 
 ### Added
+
 - Initial proof of concept for exception-like control flow in AssemblyScript
 - Support for `throw`, `try/catch`, and `unreachable` semantics
 - Call stack unrolling to simulate exception propagation
@@ -13,6 +14,7 @@
 - `.toString()` method for custom `Error` type
 
 ### Fixed
+
 - Proper resolution of `isLib` to boolean
 - Use only exported imported functions
 - Correct switching between `return` and `break` depending on control flow
@@ -22,6 +24,7 @@
 - Compatibility fixes for transforms used in packages and generated code
 
 ### Changed
+
 - Refactored function linking and source resolution logic
 - Optimized branching structure and control flow analysis
 - Cleaned up formatting and structure

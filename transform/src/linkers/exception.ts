@@ -168,7 +168,7 @@ export class ExceptionLinker extends Visitor {
         if (
           !relPath.startsWith(".") &&
           !relPath.startsWith("/") &&
-          !relPath.startsWith("as-try")
+          !relPath.startsWith("try-as")
         ) {
           relPath = "./" + relPath;
         }
@@ -297,7 +297,7 @@ export class ExceptionLinker extends Visitor {
         );
 
         linked.linked = true;
-        this.linked.add(linkedFn.name.text)
+        this.linked.add(linkedFn.name.text);
         // console.log("Set Fn " + overrideFn.name.text);
         const lastFn = this.fn;
         this.fn = overrideFn;
@@ -489,12 +489,12 @@ function calcPath(from: string, toName: string): string {
         )
         .split(path.sep),
     )
-    .replace(/^.*node_modules\/as-try/, "as-try");
+    .replace(/^.*node_modules\/try-as/, "try-as");
 
   if (
     !relPath.startsWith(".") &&
     !relPath.startsWith("/") &&
-    !relPath.startsWith("as-try")
+    !relPath.startsWith("try-as")
   ) {
     relPath = "./" + relPath;
   }
