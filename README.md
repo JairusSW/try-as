@@ -9,12 +9,6 @@
   </pre>
 </h5>
 
-## To-do
-
-- [x] Handle all (`abort/throw/unreachable`) exceptions
-- [x] Handle exceptions within functions or blocks
-- [x] Handle nested (multiple) exceptions
-
 ## 📚 Contents
 
 - [About](#-about)
@@ -26,6 +20,10 @@
 ## 📝 About
 
 This library is an addon for AssemblyScript that brings JavaScript-like exception handling to the language, allowing you to use familiar `try/catch` syntax with a custom state management system. This allows AssemblyScript developers to write more readable, maintainable code, while retaining the performance benefits of WebAssembly.
+
+## 🚨 Early Development
+
+The exception handling is in the early stages of development. Its not recommended to use this library in production yet, but please, by all means, use it and if you find an issue, help improve it!
 
 ## 💾 Installation
 
