@@ -4,25 +4,24 @@
   "author": "Jairus Tanaka",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/JairusSW/json-as.git"
+    "url": "git+https://github.com/JairusSW/try-as.git"
   },
   "main": "transform/lib/index.js",
   "devDependencies": {
-    "@assemblyscript/wasi-shim": "^0.1.1",
+    "@assemblyscript/wasi-shim": "^0.1.0",
     "@types/node": "^22.13.10",
     "assemblyscript": "^0.27.35",
     "assemblyscript-prettier": "^3.0.1",
-    "json-as": "^1.0.4",
+    "try-as": "^1.0.4",
     "prettier": "^3.5.3",
-    "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   },
   "bugs": {
-    "url": "https://github.com/JairusSW/json-as/issues"
+    "url": "https://github.com/JairusSW/try-as/issues"
   },
   "contributors": [],
   "description": "Exception handling for AssemblyScript",
-  "homepage": "https://github.com/JairusSW/json-as#readme",
+  "homepage": "https://github.com/JairusSW/try-as#readme",
   "keywords": [
     "assemblyscript",
     "exception",
