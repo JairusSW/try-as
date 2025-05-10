@@ -5,7 +5,6 @@ describe("Should handle immediate unreachable call", () => {
   try {
     unreachable();
   } catch (e) {
-    console.log("Error: " + e.toString());
     expect(e.toString()).toBe("unreachable");
   }
 });
