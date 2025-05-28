@@ -42,6 +42,7 @@ export class CallLinker extends Visitor {
     this.hasException = true;
   }
   static hasException(body: Statement | Statement[]): boolean {
+    if (!body) return false;
     if (!Array.isArray(body)) {
       if (body.kind == NodeKind.Block)
         body = (body as BlockStatement).statements;

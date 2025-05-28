@@ -23,6 +23,8 @@ export class CallLinker extends Visitor {
         this.hasException = true;
     }
     static hasException(body) {
+        if (!body)
+            return false;
         if (!Array.isArray(body)) {
             if (body.kind == 30)
                 body = body.statements;
