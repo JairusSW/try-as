@@ -39,7 +39,8 @@
   },
   "scripts": {
     "test": "bash ./run-tests.sh",
-    "build:test": "rm -rf ./build/ && DEBUG=true ../compiler/bin/asc.js assembly/test.ts --transform ./transform -o ./build/test.wasm --textFile ./build/test.wat --optimizeLevel 3 --shrinkLevel 0",
+    "build:test": "rm -rf ./build/ && DEBUG=true WRITE=assembly/test.ts ../compiler/bin/asc.js assembly/test.ts --transform ./transform -o ./build/test.wasm --textFile ./build/test.wat --optimizeLevel 3 --shrinkLevel 0",
+    "build:test:tmp": "../compiler/bin/asc.js assembly/test.tmp.ts -o ./build/test.wasm --textFile ./build/test.wat --optimizeLevel 3 --shrinkLevel 0",
     "test:wasmtime": "wasmtime ./build/test.wasm",
     "test:wasmer": "wasmer ./build/test.wasm",
     "build:transform": "tsc -p ./transform",
@@ -47,5 +48,8 @@
     "prettier": "prettier -w ."
   },
   "type": "module",
-  "types": "assembly/index.ts"
+  "types": "assembly/index.ts",
+  "dependencies": {
+    "latest": "^0.2.0"
+  }
 }

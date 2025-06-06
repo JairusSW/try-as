@@ -1,88 +1,7 @@
 // Taken from https://github.com/as-pect/visitor-as/blob/master/src/astBuilder.ts
 // tslint:disable: as-internal-case
 
-import {
-  CommonFlags,
-  TypeNode,
-  Node,
-  NodeKind,
-  Source,
-  NamedTypeNode,
-  FunctionTypeNode,
-  TypeParameterNode,
-  IdentifierExpression,
-  CallExpression,
-  ClassExpression,
-  ElementAccessExpression,
-  FunctionExpression,
-  InstanceOfExpression,
-  LiteralExpression,
-  NewExpression,
-  ParenthesizedExpression,
-  PropertyAccessExpression,
-  TernaryExpression,
-  UnaryPostfixExpression,
-  UnaryPrefixExpression,
-  BlockStatement,
-  BreakStatement,
-  ContinueStatement,
-  DoStatement,
-  EmptyStatement,
-  ExportStatement,
-  ExportDefaultStatement,
-  ExportImportStatement,
-  ExpressionStatement,
-  ForStatement,
-  IfStatement,
-  ImportStatement,
-  ReturnStatement,
-  SwitchStatement,
-  ThrowStatement,
-  TryStatement,
-  VariableStatement,
-  WhileStatement,
-  ClassDeclaration,
-  EnumDeclaration,
-  EnumValueDeclaration,
-  FieldDeclaration,
-  FunctionDeclaration,
-  ImportDeclaration,
-  InterfaceDeclaration,
-  MethodDeclaration,
-  NamespaceDeclaration,
-  TypeDeclaration,
-  VariableDeclaration,
-  DecoratorNode,
-  ExportMember,
-  ParameterNode,
-  SwitchCase,
-  TypeName,
-  ArrayLiteralExpression,
-  Expression,
-  ObjectLiteralExpression,
-  AssertionKind,
-  LiteralKind,
-  FloatLiteralExpression,
-  StringLiteralExpression,
-  RegexpLiteralExpression,
-  UnaryExpression,
-  ArrowKind,
-  ParameterKind,
-  DeclarationStatement,
-  AssertionExpression,
-  BinaryExpression,
-  CommaExpression,
-  IntegerLiteralExpression,
-  isTypeOmitted,
-  operatorTokenToString,
-  ForOfStatement,
-  IndexSignatureNode,
-  TemplateLiteralExpression,
-  util,
-  FalseExpression,
-  NullExpression,
-  TrueExpression,
-} from "assemblyscript/dist/assemblyscript.js";
+import { CommonFlags, TypeNode, Node, NodeKind, Source, NamedTypeNode, FunctionTypeNode, TypeParameterNode, IdentifierExpression, CallExpression, ClassExpression, ElementAccessExpression, FunctionExpression, InstanceOfExpression, LiteralExpression, NewExpression, ParenthesizedExpression, PropertyAccessExpression, TernaryExpression, UnaryPostfixExpression, UnaryPrefixExpression, BlockStatement, BreakStatement, ContinueStatement, DoStatement, EmptyStatement, ExportStatement, ExportDefaultStatement, ExportImportStatement, ExpressionStatement, ForStatement, IfStatement, ImportStatement, ReturnStatement, SwitchStatement, ThrowStatement, TryStatement, VariableStatement, WhileStatement, ClassDeclaration, EnumDeclaration, EnumValueDeclaration, FieldDeclaration, FunctionDeclaration, ImportDeclaration, InterfaceDeclaration, MethodDeclaration, NamespaceDeclaration, TypeDeclaration, VariableDeclaration, DecoratorNode, ExportMember, ParameterNode, SwitchCase, TypeName, ArrayLiteralExpression, Expression, ObjectLiteralExpression, AssertionKind, LiteralKind, FloatLiteralExpression, StringLiteralExpression, RegexpLiteralExpression, UnaryExpression, ArrowKind, ParameterKind, DeclarationStatement, AssertionExpression, BinaryExpression, CommaExpression, IntegerLiteralExpression, isTypeOmitted, operatorTokenToString, ForOfStatement, IndexSignatureNode, TemplateLiteralExpression, util, FalseExpression, NullExpression, TrueExpression } from "assemblyscript/dist/assemblyscript.js";
 import { Visitor } from "./visitor.js";
 
 function assert<T>(isTruish: T, message: string = "assertion error"): T {
@@ -618,11 +537,7 @@ export class ASTBuilder extends Visitor {
     } else {
       let last = sb[sb.length - 1];
       let lastCharPos = last.length - 1;
-      if (
-        lastCharPos >= 0 &&
-        (last.charCodeAt(lastCharPos) == util.CharCode.CloseBrace ||
-          last.charCodeAt(lastCharPos) == util.CharCode.Semicolon)
-      ) {
+      if (lastCharPos >= 0 && (last.charCodeAt(lastCharPos) == util.CharCode.CloseBrace || last.charCodeAt(lastCharPos) == util.CharCode.Semicolon)) {
         sb.push("\n");
       } else {
         sb.push(";\n");
@@ -727,10 +642,7 @@ export class ASTBuilder extends Visitor {
       }
       for (let i = 0, k = members.length; i < k; ++i) {
         let member = members[i];
-        if (
-          member.kind != NodeKind.FieldDeclaration ||
-          (<FieldDeclaration>member).parameterIndex < 0
-        ) {
+        if (member.kind != NodeKind.FieldDeclaration || (<FieldDeclaration>member).parameterIndex < 0) {
           util.indent(sb, indentLevel);
           this.visitNodeAndTerminate(member);
         }
@@ -1023,10 +935,7 @@ export class ASTBuilder extends Visitor {
         this.visitTypeNode(returnType);
       }
     } else {
-      if (
-        !isTypeOmitted(returnType) &&
-        !node.isAny(CommonFlags.Constructor | CommonFlags.Set)
-      ) {
+      if (!isTypeOmitted(returnType) && !node.isAny(CommonFlags.Constructor | CommonFlags.Set)) {
         sb.push("): ");
         this.visitTypeNode(returnType);
       } else {
@@ -1108,10 +1017,7 @@ export class ASTBuilder extends Visitor {
     this.visitTypeNode(node.valueType);
   }
 
-  visitInterfaceDeclaration(
-    node: InterfaceDeclaration,
-    isDefault = false,
-  ): void {
+  visitInterfaceDeclaration(node: InterfaceDeclaration, isDefault = false): void {
     var decorators = node.decorators;
     if (decorators) {
       for (let i = 0, k = decorators.length; i < k; ++i) {
@@ -1169,10 +1075,7 @@ export class ASTBuilder extends Visitor {
     this.visitFunctionCommon(node);
   }
 
-  visitNamespaceDeclaration(
-    node: NamespaceDeclaration,
-    isDefault = false,
-  ): void {
+  visitNamespaceDeclaration(node: NamespaceDeclaration, isDefault = false): void {
     var decorators = node.decorators;
     if (decorators) {
       for (let i = 0, k = decorators.length; i < k; ++i) {
@@ -1360,13 +1263,7 @@ export class ASTBuilder extends Visitor {
     var numDeclarations = declarations.length;
     var firstDeclaration = declarations[0];
     this.serializeExternalModifiers(firstDeclaration);
-    sb.push(
-      firstDeclaration.is(CommonFlags.Const)
-        ? "const "
-        : firstDeclaration.is(CommonFlags.Let)
-          ? "let "
-          : "var ",
-    );
+    sb.push(firstDeclaration.is(CommonFlags.Const) ? "const " : firstDeclaration.is(CommonFlags.Let) ? "let " : "var ");
     this.visitVariableDeclaration(node.declarations[0]);
     for (let i = 1; i < numDeclarations; ++i) {
       sb.push(", ");

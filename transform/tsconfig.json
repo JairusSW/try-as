@@ -9,5 +9,5 @@
     "sourceMap": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["./src/*.ts", "src/linkers/*.ts"]
+  "include": ["./src/*.ts", "src/linkers/*.ts", "src/passes/linker.ts"]
 }

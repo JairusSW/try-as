@@ -1,5 +1,7 @@
-import { Node, } from "assemblyscript/dist/assemblyscript.js";
+import { Node } from "assemblyscript/dist/assemblyscript.js";
 import path from "path";
+import { toString } from "./lib/util.js";
+import { Try } from "./transform.js";
 export function replaceRef(node, replacement, ref) {
     if (!node || !ref)
         return;
@@ -36,7 +38,7 @@ export function replaceRef(node, replacement, ref) {
         }
     }
 }
-export function replaceAfter(node, replacement, ref) {
+export function replaceAfter(node, replacement, ref, Reference) {
     if (!node || !ref)
         return;
     const nodeExpr = stripExpr(node);
@@ -82,10 +84,7 @@ export function nodeEq(a, b) {
         return false;
     if (a === b)
         return true;
-    if (typeof a !== "object" ||
-        a === null ||
-        typeof b !== "object" ||
-        b === null)
+    if (typeof a !== "object" || a === null || typeof b !== "object" || b === null)
         return false;
     const keys1 = Object.keys(a);
     const keys2 = Object.keys(b);
@@ -100,30 +99,17 @@ export function nodeEq(a, b) {
     return true;
 }
 export function isPrimitive(type) {
-    const primitiveTypes = [
-        "u8",
-        "u16",
-        "u32",
-        "u64",
-        "i8",
-        "i16",
-        "i32",
-        "i64",
-        "f32",
-        "f64",
-        "bool",
-        "boolean",
-    ];
+    const primitiveTypes = ["u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "f32", "f64", "bool", "boolean"];
     return primitiveTypes.some((v) => type.startsWith(v));
 }
 export function blockify(node) {
-    let block = node.kind == 30
-        ? node
-        : Node.createBlockStatement([node], node.range);
+    if (!node)
+        return null;
+    let block = node.kind == 30 ? node : Node.createBlockStatement([node], node.range);
     return block;
 }
 export function getFnName(expr, path = null) {
-    const _path = path ? path.join(".") + "." : "";
+    const _path = path && path.length ? path.join(".") + "." : "";
     if (typeof expr == "string") {
         return _path + expr;
     }
@@ -170,38 +156,59 @@ export function hasBaseException(statements) {
             return false;
         if (v.kind == 38)
             v = v.expression;
-        if (v.kind == 9 &&
-            v.expression.kind == 6 &&
-            (v.expression.text ==
-                "abort" ||
-                v.expression.text ==
-                    "unreachable"))
+        if (v.kind == 9 && v.expression.kind == 6 && (v.expression.text == "abort" || v.expression.text == "unreachable"))
             return true;
         if (v.kind == 45)
             return true;
         return false;
     });
 }
-export function hasOnlyCalls(statements) {
+export function hasException(statements) {
+    return statements.some((v) => {
+        if (!v)
+            return false;
+        if (v.kind == 38)
+            v = v.expression;
+        if (v.kind == 9) {
+            if (v.expression.kind == 6 && (v.expression.text == "abort" || v.expression.text == "unreachable"))
+                return true;
+            if (Try.SN.getFnByName(v.range.source, getFnName(v.expression)))
+                return true;
+        }
+        if (v.kind == 45)
+            return true;
+        return false;
+    });
+}
+export function hasOnlyExceptions(statements) {
     return statements.every((v) => {
         if (!v)
-            return true;
-        if (v.kind === 38) {
-            v = v.expression;
-        }
+            return false;
+        v = stripExpr(v);
         if (v.kind !== 9)
             return false;
         const callExpr = v;
-        if (callExpr.expression.kind === 6 &&
-            (callExpr.expression.text === "abort" ||
-                callExpr.expression.text === "unreachable")) {
-            return false;
+        if (callExpr.expression.kind === 6 && (callExpr.expression.text === "abort" || callExpr.expression.text === "unreachable")) {
+            return true;
         }
-        return true;
+        return false;
     });
 }
 export function removeExtension(filePath) {
     const parsed = path.parse(filePath);
     return path.join(parsed.dir, parsed.name);
+}
+export function getBreaker(node, parent = null) {
+    let breakStmt = Node.createBreakStatement(null, node.range);
+    if (parent) {
+        const returnType = toString(parent.signature.returnType);
+        if (returnType != "void" && returnType != "never") {
+            breakStmt = Node.createIfStatement(Node.createCallExpression(Node.createIdentifierExpression("isBoolean", node.range), [parent.signature.returnType], [], node.range), Node.createReturnStatement(Node.createFalseExpression(node.range), node.range), Node.createIfStatement(Node.createBinaryExpression(98, Node.createCallExpression(Node.createIdentifierExpression("isInteger", node.range), [parent.signature.returnType], [], node.range), Node.createCallExpression(Node.createIdentifierExpression("isFloat", node.range), [parent.signature.returnType], [], node.range), node.range), Node.createReturnStatement(Node.createIntegerLiteralExpression(i64_zero, node.range), node.range), Node.createIfStatement(Node.createBinaryExpression(98, Node.createCallExpression(Node.createIdentifierExpression("isManaged", node.range), [parent.signature.returnType], [], node.range), Node.createCallExpression(Node.createIdentifierExpression("isReference", node.range), [parent.signature.returnType], [], node.range), node.range), Node.createReturnStatement(Node.createCallExpression(Node.createIdentifierExpression("changetype", node.range), [parent.signature.returnType], [Node.createIntegerLiteralExpression(i64_zero, node.range)], node.range), node.range), Node.createReturnStatement(null, node.range), node.range), node.range), node.range);
+        }
+        else {
+            breakStmt = Node.createReturnStatement(null, node.range);
+        }
+    }
+    return breakStmt;
 }
 //# sourceMappingURL=utils.js.map

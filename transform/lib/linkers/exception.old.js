@@ -1,87 +1,49 @@
 import { Visitor } from "../lib/visitor.js";
-import {
-  Node,
-  CallExpression,
-  IdentifierExpression,
-  FunctionDeclaration,
-  ReturnStatement,
-  Token,
-  Statement,
-  BlockStatement,
-  BreakStatement,
-  DoStatement,
-  NodeKind,
-  NewExpression,
-  PropertyAccessExpression,
-  IfStatement,
-  ThrowStatement,
-  Program,
-} from "assemblyscript/dist/assemblyscript.js";
+import { Node } from "assemblyscript/dist/assemblyscript.js";
 import {
   cloneNode,
   getFnName,
   removeExtension,
-  replaceAfter,
   replaceRef,
   stripExpr,
 } from "../utils.js";
-import { FunctionData, FunctionLinker } from "./function.js";
+import { FunctionLinker } from "./function.old.js";
 import { SimpleParser, toString } from "../lib/util.js";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { existsSync } from "node:fs";
-
 const reservedFns = ["changetype", "__new", "__renew", "__link"];
 const DEBUG = process.env["DEBUG"]
   ? process.env["DEBUG"] == "true"
     ? true
     : false
   : false;
-
 export class ExceptionParent {
-  public exception: CallExpression | ThrowStatement;
-  public parent: FunctionDeclaration | DoStatement | null;
-  constructor(
-    exception: CallExpression | ThrowStatement,
-    parent: FunctionDeclaration | DoStatement | null = null,
-  ) {
+  exception;
+  parent;
+  constructor(exception, parent = null) {
     this.exception = exception;
     this.parent = parent;
   }
 }
-
 export class ExceptionLinker extends Visitor {
-  static SN: ExceptionLinker = new ExceptionLinker();
-
-  public program!: Program;
-  public baseDir!: string;
-
-  public changed: boolean = false;
-  public fn: FunctionDeclaration | null = null;
-  public loop: DoStatement | null = null;
-
-  public exceptions: ExceptionParent[] = [];
-
-  public baseException: boolean = false;
-
-  public imports: Set<string> = new Set<string>();
-
-  public linked: Set<string> = new Set<string>();
-
-  visitCallExpression(
-    node: CallExpression,
-    ref: Node | Node[] | null = null,
-  ): void {
+  static SN = new ExceptionLinker();
+  program;
+  baseDir;
+  changed = false;
+  fn = null;
+  loop = null;
+  exceptions = [];
+  baseException = false;
+  imports = new Set();
+  linked = new Set();
+  visitCallExpression(node, ref = null) {
     const fnName =
-      node.expression.kind == NodeKind.Identifier
-        ? (node.expression as IdentifierExpression).text
-        : (node.expression as PropertyAccessExpression).property.text;
-
+      node.expression.kind == 6
+        ? node.expression.text
+        : node.expression.property.text;
     if (reservedFns.includes(fnName)) return;
-
     if (fnName == "abort" || fnName == "unreachable") {
-      // if (fnName == "abort") this.addImport(new Set<string>(["__AbortState"]), node.range.source); else this.addImport(new Set<string>(["__UnreachableState"]), node.range.source);
-
       const newException =
         fnName == "abort"
           ? Node.createExpressionStatement(
@@ -111,9 +73,7 @@ export class ExceptionLinker extends Visitor {
                 node.range,
               ),
             );
-
       const breakerStmt = this.getBreaker(node, this.fn);
-
       if (!Array.isArray(ref))
         replaceRef(
           node,
@@ -125,19 +85,11 @@ export class ExceptionLinker extends Visitor {
       const linked = FunctionLinker.getFunction(node.expression);
       if (!linked) return;
       const linkedFn = linked.node;
-
-      // if (linkedFn.name.text != "parse") {
-      //   console.log("Skipping function: " + linkedFn.name.text);
-      //   console.log("Imported: " + linked.imported);
-      //   return;
-      // }
-
       if (linked.imported && !linked.path) {
         const baseDir = path.join(process.cwd(), this.baseDir);
         const pkgPath = path.join(baseDir, "node_modules");
         let fromPath = node.range.source.normalizedPath;
         let toPath = linkedFn.range.source.normalizedPath;
-
         toPath = toPath.startsWith("~lib/")
           ? existsSync(
               path.join(pkgPath, toPath.slice(5, toPath.indexOf("/", 5))),
@@ -145,7 +97,6 @@ export class ExceptionLinker extends Visitor {
             ? path.join(pkgPath, toPath.slice(5))
             : toPath
           : path.join(baseDir, toPath);
-
         fromPath = fromPath.startsWith("~lib/")
           ? existsSync(
               path.join(pkgPath, fromPath.slice(5, fromPath.indexOf("/", 5))),
@@ -153,18 +104,11 @@ export class ExceptionLinker extends Visitor {
             ? path.join(pkgPath, fromPath.slice(5))
             : fromPath
           : path.join(baseDir, fromPath);
-
-        // console.log("from: " + fromPath);
-        // console.log("to: " + toPath);
-        // console.log("base: " + baseDir);
-        // console.log("pkg: " + pkgPath);
-
         let relPath = removeExtension(
           path.posix.join(
             ...path.relative(path.dirname(fromPath), toPath).split(path.sep),
           ),
         );
-
         if (
           !relPath.startsWith(".") &&
           !relPath.startsWith("/") &&
@@ -172,9 +116,6 @@ export class ExceptionLinker extends Visitor {
         ) {
           relPath = "./" + relPath;
         }
-
-        // console.log("rel path: " + relPath)
-
         const importStmt = Node.createImportStatement(
           [
             Node.createImportDeclaration(
@@ -189,11 +130,9 @@ export class ExceptionLinker extends Visitor {
           Node.createStringLiteralExpression(relPath, node.range),
           node.range,
         );
-
         if (!this.imports.has("__try_" + linkedFn.name.text))
           node.range.source.statements.unshift(importStmt);
         this.imports.add("__try_" + linkedFn.name.text);
-
         if (DEBUG)
           console.log(
             "Import (call): " +
@@ -202,7 +141,6 @@ export class ExceptionLinker extends Visitor {
               node.range.source.internalPath,
           );
       }
-
       const overrideCall = Node.createExpressionStatement(
         Node.createCallExpression(
           linked.path
@@ -221,16 +159,13 @@ export class ExceptionLinker extends Visitor {
           node.range,
         ),
       );
-
       const remainingStmts = Array.isArray(ref)
         ? ref.findIndex((v) => stripExpr(v) == stripExpr(node))
         : -1;
-      // @ts-expect-error
       if (!this.fn && remainingStmts != -1 && remainingStmts < ref.length) {
-        // this.addImport(new Set<string>(["__ExceptionState"]), node.range.source)
         const errorCheck = Node.createIfStatement(
           Node.createUnaryPrefixExpression(
-            Token.Exclamation,
+            95,
             Node.createPropertyAccessExpression(
               Node.createIdentifierExpression("__ExceptionState", node.range),
               Node.createIdentifierExpression("Failed", node.range),
@@ -238,24 +173,18 @@ export class ExceptionLinker extends Visitor {
             ),
             node.range,
           ),
-          Node.createBlockStatement(
-            (ref as Statement[]).slice(remainingStmts + 1),
-            node.range,
-          ),
+          Node.createBlockStatement(ref.slice(remainingStmts + 1), node.range),
           null,
           node.range,
         );
-        // if (DEBUG) console.log("Error Check:" + toString(errorCheck));
-        super.visitBlockStatement(
-          errorCheck.ifTrue as BlockStatement,
-          errorCheck,
-        );
-        replaceAfter(node, [overrideCall, errorCheck], ref);
+        super.visitBlockStatement(errorCheck.ifTrue, errorCheck);
       } else {
-        const breaker = this.getBreaker(node, this.fn);
+        console.log("Fn: " + toString(this.fn));
+        console.log("Loop: " + toString(this.loop));
+        const breaker = this._getBreaker(node, null);
         const unrollStmt = Node.createIfStatement(
           Node.createBinaryExpression(
-            Token.Equals_Equals,
+            76,
             Node.createPropertyAccessExpression(
               Node.createIdentifierExpression(
                 "__ExceptionState",
@@ -271,14 +200,12 @@ export class ExceptionLinker extends Visitor {
           null,
           linkedFn.range,
         );
-
         replaceRef(node, [overrideCall, unrollStmt], ref);
         if (DEBUG)
           console.log(
             "Unroll Check: " + toString(unrollStmt) + "\nin\n" + toString(ref),
           );
       }
-
       if (!linked.linked && !this.linked.has(linkedFn.name.text)) {
         const linkedBody = linkedFn.body;
         const overrideFn = Node.createFunctionDeclaration(
@@ -290,42 +217,28 @@ export class ExceptionLinker extends Visitor {
           linkedFn.flags,
           linkedFn.typeParameters,
           linkedFn.signature,
-          // @ts-ignore
           cloneNode(linkedBody),
           linkedFn.arrowKind,
           linkedFn.range,
         );
-
         linked.linked = true;
         this.linked.add(linkedFn.name.text);
-        // console.log("Set Fn " + overrideFn.name.text);
         const lastFn = this.fn;
         this.fn = overrideFn;
-        // console.log("Release Fn " + overrideFn.name.text)
-        // if (DEBUG) console.log("Linked Fn: " + toString(overrideFn));
-        // console.log(toString(this.currentSource))
-        // console.log("Visit Override Fn: " + "__try_" + linkedFn.name.text);
         super.visit(overrideFn, ref);
         this.fn = lastFn;
         replaceRef(linkedFn, [linkedFn, overrideFn], linked.ref);
-        // console.log(toString(linkedFn.range.source))
       }
-
       if (DEBUG) console.log("Link: " + toString(overrideCall));
     }
     super.visitCallExpression(node, ref);
   }
-  visitThrowStatement(node: ThrowStatement, ref?: Node | Node[] | null): void {
-    const value = node.value as NewExpression;
-    if (
-      value.kind != NodeKind.New ||
-      (value as NewExpression).typeName.identifier.text != "Error"
-    )
+  visitThrowStatement(node, ref) {
+    const value = node.value;
+    if (value.kind != 17 || value.typeName.identifier.text != "Error")
       throw new Error(
         "__Exception handling only supports throwing Error classes",
       );
-
-    // this.addImport(new Set<string>(["__ErrorState"]), node.range.source);
     const newThrow = Node.createExpressionStatement(
       Node.createCallExpression(
         Node.createPropertyAccessExpression(
@@ -338,10 +251,7 @@ export class ExceptionLinker extends Visitor {
         node.range,
       ),
     );
-
-    // console.log("Fn (Throw): " + toString(this.fn));
     const breaker = this.getBreaker(node, this.fn);
-    // console.log("Breaker (Throw): " + toString(breaker));
     if (!Array.isArray(ref))
       replaceRef(
         node,
@@ -350,34 +260,125 @@ export class ExceptionLinker extends Visitor {
       );
     else replaceRef(node, [newThrow, breaker], ref);
   }
-  visitFunctionDeclaration(
-    node: FunctionDeclaration,
-    isDefault?: boolean,
-    ref?: Node | Node[] | null,
-  ): void {
-    // if (DEBUG) console.log("Set Fn " + node.name.text);
+  visitFunctionDeclaration(node, isDefault, ref) {
     const lastFn = this.fn;
     this.fn = node;
-    super.visit(node.body, node);
-    // if (DEBUG) console.log("Release Fn " + node.name.text)
+    this.visit(node.body, node);
     this.fn = lastFn;
     super.visit(node.name, node);
     super.visit(node.decorators, node);
     super.visit(node.typeParameters, node);
     super.visit(node.signature, node);
   }
-  getBreaker(
-    node: Node,
-    parent: FunctionDeclaration | null = null,
-  ): ReturnStatement | BreakStatement | IfStatement | null {
-    let breakStmt: ReturnStatement | BreakStatement | IfStatement | null =
-      Node.createReturnStatement(null, node.range);
-
-    if (!this.fn) {
+  visitDoStatement(node, ref) {
+    console.log("Enter Do Statement...");
+    const fn = this.fn;
+    if (this.fn) this.fn = null;
+    this.loop = node;
+    super.visit(node.condition, node);
+    super.visit(node.body, node);
+    this.fn = fn;
+    console.log("Exit Do Statement...");
+  }
+  visit(node, ref = null) {
+    const fn = this.fn;
+    const lp = this.loop;
+    if (node == null) return;
+    if (node instanceof Array) {
+      for (const n of node) {
+        this._visit(n, node);
+      }
+    } else {
+      this._visit(node, ref);
+    }
+  }
+  _getBreaker(node, parentFn = null) {
+    let breakStmt = Node.createBreakStatement(null, node.range);
+    if (parentFn) {
+      const returnType = toString(parentFn.signature.returnType);
+      if (DEBUG)
+        console.log(
+          "Return Type: " + returnType + " derived from " + parentFn.name.text,
+        );
+      if (returnType != "void" && returnType != "never") {
+        breakStmt = Node.createIfStatement(
+          Node.createCallExpression(
+            Node.createIdentifierExpression("isBoolean", node.range),
+            [parentFn.signature.returnType],
+            [],
+            node.range,
+          ),
+          Node.createReturnStatement(
+            Node.createFalseExpression(node.range),
+            node.range,
+          ),
+          Node.createIfStatement(
+            Node.createCallExpression(
+              Node.createIdentifierExpression("isInteger", node.range),
+              [parentFn.signature.returnType],
+              [],
+              node.range,
+            ),
+            Node.createReturnStatement(
+              Node.createIntegerLiteralExpression(i64_zero, node.range),
+              node.range,
+            ),
+            Node.createIfStatement(
+              Node.createCallExpression(
+                Node.createIdentifierExpression("isFloat", node.range),
+                [parentFn.signature.returnType],
+                [],
+                node.range,
+              ),
+              Node.createFloatLiteralExpression(0, node.range),
+              Node.createIfStatement(
+                Node.createBinaryExpression(
+                  98,
+                  Node.createCallExpression(
+                    Node.createIdentifierExpression("isManaged", node.range),
+                    [parentFn.signature.returnType],
+                    [],
+                    node.range,
+                  ),
+                  Node.createCallExpression(
+                    Node.createIdentifierExpression("isUnmanaged", node.range),
+                    [parentFn.signature.returnType],
+                    [],
+                    node.range,
+                  ),
+                  node.range,
+                ),
+                Node.createReturnStatement(
+                  Node.createCallExpression(
+                    Node.createIdentifierExpression("changetype", node.range),
+                    [parentFn.signature.returnType],
+                    [Node.createIntegerLiteralExpression(i64_zero, node.range)],
+                    node.range,
+                  ),
+                  node.range,
+                ),
+                Node.createReturnStatement(null, node.range),
+                node.range,
+              ),
+              node.range,
+            ),
+            node.range,
+          ),
+          node.range,
+        );
+      } else {
+        breakStmt = Node.createReturnStatement(null, node.range);
+      }
+    }
+    if (DEBUG) console.log("Break: " + toString(breakStmt));
+    return breakStmt;
+  }
+  getBreaker(node, parent = null) {
+    let breakStmt = Node.createReturnStatement(null, node.range);
+    if (this.loop) {
       breakStmt = Node.createBreakStatement(null, node.range);
       return breakStmt;
     }
-
     if (parent) {
       const returnType = toString(parent.signature.returnType);
       if (DEBUG)
@@ -417,7 +418,7 @@ export class ExceptionLinker extends Visitor {
               Node.createFloatLiteralExpression(0, node.range),
               Node.createIfStatement(
                 Node.createBinaryExpression(
-                  Token.Bar_Bar,
+                  98,
                   Node.createCallExpression(
                     Node.createIdentifierExpression("isManaged", node.range),
                     [parent.signature.returnType],
@@ -454,32 +455,26 @@ export class ExceptionLinker extends Visitor {
         breakStmt = Node.createReturnStatement(null, node.range);
       }
     }
-
     if (DEBUG) console.log("Return: " + toString(breakStmt));
     return breakStmt;
   }
-
-  static replace(node: Node | Node[]): void {
+  static replace(node) {
     const source = Array.isArray(node)
       ? node[0]?.range.source
       : node.range.source;
-
     ExceptionLinker.SN.fn = null;
     ExceptionLinker.SN.currentSource = source;
-
     if (ExceptionLinker.SN.currentSource.internalPath !== source.internalPath) {
-      ExceptionLinker.SN.imports = new Set<string>();
+      ExceptionLinker.SN.imports = new Set();
       ExceptionLinker.SN.exceptions = [];
       ExceptionLinker.SN.baseException = false;
     }
     ExceptionLinker.SN.visit(node);
   }
 }
-
-function calcPath(from: string, toName: string): string {
+function calcPath(from, toName) {
   const thisFile = fileURLToPath(import.meta.url);
   const baseDir = path.resolve(thisFile, "..", "..", "..", "..");
-
   let relPath = path.posix
     .join(
       ...path
@@ -490,7 +485,6 @@ function calcPath(from: string, toName: string): string {
         .split(path.sep),
     )
     .replace(/^.*node_modules\/try-as/, "try-as");
-
   if (
     !relPath.startsWith(".") &&
     !relPath.startsWith("/") &&
@@ -498,6 +492,6 @@ function calcPath(from: string, toName: string): string {
   ) {
     relPath = "./" + relPath;
   }
-
   return relPath;
 }
+//# sourceMappingURL=exception.old.js.map

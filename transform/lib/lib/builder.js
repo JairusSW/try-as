@@ -1,4 +1,4 @@
-import { isTypeOmitted, operatorTokenToString, util, } from "assemblyscript/dist/assemblyscript.js";
+import { isTypeOmitted, operatorTokenToString, util } from "assemblyscript/dist/assemblyscript.js";
 import { Visitor } from "./visitor.js";
 function assert(isTruish, message = "assertion error") {
     if (!isTruish)
@@ -521,9 +521,7 @@ export class ASTBuilder extends Visitor {
         else {
             let last = sb[sb.length - 1];
             let lastCharPos = last.length - 1;
-            if (lastCharPos >= 0 &&
-                (last.charCodeAt(lastCharPos) == 125 ||
-                    last.charCodeAt(lastCharPos) == 59)) {
+            if (lastCharPos >= 0 && (last.charCodeAt(lastCharPos) == 125 || last.charCodeAt(lastCharPos) == 59)) {
                 sb.push("\n");
             }
             else {
@@ -631,8 +629,7 @@ export class ASTBuilder extends Visitor {
             }
             for (let i = 0, k = members.length; i < k; ++i) {
                 let member = members[i];
-                if (member.kind != 54 ||
-                    member.parameterIndex < 0) {
+                if (member.kind != 54 || member.parameterIndex < 0) {
                     util.indent(sb, indentLevel);
                     this.visitNodeAndTerminate(member);
                 }
@@ -927,8 +924,7 @@ export class ASTBuilder extends Visitor {
             }
         }
         else {
-            if (!isTypeOmitted(returnType) &&
-                !node.isAny(524288 | 4096)) {
+            if (!isTypeOmitted(returnType) && !node.isAny(524288 | 4096)) {
                 sb.push("): ");
                 this.visitTypeNode(returnType);
             }
@@ -1249,11 +1245,7 @@ export class ASTBuilder extends Visitor {
         var numDeclarations = declarations.length;
         var firstDeclaration = declarations[0];
         this.serializeExternalModifiers(firstDeclaration);
-        sb.push(firstDeclaration.is(8)
-            ? "const "
-            : firstDeclaration.is(16)
-                ? "let "
-                : "var ");
+        sb.push(firstDeclaration.is(8) ? "const " : firstDeclaration.is(16) ? "let " : "var ");
         this.visitVariableDeclaration(node.declarations[0]);
         for (let i = 1; i < numDeclarations; ++i) {
             sb.push(", ");

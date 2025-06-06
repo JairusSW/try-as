@@ -1,31 +1,16 @@
 import { Visitor } from "../lib/visitor.js";
-import {
-  Node,
-  CallExpression,
-  IdentifierExpression,
-  Statement,
-  NodeKind,
-  PropertyAccessExpression,
-  BlockStatement,
-  ExpressionStatement,
-} from "assemblyscript/dist/assemblyscript.js";
-import { FunctionLinker } from "./function.js";
+import { FunctionLinker } from "./function.old.js";
 import { toString } from "../lib/util.js";
-
 const reservedFns = ["changetype", "__new", "__renew", "__link"];
 export class CallLinker extends Visitor {
-  static SN: CallLinker = new CallLinker();
-  public ignoredCalls: CallExpression[] = [];
-  public hasException: boolean = false;
-  visitCallExpression(
-    node: CallExpression,
-    ref: Node | Node[] | null = null,
-  ): void {
+  static SN = new CallLinker();
+  ignoredCalls = [];
+  hasException = false;
+  visitCallExpression(node, ref = null) {
     const fnName =
-      node.expression.kind == NodeKind.Identifier
-        ? (node.expression as IdentifierExpression).text
-        : (node.expression as PropertyAccessExpression).property.text;
-
+      node.expression.kind == 6
+        ? node.expression.text
+        : node.expression.property.text;
     if (
       reservedFns.includes(fnName) ||
       toString(node.expression).startsWith("__try_")
@@ -33,7 +18,6 @@ export class CallLinker extends Visitor {
       super.visitCallExpression(node, ref);
       return;
     }
-
     const linked = FunctionLinker.getFunction(node.expression);
     if (!linked) {
       super.visitCallExpression(node, ref);
@@ -41,11 +25,10 @@ export class CallLinker extends Visitor {
     }
     this.hasException = true;
   }
-  static hasException(body: Statement | Statement[]): boolean {
+  static hasException(body) {
     if (!body) return false;
     if (!Array.isArray(body)) {
-      if (body.kind == NodeKind.Block)
-        body = (body as BlockStatement).statements;
+      if (body.kind == 30) body = body.statements;
       else body = [body];
     }
     CallLinker.SN.visit(body);
@@ -55,3 +38,4 @@ export class CallLinker extends Visitor {
     return hasException;
   }
 }
+//# sourceMappingURL=call.old.js.map
