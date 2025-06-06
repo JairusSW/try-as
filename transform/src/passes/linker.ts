@@ -119,7 +119,6 @@ export class Linker extends Visitor {
       // }
 
       if (fnRef.hasTry) {
-
       }
       fnRef.overrided = true;
       this.override = true;
@@ -137,24 +136,7 @@ export class Linker extends Visitor {
     const breaker = getBreaker(node, this.fn?.node);
 
     const newExpr = node.value as NewExpression;
-    const newThrow = Node.createExpressionStatement(
-      Node.createCallExpression(
-        Node.createPropertyAccessExpression(
-          Node.createIdentifierExpression(
-            "__ErrorState",
-            node.range
-          ),
-          Node.createIdentifierExpression(
-            "error",
-            node.range
-          ),
-          node.range
-        ),
-        null,
-        newExpr.args,
-        node.range
-      )
-    );
+    const newThrow = Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range), null, newExpr.args, node.range));
 
     console.log("New Exception: " + toString(newThrow));
     replaceRef(node, [newThrow, breaker], ref);
@@ -236,7 +218,7 @@ export class Linker extends Visitor {
 
     tryBlock = /*node.bodyStatements.length == 1 && hasBaseException(node.bodyStatements) ? Node.createBlockStatement([...node.bodyStatements], tryRange) : */ Node.createDoStatement(Node.createBlockStatement([...cloneNode(node.bodyStatements)], tryRange), Node.createFalseExpression(node.range), tryRange);
 
-    console.log("Ref: " + toString(ref))
+    console.log("Ref: " + toString(ref));
     console.log("Try Block/Loop: " + toString(tryBlock));
 
     if (node.catchStatements?.length) {

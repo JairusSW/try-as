@@ -85,12 +85,13 @@ export class FunctionLinker extends Visitor {
     const rawFnName = getFnName(node.expression);
     let fnRef = this.fnRefs.find((v) => v.name == rawFnName); // Local Search
     if (fnRef) {
-      console.log("Found " + fnName + " locally")
+      console.log("Found " + fnName + " locally");
       console.log("Added Function: " + (this.path.length ? this.path.join(".") + "." : "") + fnRef.node.name.text + " from " + node.range.source.internalPath);
       Try.SN.addFnRef(node.range.source, fnRef);
     } else {
       let externDec: ImportDeclaration | null = null;
-      const externImport = this.imports.find((v) => { // External search
+      const externImport = this.imports.find((v) => {
+        // External search
         for (const dec of v.declarations) {
           if (fnName.includes(dec.name.text)) {
             externDec = dec;
@@ -103,7 +104,7 @@ export class FunctionLinker extends Visitor {
       if (externImport) {
         fnRef = Try.SN.getFnByName(externImport.internalPath, fnName);
         if (!fnRef) return;
-        if (fnRef) console.log("Found " + fnName + " externally")
+        if (fnRef) console.log("Found " + fnName + " externally");
         // console.log("Added Function: " + (this.path.length ? this.path.join(".") + "." : "") + fnRef.node.name.text + " from " + fnRef.node.range.source.internalPath);
         // Try.SN.addFnRef(fnRef.node.range.source, fnRef);
         if (!externImport.declarations.some((v) => v.name.text == "__try_" + fnRef.name)) {
@@ -121,7 +122,13 @@ export class FunctionLinker extends Visitor {
 
     this.callStack.add(fnRef);
 
-    console.log("Call Stack: " + Array.from(this.callStack.values()).reverse().map((v) => v.name).join(" -> "));
+    console.log(
+      "Call Stack: " +
+        Array.from(this.callStack.values())
+          .reverse()
+          .map((v) => v.name)
+          .join(" -> "),
+    );
     super.visitCallExpression(node, ref);
   }
   visitNamespaceDeclaration(node: NamespaceDeclaration, isDefault?: boolean, ref?: Node | Node[] | null): void {

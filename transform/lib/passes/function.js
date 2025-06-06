@@ -106,7 +106,11 @@ export class FunctionLinker extends Visitor {
             return;
         const callRef = new CallRef(node, ref, this.path.slice());
         this.callStack.add(fnRef);
-        console.log("Call Stack: " + Array.from(this.callStack.values()).reverse().map((v) => v.name).join(" -> "));
+        console.log("Call Stack: " +
+            Array.from(this.callStack.values())
+                .reverse()
+                .map((v) => v.name)
+                .join(" -> "));
         super.visitCallExpression(node, ref);
     }
     visitNamespaceDeclaration(node, isDefault, ref) {

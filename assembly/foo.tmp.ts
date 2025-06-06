@@ -1,16 +1,7 @@
-import {
-  ErrorState as __ErrorState
-} from "./types/error";
-import {
-  UnreachableState as __UnreachableState
-} from "./types/unreachable";
-import {
-  AbortState as __AbortState
-} from "./types/abort";
-import {
-  Exception as __Exception,
-  ExceptionState as __ExceptionState
-} from "./types/exception";
+import { ErrorState as __ErrorState } from "./types/error";
+import { UnreachableState as __UnreachableState } from "./types/unreachable";
+import { AbortState as __AbortState } from "./types/abort";
+import { Exception as __Exception, ExceptionState as __ExceptionState } from "./types/exception";
 export function foo(): void {
   abort("Aborted from foo");
 }
