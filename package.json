@@ -20,8 +20,13 @@
     "url": "https://github.com/JairusSW/try-as/issues"
   },
   "contributors": [],
-  "description": "Exception hand
-Counting objects: 100% (127/127), done.
+  "description": "Exception handling for AssemblyScript",
+  "homepage": "https://github.com/JairusSW/try-as#readme",
+  "keywords": [
+    "assemblyscript",
+    "exception",
+    "handling",
+    "try",
     "catch",
     "error",
     "abort",
