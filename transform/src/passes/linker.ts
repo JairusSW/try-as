@@ -1,4 +1,4 @@
-import { BlockStatement, CallExpression, ClassDeclaration, CommonFlags, DoStatement, ForOfStatement, ForStatement, FunctionDeclaration, ImportDeclaration, NamespaceDeclaration, NewExpression, Node, NodeKind, Range, Source, Token } from "assemblyscript/dist/assemblyscript.js";
+import { BlockStatement, CallExpression, ClassDeclaration, CommonFlags, DoStatement, ForOfStatement, ForStatement, FunctionDeclaration, IdentifierExpression, ImportDeclaration, ImportStatement, NamespaceDeclaration, NewExpression, Node, NodeKind, PropertyAccessExpression, Range, Source, Token } from "assemblyscript/dist/assemblyscript.js";
 import { Visitor } from "../lib/visitor.js";
 import { CallRef, FunctionRef, Try, LoopRef, SourceData, ExceptionRef, TryInstance } from "../transform.js";
 import { blockify, cloneNode, getBreaker, getFnName, replaceRef, stripExpr } from "../utils.js";
@@ -27,73 +27,35 @@ export class Linker extends Visitor {
 
   public tlv: boolean = false;
   public override: boolean = false;
+  public imports: ImportStatement[] = [];
 
+  public fns: [FunctionDeclaration, string[]][] = [];
+  visitImportStatement(node: ImportStatement, ref?: Node | Node[] | null): void {
+    this.imports.push(node);
+    super.visitImportStatement(node, ref);
+  }
   visitFunctionDeclaration(node: FunctionDeclaration, isDefault?: boolean, ref?: Node | Node[] | null): void {
-    console.log("Visiting Function: " + node.name.text);
+    this.fns.push([node, this.path.slice()]);
     if (!node.name.text.length) return super.visitFunctionDeclaration(node, isDefault, ref);
     const oldFn = this.fn;
     const oldLoop = this.loop;
-    this.fn = new FunctionRef(node, [], ref);
     if (this.loop) this.loop = null;
-    super.visitFunctionDeclaration(node, isDefault, ref);
+    const fnName = getFnName(node.name, this.fns.find((v) => v[0] == node)[1]);
+    let fnRef = Try.SN.getFnByName(node.range.source, fnName);
+    this.fn = fnRef || new FunctionRef(node, [], ref, this.path.slice());
+    if (!fnRef) {
+      super.visitFunctionDeclaration(node, isDefault, ref);
+    } else {
+      this.replaceFunctionRef(fnRef);
+    }
     this.loop = oldLoop;
     this.fn = oldFn;
     return;
   }
-  visitCallExpression(node: CallExpression, ref?: Node | Node[] | null): void {
-    super.visitCallExpression(node, ref);
-    let fnName = getFnName(node.expression, this.path);
-    if (fnName == "unreachable" || fnName == "abort") {
-      this.replaceExceptionCall(node, ref);
-      return;
-    }
-
-    fnName = getFnName(node.expression, this.path);
-    let fnRef = Try.SN.getFnByName(node.range.source, fnName);
-    if (fnRef) {
-      console.log("Found " + fnName + " locally (linking)");
-    }
-    if (!fnRef) {
-      let externDec: ImportDeclaration | null = null;
-      const externImport = this.src.imports.find((v) => {
-        for (const dec of v.declarations) {
-          if (fnName.includes(dec.name.text)) {
-            externDec = dec;
-            return v;
-          }
-        }
-        return null;
-      });
-
-      if (externImport) {
-        fnRef = Try.SN.getFnByName(externImport.internalPath, fnName);
-        if (!fnRef) return;
-        console.log("Found " + fnName + " externally (linking)");
-        if (!externImport.declarations.some((v) => v.name.text == "__try_" + fnRef.name)) {
-          const newImport = Node.createImportDeclaration(Node.createIdentifierExpression("__try_" + externDec.foreignName.text, node.range), Node.createIdentifierExpression("__try_" + fnRef.name, node.range, false), node.range);
-
-          externImport.declarations.push(newImport);
-        }
-      }
-    }
-    if (!fnRef) return;
-    const callRef = new CallRef(node, ref, this.path.slice());
-
-    if (fnRef.callers.find((c) => c.node == node)) return;
-    fnRef.callers.push(callRef);
-
-    console.log("Added Call: " + fnRef.node.name.text);
-    let breaker = getBreaker(node, this.fn?.node);
-    let unrollCheck = Node.createIfStatement(Node.createBinaryExpression(Token.GreaterThan, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", node.range), Node.createIdentifierExpression("Failures", node.range), node.range), Node.createIntegerLiteralExpression(i64_zero, node.range), node.range), blockify(breaker), null, node.range);
-    const overrideCall = Node.createExpressionStatement(Node.createCallExpression(fnRef.path ? SimpleParser.parseExpression(getFnName("__try_" + fnRef.name, fnRef.path)) : Node.createIdentifierExpression(getFnName("__try_" + fnRef.node.name.text), node.expression.range), node.typeArguments, node.args, node.range));
-    replaceRef(node, [overrideCall, unrollCheck], ref);
-    console.log("Replaced Call: " + toString(overrideCall));
-
+  replaceFunctionRef(fnRef: FunctionRef): void {
     if (!fnRef.overrided) {
-      breaker = getBreaker(fnRef.node, fnRef.node);
-      console.log("FUNC:22 ", toString(fnRef.node));
-
-      unrollCheck = Node.createIfStatement(Node.createBinaryExpression(Token.GreaterThan, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", fnRef.node.range), Node.createIdentifierExpression("Failures", fnRef.node.range), fnRef.node.range), Node.createIntegerLiteralExpression(i64_zero, fnRef.node.range), fnRef.node.range), blockify(breaker), null, fnRef.node.range);
+      const breaker = getBreaker(fnRef.node, fnRef.node);
+      const unrollCheck = Node.createIfStatement(Node.createBinaryExpression(Token.GreaterThan, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", fnRef.node.range), Node.createIdentifierExpression("Failures", fnRef.node.range), fnRef.node.range), Node.createIntegerLiteralExpression(i64_zero, fnRef.node.range), fnRef.node.range), blockify(breaker), null, fnRef.node.range);
 
       const newBody = Node.createBlockStatement([unrollCheck, ...cloneNode(blockify(fnRef.node.body)).statements], fnRef.node.range);
 
@@ -123,10 +85,65 @@ export class Linker extends Visitor {
       fnRef.overrided = true;
       this.override = true;
       replaceRef(fnRef.node, [fnRef.node, overrideFn], fnRef.ref);
-      this.visit(overrideFn);
+      super.visit(overrideFn);
       console.log("Done visiting override function " + overrideFn.name.text);
       this.override = false;
     }
+  }
+  visitCallExpression(node: CallExpression, ref?: Node | Node[] | null): void {
+    super.visitCallExpression(node, ref);
+    let fnName = getFnName(node.expression);
+    if (fnName == "unreachable" || fnName == "abort") {
+      this.replaceExceptionRef(node, ref);
+      return;
+    }
+
+    console.log("Looking for " + fnName + " (linking)");
+    fnName = getFnName(node.expression)
+    let fnRef = Try.SN.getFnByName(node.range.source, fnName);
+    if (fnRef) {
+      console.log("Found " + fnName + " locally (linking)");
+    }
+    if (!fnRef) {
+      const externImport = this.imports.find((v) => {
+        for (const dec of v.declarations) {
+          if (fnName.includes(dec.name.text)) {
+            return v;
+          }
+        }
+        return null;
+      });
+
+      if (externImport) {
+        fnRef = Try.SN.getFnByName(externImport.internalPath, fnName);
+        if (!fnRef) return;
+        console.log("Found " + fnName + " externally (linking)");
+      }
+    }
+    if (!fnRef) return;
+    const callRef = new CallRef(node, ref, this.path.slice());
+
+    if (fnRef.callers.find((c) => c.node == node)) return;
+    fnRef.callers.push(callRef);
+
+    console.log("Added Call: " + fnRef.node.name.text);
+    let breaker = getBreaker(node, this.fn?.node);
+
+    const newName = node.expression.kind == NodeKind.PropertyAccess
+      ? Node.createPropertyAccessExpression(
+        (node.expression as PropertyAccessExpression).expression,
+        Node.createIdentifierExpression("__try_" + (node.expression as PropertyAccessExpression).property.text, node.range),
+        node.range
+      )
+      :
+      Node.createIdentifierExpression("__try_" + (node.expression as IdentifierExpression).text, node.range);
+
+    let unrollCheck = Node.createIfStatement(Node.createBinaryExpression(Token.GreaterThan, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", node.range), Node.createIdentifierExpression("Failures", node.range), node.range), Node.createIntegerLiteralExpression(i64_zero, node.range), node.range), blockify(breaker), null, node.range);
+    const overrideCall = Node.createExpressionStatement(Node.createCallExpression(newName, node.typeArguments, node.args, node.range));
+    replaceRef(node, [overrideCall, unrollCheck], ref);
+    console.log("Replaced Call: " + toString(overrideCall));
+
+    this.replaceFunctionRef(fnRef);
   }
 
   visitThrowStatement(node: ThrowStatement, ref?: Node | Node[] | null): void {
@@ -142,7 +159,7 @@ export class Linker extends Visitor {
     replaceRef(node, [newThrow, breaker], ref);
   }
 
-  replaceExceptionCall(node: CallExpression, ref?: Node | Node[] | null): void {
+  replaceExceptionRef(node: CallExpression, ref?: Node | Node[] | null): void {
     console.log("Replacing Exception Call: " + toString(node));
     const fnName = getFnName(node.expression);
     const newException = fnName == "abort" ? Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__AbortState", node.range), Node.createIdentifierExpression("abort", node.range), node.range), null, node.args, node.range)) : Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__UnreachableState", node.range), Node.createIdentifierExpression("unreachable", node.range), node.range), null, node.args, node.range));
@@ -218,7 +235,7 @@ export class Linker extends Visitor {
 
     tryBlock = /*node.bodyStatements.length == 1 && hasBaseException(node.bodyStatements) ? Node.createBlockStatement([...node.bodyStatements], tryRange) : */ Node.createDoStatement(Node.createBlockStatement([...cloneNode(node.bodyStatements)], tryRange), Node.createFalseExpression(node.range), tryRange);
 
-    console.log("Ref: " + toString(ref));
+    // console.log("Ref: " + toString(ref));
     console.log("Try Block/Loop: " + toString(tryBlock));
 
     if (node.catchStatements?.length) {

@@ -17,6 +17,7 @@ export class SourceData {
   public functions: FunctionRef[] = [];
   public imports: ImportStatement[] = [];
   public visited: boolean = false;
+  public visiting: boolean = false;
   constructor(source: Source) {
     this.source = source;
   }
@@ -249,8 +250,9 @@ export class Try extends Visitor {
 
   visitSrc(node: Source, fnLinker: FunctionLinker = FunctionLinker.SN): void {
     this.src = this.sources.find((s) => s.source.internalPath == node.internalPath);
-    if (this.src && this.src.visited) return;
+    if (this.src?.visited || this.src?.visiting) return;
 
+    this.src.visiting = true;
     this.functions = this.src.functions;
     this.exceptions = this.src.exceptions;
     this.imports = this.src.imports;
@@ -267,7 +269,7 @@ export class Try extends Visitor {
     console.log("Marking " + node.internalPath + " as visited");
     this.src.visited = true;
 
-    if (this.exceptions.length || this.functions.length) this.addImports(node);
+    this.addImports(node);
   }
 
   addImports(node: Source): void {

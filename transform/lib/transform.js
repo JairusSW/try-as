@@ -14,6 +14,7 @@ export class SourceData {
     functions = [];
     imports = [];
     visited = false;
+    visiting = false;
     constructor(source) {
         this.source = source;
     }
@@ -225,8 +226,9 @@ export class Try extends Visitor {
     }
     visitSrc(node, fnLinker = FunctionLinker.SN) {
         this.src = this.sources.find((s) => s.source.internalPath == node.internalPath);
-        if (this.src && this.src.visited)
+        if (this.src?.visited || this.src?.visiting)
             return;
+        this.src.visiting = true;
         this.functions = this.src.functions;
         this.exceptions = this.src.exceptions;
         this.imports = this.src.imports;
@@ -240,8 +242,7 @@ export class Try extends Visitor {
         super.visitSource(node);
         console.log("Marking " + node.internalPath + " as visited");
         this.src.visited = true;
-        if (this.exceptions.length || this.functions.length)
-            this.addImports(node);
+        this.addImports(node);
     }
     addImports(node) {
         const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..");

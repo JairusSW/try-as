@@ -93,6 +93,8 @@ export default class Transformer extends Transform {
     }
 
     console.log("\n=========LINKING=========\n");
+    // const entry = parser.sources.find((v) => v.sourceKind === SourceKind.UserEntry);
+    // Linker.runPass(entry);
     for (const source of sources) {
       Linker.runPass(source);
     }
@@ -101,10 +103,10 @@ export default class Transformer extends Transform {
     // Linker.link();
 
     if (WRITE) {
-      const source1 = parser.sources.find((v) => v.normalizedPath.startsWith("assembly/__tests__/all.spec"));
+      const source1 = parser.sources.find((v) => v.normalizedPath.startsWith("assembly/foo"));
       if (source1) {
         console.log("Writing out");
-        writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension("assembly/__tests__/all.spec") + ".tmp.ts"), toString(source1));
+        writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension("assembly/foo") + ".tmp.ts"), toString(source1));
       }
       const source = parser.sources.find((v) => v.normalizedPath.startsWith(WRITE));
       if (source) {
@@ -113,6 +115,6 @@ export default class Transformer extends Transform {
       }
     }
 
-    // console.log(Try.SN.sources.find((v) => v.source.normalizedPath == "assembly/test.ts")?.exceptions);
+    console.log(Try.SN.sources.find((v) => v.source.normalizedPath == "~lib/json-as/")?.functions);
   }
 }

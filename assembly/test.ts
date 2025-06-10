@@ -1,4 +1,7 @@
-import { foo } from "./foo";
+// import { foo } from "./foo";
+
+// import { FOO, foo } from "./foo";
+import { JSON } from "json-as"
 
 // function callFoo(): void {
 //   foo();
@@ -30,20 +33,41 @@ import { foo } from "./foo";
 //   process.exit(0);
 // }
 
+// namespace BAR {
+//   export function bar(): void {
+//     abort("Aborted from BAR.bar");
+//   }
+// }
+// export function bar(): void {
+//   abort("Aborted from bar");
+// }
+// try {
+//   // foo();
+//   // FOO.foo();
+//   // bar();
+//   BAR.bar();
+//   console.log("This should not execute");
+// } catch (e) {
+//   console.log(e.toString());
+// }
+
+// function abortingFunction(): void {
+//   abort("Aborted from abortingFunction");
+// }
+
+// function nestedAbortingFunction(): void {
+//   try {
+//     abortingFunction();
+//   } catch (e) {
+//     abort("Aborted from nestedAbortingFunction");
+//   }
+// }
+
+class Vec3 {
+  
+}
 try {
-  nestedAbortingFunction();
+  JSON.parse<Vec3>("invalid json")
 } catch (e) {
-  console.log(e.toString());
-}
-
-function abortingFunction(): void {
-  abort("Aborted from abortingFunction");
-}
-
-function nestedAbortingFunction(): void {
-  try {
-    abortingFunction();
-  } catch (e) {
-    abort("Aborted from nestedAbortingFunction");
-  }
+  console.log("Caught Error: " + e.toString())
 }

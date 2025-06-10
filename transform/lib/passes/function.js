@@ -2,6 +2,7 @@ import { Node } from "assemblyscript/dist/assemblyscript.js";
 import { Visitor } from "../lib/visitor.js";
 import { CallRef, FunctionRef, Try } from "../transform.js";
 import { getFnName, hasBaseException } from "../utils.js";
+import { isStdlib } from "../lib/util.js";
 export class FunctionLinker extends Visitor {
     static SN = new FunctionLinker();
     callStack = new Set();
@@ -15,10 +16,15 @@ export class FunctionLinker extends Visitor {
     stage = "gather";
     visitImportStatement(node, ref) {
         if (!Try.SN.sources.find((v) => v.source.internalPath == node.internalPath)?.visited) {
-            const externSource = Try.SN.parser.sources.find((v) => v.internalPath == node.internalPath);
-            if (externSource) {
-                console.log("Redirecting from " + node.range.source.internalPath + " to " + externSource.internalPath);
-                Try.SN.visitSrc(externSource, new FunctionLinker());
+            const externSource = Try.SN.sources.find((v) => v.source.internalPath == node.internalPath);
+            if (externSource && !externSource.visited && !externSource.visiting) {
+                const externPath = externSource.source.internalPath;
+                if (externPath.startsWith("~lib/rt") || externPath.startsWith("~lib/performance") || externPath.startsWith("~lib/wasi_") || externPath.startsWith("~lib/shared/"))
+                    return;
+                if (isStdlib(externSource.source))
+                    return;
+                console.log("Redirecting from " + node.range.source.internalPath + " to " + externSource.source.internalPath);
+                Try.SN.visitSrc(externSource.source, new FunctionLinker());
                 console.log("Back to " + node.range.source.internalPath);
             }
         }
@@ -34,7 +40,7 @@ export class FunctionLinker extends Visitor {
             return;
         if (!node.body || !node.name.text.length)
             return;
-        const fnRef = new FunctionRef(node, [], ref);
+        const fnRef = new FunctionRef(node, [], ref, this.path.slice());
         if (node.flags & 2)
             fnRef.exported = true;
         if (hasBaseException(node.body.statements))
@@ -48,8 +54,8 @@ export class FunctionLinker extends Visitor {
         this.callStack.add(fnRef);
         if (this.foundException) {
             fnRef.hasException = true;
-            Try.SN.addFnRef(node.range.source, fnRef, false);
-            console.log("Added Function: " + (this.path.length ? this.path.join(".") + "." : "") + node.name.text + " from " + node.range.source.internalPath);
+            Try.SN.addFnRef(node.range.source, fnRef);
+            console.log("Added Function: " + fnRef.name + " from " + node.range.source.internalPath);
             if (!this.searching)
                 this.foundException = false;
             for (const call of this.callStack.values()) {
@@ -59,7 +65,7 @@ export class FunctionLinker extends Visitor {
         this.callStack.delete(fnRef);
     }
     visitCallExpression(node, ref = null) {
-        const fnName = getFnName(node.expression, this.path);
+        const fnName = getFnName(node.expression);
         if (fnName == "unreachable" || fnName == "abort") {
             this.foundException = true;
             return super.visitCallExpression(node, ref);
@@ -72,11 +78,10 @@ export class FunctionLinker extends Visitor {
             return;
         if (!node.expression)
             return;
-        const rawFnName = getFnName(node.expression);
-        let fnRef = this.fnRefs.find((v) => v.name == rawFnName);
+        let fnRef = this.fnRefs.find((v) => v.name == fnName);
         if (fnRef) {
             console.log("Found " + fnName + " locally");
-            console.log("Added Function: " + (this.path.length ? this.path.join(".") + "." : "") + fnRef.node.name.text + " from " + node.range.source.internalPath);
+            console.log("Added Function: " + getFnName(node.expression) + " from " + node.range.source.internalPath);
             Try.SN.addFnRef(node.range.source, fnRef);
         }
         else {
@@ -96,7 +101,7 @@ export class FunctionLinker extends Visitor {
                     return;
                 if (fnRef)
                     console.log("Found " + fnName + " externally");
-                if (!externImport.declarations.some((v) => v.name.text == "__try_" + fnRef.name)) {
+                if (!fnRef.path.length && !externImport.declarations.some((v) => v.name.text == "__try_" + fnRef.name)) {
                     const newImport = Node.createImportDeclaration(Node.createIdentifierExpression("__try_" + externDec.foreignName.text, node.range), Node.createIdentifierExpression("__try_" + fnRef.name, node.range, false), node.range);
                     externImport.declarations.push(newImport);
                 }
