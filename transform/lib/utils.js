@@ -1,7 +1,6 @@
 import { Node } from "assemblyscript/dist/assemblyscript.js";
 import path from "path";
 import { toString } from "./lib/util.js";
-import { Try } from "./transform.js";
 export function replaceRef(node, replacement, ref) {
     if (!node || !ref)
         return;
@@ -158,23 +157,6 @@ export function hasBaseException(statements) {
             v = v.expression;
         if (v.kind == 9 && v.expression.kind == 6 && (v.expression.text == "abort" || v.expression.text == "unreachable"))
             return true;
-        if (v.kind == 45)
-            return true;
-        return false;
-    });
-}
-export function hasException(statements) {
-    return statements.some((v) => {
-        if (!v)
-            return false;
-        if (v.kind == 38)
-            v = v.expression;
-        if (v.kind == 9) {
-            if (v.expression.kind == 6 && (v.expression.text == "abort" || v.expression.text == "unreachable"))
-                return true;
-            if (Try.SN.getFnByName(v.range.source, getFnName(v.expression)))
-                return true;
-        }
         if (v.kind == 45)
             return true;
         return false;

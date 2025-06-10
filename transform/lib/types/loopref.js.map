@@ -1,0 +1,1 @@
+{"version":3,"file":"loopref.js","sourceRoot":"","sources":["../../src/types/loopref.ts"],"names":[],"mappings":"AAEA,MAAM,OAAO,OAAO;IACX,IAAI,CAA+D;IACnE,GAAG,CAAuB;IACjC,YAAY,IAAkE,EAAE,GAAyB;QACvG,IAAI,CAAC,IAAI,GAAG,IAAI,CAAC;QACjB,IAAI,CAAC,GAAG,GAAG,GAAG,CAAC;IACjB,CAAC;CACF"}

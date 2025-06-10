@@ -1,7 +1,7 @@
 import { BlockStatement, BreakStatement, CallExpression, ExpressionStatement, FunctionDeclaration, IdentifierExpression, IfStatement, Node, NodeKind, PropertyAccessExpression, ReturnStatement, Statement, Token } from "assemblyscript/dist/assemblyscript.js";
 import path from "path";
 import { toString } from "./lib/util.js";
-import { Try } from "./transform.js";
+// import { Try } from "./transform.js";
 
 export function replaceRef(node: Node, replacement: Node | Node[], ref: Node | Node[] | null): void {
   if (!node || !ref) return;
@@ -156,18 +156,18 @@ export function hasBaseException(statements: Statement[]): boolean {
   });
 }
 
-export function hasException(statements: Statement[]): boolean {
-  return statements.some((v) => {
-    if (!v) return false;
-    if (v.kind == NodeKind.Expression) v = (v as ExpressionStatement).expression;
-    if (v.kind == NodeKind.Call) {
-      if ((v as CallExpression).expression.kind == NodeKind.Identifier && (((v as CallExpression).expression as IdentifierExpression).text == "abort" || ((v as CallExpression).expression as IdentifierExpression).text == "unreachable")) return true;
-      if (Try.SN.getFnByName(v.range.source, getFnName((v as CallExpression).expression))) return true;
-    }
-    if (v.kind == NodeKind.Throw) return true;
-    return false;
-  });
-}
+// export function hasException(statements: Statement[]): boolean {
+//   return statements.some((v) => {
+//     if (!v) return false;
+//     if (v.kind == NodeKind.Expression) v = (v as ExpressionStatement).expression;
+//     if (v.kind == NodeKind.Call) {
+//       if ((v as CallExpression).expression.kind == NodeKind.Identifier && (((v as CallExpression).expression as IdentifierExpression).text == "abort" || ((v as CallExpression).expression as IdentifierExpression).text == "unreachable")) return true;
+//       if (Try.SN.getFnByName(v.range.source, getFnName((v as CallExpression).expression))) return true;
+//     }
+//     if (v.kind == NodeKind.Throw) return true;
+//     return false;
+//   });
+// }
 
 export function hasOnlyExceptions(statements: Statement[]): boolean {
   return statements.every((v) => {

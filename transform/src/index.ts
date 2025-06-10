@@ -1,13 +1,14 @@
 import { Parser, SourceKind } from "assemblyscript/dist/assemblyscript.js";
 import { Transform } from "assemblyscript/dist/transform.js";
-import { SourceData, Try } from "./transform.js";
+// import { SourceRef, Try } from "./transform.js";
+import { SourceLinker } from "./passes/source.js";
 // import { FunctionLinker } from "./linkers/function.old.js";
 import { isStdlib, toString } from "./lib/util.js";
 import { fileURLToPath } from "url";
 import path from "path";
-import fs, { writeFileSync } from "fs";
-import { Linker, PassKind } from "./passes/linker.js";
-import { removeExtension } from "./utils.js";
+import fs from "fs";
+// import { Linker, PassKind } from "./passes/linker.js";
+// import { removeExtension } from "./utils.js";
 // import { ExceptionLinker } from "./linkers/exception.old.js";
 const WRITE = process.env["WRITE"];
 export default class Transformer extends Transform {
@@ -15,9 +16,9 @@ export default class Transformer extends Transform {
     let sources = parser.sources;
 
     const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..");
-    // sources.forEach(v => console.log(v.normalizedPath));
+    // // sources.forEach(v => console.log(v.normalizedPath));
 
-    // console.log("Base Dir: " + baseDir);
+    // // console.log("Base Dir: " + baseDir);
 
     const isLib = path.dirname(baseDir).endsWith("node_modules");
 
@@ -75,46 +76,48 @@ export default class Transformer extends Transform {
 
     // FunctionLinker.visitSources(sources);
 
-    const transformer = Try.SN;
-    transformer.program = this.program;
-    transformer.baseDir = this.baseDir;
-    transformer.baseCWD = path.join(process.cwd(), this.baseDir);
-    transformer.parser = parser;
+    // const transformer = Try.SN;
+    // transformer.program = this.program;
+    // transformer.baseDir = this.baseDir;
+    // transformer.baseCWD = path.join(process.cwd(), this.baseDir);
+    // transformer.parser = parser;
 
-    for (const source of sources) {
-      const src = new SourceData(source);
-      Try.SN.sources.push(src);
-    }
+    // for (const source of sources) {
+    //   const src = new SourceRef(source);
+    //   Try.SN.sources.push(src);
+    // }
 
-    console.log("\n========VISITING=========\n");
-    for (const source of sources) {
-      console.log("Visiting: " + source.normalizedPath);
-      transformer.visitSrc(source);
-    }
+    // console.log("\n========VISITING=========\n");
+    // for (const source of sources) {
+    //   console.log("Visiting: " + source.normalizedPath);
+    //   transformer.visitSrc(source);
+    // }
 
-    console.log("\n=========LINKING=========\n");
-    // const entry = parser.sources.find((v) => v.sourceKind === SourceKind.UserEntry);
-    // Linker.runPass(entry);
-    for (const source of sources) {
-      Linker.runPass(source);
-    }
+    // console.log("\n=========LINKING=========\n");
+    // // const entry = parser.sources.find((v) => v.sourceKind === SourceKind.UserEntry);
+    // // Linker.runPass(entry);
+    // for (const source of sources) {
+    //   Linker.runPass(source);
+    // }
 
-    // console.log("Linking Code...");
-    // Linker.link();
+    // // console.log("Linking Code...");
+    // // Linker.link();
 
-    if (WRITE) {
-      const source1 = parser.sources.find((v) => v.normalizedPath.startsWith("assembly/foo"));
-      if (source1) {
-        console.log("Writing out");
-        writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension("assembly/foo") + ".tmp.ts"), toString(source1));
-      }
-      const source = parser.sources.find((v) => v.normalizedPath.startsWith(WRITE));
-      if (source) {
-        console.log("Writing out");
-        writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension(WRITE) + ".tmp.ts"), toString(source));
-      }
-    }
+    // if (WRITE) {
+    //   const source1 = parser.sources.find((v) => v.normalizedPath.startsWith("assembly/foo"));
+    //   if (source1) {
+    //     console.log("Writing out");
+    //     writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension("assembly/foo") + ".tmp.ts"), toString(source1));
+    //   }
+    //   const source = parser.sources.find((v) => v.normalizedPath.startsWith(WRITE));
+    //   if (source) {
+    //     console.log("Writing out");
+    //     writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension(WRITE) + ".tmp.ts"), toString(source));
+    //   }
+    // }
 
-    console.log(Try.SN.sources.find((v) => v.source.normalizedPath == "~lib/json-as/")?.functions);
+    // console.log(Try.SN.sources.find((v) => v.source.normalizedPath == "~lib/json-as/")?.functions);
+
+    SourceLinker.link(sources);
   }
 }

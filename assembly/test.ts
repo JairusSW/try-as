@@ -1,7 +1,7 @@
 // import { foo } from "./foo";
 
-// import { FOO, foo } from "./foo";
-import { JSON } from "json-as"
+import { FOO, foo } from "./foo";
+// import { JSON } from "json-as"
 
 // function callFoo(): void {
 //   foo();
@@ -67,7 +67,7 @@ class Vec3 {
   
 }
 try {
-  JSON.parse<Vec3>("invalid json")
+  foo()
 } catch (e) {
   console.log("Caught Error: " + e.toString())
 }

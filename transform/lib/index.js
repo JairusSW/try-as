@@ -1,11 +1,9 @@
 import { Transform } from "assemblyscript/dist/transform.js";
-import { SourceData, Try } from "./transform.js";
-import { isStdlib, toString } from "./lib/util.js";
+import { SourceLinker } from "./passes/source.js";
+import { isStdlib } from "./lib/util.js";
 import { fileURLToPath } from "url";
 import path from "path";
-import fs, { writeFileSync } from "fs";
-import { Linker } from "./passes/linker.js";
-import { removeExtension } from "./utils.js";
+import fs from "fs";
 const WRITE = process.env["WRITE"];
 export default class Transformer extends Transform {
     afterParse(parser) {
@@ -57,37 +55,7 @@ export default class Transformer extends Transform {
                 return 0;
             }
         });
-        const transformer = Try.SN;
-        transformer.program = this.program;
-        transformer.baseDir = this.baseDir;
-        transformer.baseCWD = path.join(process.cwd(), this.baseDir);
-        transformer.parser = parser;
-        for (const source of sources) {
-            const src = new SourceData(source);
-            Try.SN.sources.push(src);
-        }
-        console.log("\n========VISITING=========\n");
-        for (const source of sources) {
-            console.log("Visiting: " + source.normalizedPath);
-            transformer.visitSrc(source);
-        }
-        console.log("\n=========LINKING=========\n");
-        for (const source of sources) {
-            Linker.runPass(source);
-        }
-        if (WRITE) {
-            const source1 = parser.sources.find((v) => v.normalizedPath.startsWith("assembly/foo"));
-            if (source1) {
-                console.log("Writing out");
-                writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension("assembly/foo") + ".tmp.ts"), toString(source1));
-            }
-            const source = parser.sources.find((v) => v.normalizedPath.startsWith(WRITE));
-            if (source) {
-                console.log("Writing out");
-                writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension(WRITE) + ".tmp.ts"), toString(source));
-            }
-        }
-        console.log(Try.SN.sources.find((v) => v.source.normalizedPath == "~lib/json-as/")?.functions);
+        SourceLinker.link(sources);
     }
 }
 //# sourceMappingURL=index.js.map
