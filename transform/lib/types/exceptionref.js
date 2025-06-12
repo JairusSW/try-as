@@ -2,15 +2,21 @@ import { Node } from "assemblyscript/dist/assemblyscript.js";
 import { getBreaker, getFnName, replaceRef } from "../utils.js";
 import { toString } from "../lib/util.js";
 import { indent } from "../globals/indent.js";
-export class ExceptionRef {
+import { BaseRef } from "./baseref.js";
+export class ExceptionRef extends BaseRef {
     node;
     ref;
     parentFn = null;
+    generated = false;
     constructor(node, ref) {
+        super();
         this.node = node;
         this.ref = ref;
     }
     generate() {
+        if (this.generated)
+            return;
+        this.generated = true;
         if (this.node.kind == 9) {
             const node = this.node;
             const fnName = getFnName(node.expression);
@@ -31,6 +37,11 @@ export class ExceptionRef {
             console.log(indent + "Added Exception: " + toString(newException));
             replaceRef(this.node, [newException, breaker], this.ref);
         }
+    }
+    update(ref) {
+        this.node = ref.node;
+        this.ref = ref.ref;
+        return this;
     }
 }
 //# sourceMappingURL=exceptionref.js.map

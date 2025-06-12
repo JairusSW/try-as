@@ -1,27 +1,27 @@
 import { BlockStatement, CommonFlags, DoStatement, IfStatement, Node, Range, Token, TryStatement } from "assemblyscript/dist/assemblyscript.js";
-import { FunctionRef } from "./functionref.js";
-import { LoopRef } from "./loopref.js";
-
 import { cloneNode, replaceRef } from "../utils.js";
 import { toString } from "../lib/util.js";
 import { indent } from "../globals/indent.js";
+import { BaseRef } from "./baseref.js";
 
-export class TryRef {
+export class TryRef extends BaseRef {
   public node: TryStatement;
   public ref: Node | Node[] | null;
+
+  public tries: TryRef[] = [];
 
   public tryBlock: DoStatement;
   public catchBlock: IfStatement | null = null;
   public finallyBlock: BlockStatement | DoStatement | null = null;
-
-  public parent: FunctionRef | LoopRef | null = null;
-  public callStack: FunctionRef[] = [];
-  public path: string[] = [];
   constructor(node: TryStatement, ref: Node | Node[] | null = null) {
+    super();
     this.node = node;
     this.ref = ref;
   }
   generate(): void {
+    for (const tri of this.tries) {
+      tri.generate();
+    }
     // if (!this.override) return;
     const tryRange = this.node.bodyStatements.length
       ? new Range(
@@ -128,5 +128,13 @@ export class TryRef {
       [this.tryBlock, this.catchBlock].filter((v) => v != null),
       this.ref,
     );
+  }
+  update(ref: this): this {
+    this.node = ref.node;
+    this.ref = ref.ref;
+    this.tryBlock = ref.tryBlock;
+    this.catchBlock = ref.catchBlock;
+    this.finallyBlock = ref.finallyBlock;
+    return this;
   }
 }

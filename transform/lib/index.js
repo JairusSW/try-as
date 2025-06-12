@@ -1,11 +1,12 @@
 import { Transform } from "assemblyscript/dist/transform.js";
 import { SourceLinker } from "./passes/source.js";
-import { isStdlib, toString } from "./lib/util.js";
+import { toString } from "./lib/util.js";
 import { fileURLToPath } from "url";
 import path from "path";
 import fs, { writeFileSync } from "fs";
 import { removeExtension } from "./utils.js";
-const WRITE = process.env["WRITE"];
+import { Globals } from "./globals/globals.js";
+let WRITE = process.env["WRITE"];
 export default class Transformer extends Transform {
     afterParse(parser) {
         let sources = parser.sources;
@@ -35,38 +36,21 @@ export default class Transformer extends Transform {
             if (p.startsWith("~lib/rt") || p.startsWith("~lib/performance") || p.startsWith("~lib/wasi_") || p.startsWith("~lib/shared/")) {
                 return false;
             }
-            return !isStdlib(source);
-        })
-            .sort((a, b) => {
-            if (a.sourceKind >= 2 && b.sourceKind <= 1) {
-                return -1;
-            }
-            else if (a.sourceKind <= 1 && b.sourceKind >= 2) {
-                return 1;
-            }
-            else {
-                return 0;
-            }
-        })
-            .sort((a, b) => {
-            if (a.sourceKind === 1 && b.sourceKind !== 1) {
-                return 1;
-            }
-            else {
-                return 0;
-            }
+            return true;
         });
+        Globals.baseCWD = path.join(process.cwd(), this.baseDir);
         SourceLinker.link(sources);
         if (WRITE) {
+            WRITE = removeExtension(WRITE);
             const source1 = parser.sources.find((v) => v.normalizedPath.startsWith("assembly/foo"));
             if (source1) {
                 console.log("Writing out");
-                writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension("assembly/foo") + ".tmp2.ts"), toString(source1));
+                writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension("assembly/foo") + ".tmp.ts"), toString(source1));
             }
-            const source = parser.sources.find((v) => v.normalizedPath.startsWith(WRITE));
+            const source = parser.sources.find((v) => v.normalizedPath.includes(WRITE));
             if (source) {
                 console.log("Writing out");
-                writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension(WRITE) + ".tmp2.ts"), toString(source));
+                writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension(WRITE) + ".tmp.ts"), toString(source));
             }
         }
     }

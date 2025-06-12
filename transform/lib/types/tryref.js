@@ -2,20 +2,23 @@ import { Node, Range } from "assemblyscript/dist/assemblyscript.js";
 import { cloneNode, replaceRef } from "../utils.js";
 import { toString } from "../lib/util.js";
 import { indent } from "../globals/indent.js";
-export class TryRef {
+import { BaseRef } from "./baseref.js";
+export class TryRef extends BaseRef {
     node;
     ref;
+    tries = [];
     tryBlock;
     catchBlock = null;
     finallyBlock = null;
-    parent = null;
-    callStack = [];
-    path = [];
     constructor(node, ref = null) {
+        super();
         this.node = node;
         this.ref = ref;
     }
     generate() {
+        for (const tri of this.tries) {
+            tri.generate();
+        }
         const tryRange = this.node.bodyStatements.length
             ? new Range(this.node.bodyStatements[0].range.start, this.node.bodyStatements[this.node.bodyStatements.length - 1].range.end)
             : this.node.range;
@@ -37,6 +40,14 @@ export class TryRef {
             console.log(indent + "Finally Block: " + toString(this.finallyBlock).split("\n").join("\n" + indent));
         }
         replaceRef(this.node, [this.tryBlock, this.catchBlock].filter((v) => v != null), this.ref);
+    }
+    update(ref) {
+        this.node = ref.node;
+        this.ref = ref.ref;
+        this.tryBlock = ref.tryBlock;
+        this.catchBlock = ref.catchBlock;
+        this.finallyBlock = ref.finallyBlock;
+        return this;
     }
 }
 //# sourceMappingURL=tryref.js.map

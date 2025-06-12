@@ -1,0 +1,1542 @@
+{
+  "node": {
+    "kind": 0,
+    "sourceKind": 1,
+    "normalizedPath": "assembly/test.ts",
+    "text": "// import { foo } from \"./foo\";\n\nimport { expect } from \"./__tests__/lib\";\n// import { FOO, foo } from \"./foo\";\n// import { JSON } from \"json-as\"\n\n// function callFoo(): void {\n//   foo();\n//   console.log(\"this should never execute!\");\n// }\n\n// function bar(): void {\n\n// }\n// function callCallFoo(): void {\n//   callFoo();\n//   console.log(\"this should never execute!\");\n// }\n// try {\n//   // Do something\n//   // foo();\n//   callFoo();\n//   // callCallFoo();\n//   console.log(\"This should not execute\");\n// } catch (e) {\n//   console.log(\"Got an error: \" + e.toString());\n//   // try {\n//   //   foo();\n//   // } catch (e) {\n//   //   console.log(\"Got another error: \" + e.toString());\n//   // }\n// } finally {\n//   console.log(\"Gracefully shutting down...\");\n//   process.exit(0);\n// }\n\n// namespace BAR {\n//   export function bar(): void {\n//     abort(\"Aborted from BAR.bar\");\n//   }\n// }\n// export function bar(): void {\n//   abort(\"Aborted from bar\");\n// }\n// try {\n//   // foo();\n//   // FOO.foo();\n//   // bar();\n//   BAR.bar();\n//   console.log(\"This should not execute\");\n// } catch (e) {\n//   console.log(e.toString());\n// }\n\n// function abortingFunction(): void {\n//   abort(\"Aborted from abortingFunction\");\n// }\n\n// function nestedAbortingFunction(): void {\n//   try {\n//     abortingFunction();\n//   } catch (e) {\n//     abort(\"Aborted from nestedAbortingFunction\");\n//   }\n// }\n\nclass Vec3 {\n\n}\n\nexport function main(): void {\ntry {\n  // FOO.foo();\n  expect(\"true\")\n} catch (e) {\n  console.log(\"Caught Error: \" + e.toString())\n}\n}\nmain();\nfunction bar(): void {\n  abort(\"Aborted from bar\");\n}",
+    "statements": [
+      {
+        "kind": 42,
+        "range": "[Circular]",
+        "declarations": [
+          {
+            "kind": 56,
+            "range": "[Circular]",
+            "name": {
+              "kind": 6,
+              "range": "[Circular]",
+              "text": "__ErrorState",
+              "isQuoted": false
+            },
+            "decorators": null,
+            "flags": 0,
+            "overriddenModuleName": null,
+            "foreignName": {
+              "kind": 6,
+              "range": "[Circular]",
+              "text": "ErrorState",
+              "isQuoted": false
+            }
+          }
+        ],
+        "namespaceName": null,
+        "path": {
+          "kind": 16,
+          "range": "[Circular]",
+          "literalKind": 2,
+          "value": "./types/error"
+        },
+        "internalPath": "assembly/types/error"
+      },
+      {
+        "kind": 42,
+        "range": "[Circular]",
+        "declarations": [
+          {
+            "kind": 56,
+            "range": "[Circular]",
+            "name": {
+              "kind": 6,
+              "range": "[Circular]",
+              "text": "__UnreachableState",
+              "isQuoted": false
+            },
+            "decorators": null,
+            "flags": 0,
+            "overriddenModuleName": null,
+            "foreignName": {
+              "kind": 6,
+              "range": "[Circular]",
+              "text": "UnreachableState",
+              "isQuoted": false
+            }
+          }
+        ],
+        "namespaceName": null,
+        "path": {
+          "kind": 16,
+          "range": "[Circular]",
+          "literalKind": 2,
+          "value": "./types/unreachable"
+        },
+        "internalPath": "assembly/types/unreachable"
+      },
+      {
+        "kind": 42,
+        "range": "[Circular]",
+        "declarations": [
+          {
+            "kind": 56,
+            "range": "[Circular]",
+            "name": {
+              "kind": 6,
+              "range": "[Circular]",
+              "text": "__AbortState",
+              "isQuoted": false
+            },
+            "decorators": null,
+            "flags": 0,
+            "overriddenModuleName": null,
+            "foreignName": {
+              "kind": 6,
+              "range": "[Circular]",
+              "text": "AbortState",
+              "isQuoted": false
+            }
+          }
+        ],
+        "namespaceName": null,
+        "path": {
+          "kind": 16,
+          "range": "[Circular]",
+          "literalKind": 2,
+          "value": "./types/abort"
+        },
+        "internalPath": "assembly/types/abort"
+      },
+      {
+        "kind": 42,
+        "range": "[Circular]",
+        "declarations": [
+          {
+            "kind": 56,
+            "range": "[Circular]",
+            "name": {
+              "kind": 6,
+              "range": "[Circular]",
+              "text": "__Exception",
+              "isQuoted": false
+            },
+            "decorators": null,
+            "flags": 0,
+            "overriddenModuleName": null,
+            "foreignName": {
+              "kind": 6,
+              "range": "[Circular]",
+              "text": "Exception",
+              "isQuoted": false
+            }
+          },
+          {
+            "kind": 56,
+            "range": "[Circular]",
+            "name": {
+              "kind": 6,
+              "range": "[Circular]",
+              "text": "__ExceptionState",
+              "isQuoted": false
+            },
+            "decorators": null,
+            "flags": 0,
+            "overriddenModuleName": null,
+            "foreignName": {
+              "kind": 6,
+              "range": "[Circular]",
+              "text": "ExceptionState",
+              "isQuoted": false
+            }
+          }
+        ],
+        "namespaceName": null,
+        "path": {
+          "kind": 16,
+          "range": "[Circular]",
+          "literalKind": 2,
+          "value": "./types/exception"
+        },
+        "internalPath": "assembly/types/exception"
+      },
+      {
+        "kind": 42,
+        "declarations": [
+          {
+            "kind": 56,
+            "name": {
+              "kind": 6,
+              "range": "[Circular]",
+              "text": "expect",
+              "isQuoted": false
+            },
+            "decorators": null,
+            "flags": 0,
+            "overriddenModuleName": null,
+            "foreignName": "[Circular]"
+          }
+        ],
+        "namespaceName": null,
+        "path": {
+          "kind": 16,
+          "literalKind": 2,
+          "value": "./__tests__/lib"
+        },
+        "internalPath": "assembly/__tests__/lib"
+      },
+      {
+        "kind": 51,
+        "name": {
+          "kind": 6,
+          "text": "Vec3",
+          "isQuoted": false
+        },
+        "decorators": null,
+        "flags": 0,
+        "overriddenModuleName": null,
+        "typeParameters": null,
+        "extendsType": null,
+        "implementsTypes": null,
+        "members": [],
+        "indexSignature": null
+      },
+      {
+        "kind": 55,
+        "name": {
+          "kind": 6,
+          "text": "main",
+          "isQuoted": false
+        },
+        "decorators": null,
+        "flags": 2,
+        "overriddenModuleName": null,
+        "typeParameters": null,
+        "signature": {
+          "kind": 2,
+          "isNullable": false,
+          "currentlyResolving": false,
+          "parameters": [],
+          "returnType": {
+            "kind": 1,
+            "isNullable": false,
+            "currentlyResolving": false,
+            "name": {
+              "kind": 3,
+              "identifier": {
+                "kind": 6,
+                "range": "[Circular]",
+                "text": "void",
+                "isQuoted": false
+              },
+              "next": null
+            },
+            "typeArguments": []
+          },
+          "explicitThisType": null
+        },
+        "body": {
+          "kind": 30,
+          "statements": [
+            {
+              "kind": 41,
+              "range": "[Circular]",
+              "condition": {
+                "kind": 8,
+                "range": "[Circular]",
+                "operator": 73,
+                "left": {
+                  "kind": 21,
+                  "range": "[Circular]",
+                  "expression": {
+                    "kind": 6,
+                    "range": "[Circular]",
+                    "text": "__ExceptionState",
+                    "isQuoted": false
+                  },
+                  "property": {
+                    "kind": 6,
+                    "range": "[Circular]",
+                    "text": "Failures",
+                    "isQuoted": false
+                  }
+                },
+                "right": {
+                  "kind": 16,
+                  "range": "[Circular]",
+                  "literalKind": 1,
+                  "value": {
+                    "low": 0,
+                    "high": 0,
+                    "unsigned": false
+                  }
+                }
+              },
+              "ifTrue": {
+                "kind": 30,
+                "range": "[Circular]",
+                "statements": [
+                  {
+                    "kind": 43,
+                    "range": "[Circular]",
+                    "value": null
+                  }
+                ]
+              },
+              "ifFalse": null
+            },
+            {
+              "kind": 33,
+              "body": {
+                "kind": 30,
+                "range": "[Circular]",
+                "statements": [
+                  {
+                    "kind": 38,
+                    "expression": {
+                      "kind": 9,
+                      "range": "[Circular]",
+                      "expression": {
+                        "kind": 6,
+                        "range": "[Circular]",
+                        "text": "__try_expect",
+                        "isQuoted": false
+                      },
+                      "typeArguments": null,
+                      "args": [
+                        {
+                          "kind": 16,
+                          "literalKind": 2,
+                          "value": "true"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "kind": 41,
+                    "range": "[Circular]",
+                    "condition": {
+                      "kind": 8,
+                      "range": "[Circular]",
+                      "operator": 73,
+                      "left": {
+                        "kind": 21,
+                        "range": "[Circular]",
+                        "expression": {
+                          "kind": 6,
+                          "range": "[Circular]",
+                          "text": "__ExceptionState",
+                          "isQuoted": false
+                        },
+                        "property": {
+                          "kind": 6,
+                          "range": "[Circular]",
+                          "text": "Failures",
+                          "isQuoted": false
+                        }
+                      },
+                      "right": {
+                        "kind": 16,
+                        "range": "[Circular]",
+                        "literalKind": 1,
+                        "value": {
+                          "low": 0,
+                          "high": 0,
+                          "unsigned": false
+                        }
+                      }
+                    },
+                    "ifTrue": {
+                      "kind": 30,
+                      "range": "[Circular]",
+                      "statements": [
+                        {
+                          "kind": 43,
+                          "range": "[Circular]",
+                          "value": null
+                        }
+                      ]
+                    },
+                    "ifFalse": null
+                  }
+                ]
+              },
+              "condition": {
+                "kind": 13,
+                "text": "false",
+                "isQuoted": false
+              }
+            },
+            {
+              "kind": 41,
+              "range": "[Circular]",
+              "condition": {
+                "kind": 8,
+                "range": "[Circular]",
+                "operator": 73,
+                "left": {
+                  "kind": 21,
+                  "range": "[Circular]",
+                  "expression": {
+                    "kind": 6,
+                    "range": "[Circular]",
+                    "text": "__ExceptionState",
+                    "isQuoted": false
+                  },
+                  "property": {
+                    "kind": 6,
+                    "range": "[Circular]",
+                    "text": "Failures",
+                    "isQuoted": false
+                  }
+                },
+                "right": {
+                  "kind": 16,
+                  "range": "[Circular]",
+                  "literalKind": 1,
+                  "value": "[Circular]"
+                }
+              },
+              "ifTrue": {
+                "kind": 30,
+                "range": "[Circular]",
+                "statements": [
+                  {
+                    "kind": 47,
+                    "range": "[Circular]",
+                    "decorators": null,
+                    "declarations": [
+                      {
+                        "kind": 61,
+                        "range": "[Circular]",
+                        "name": {
+                          "kind": 6,
+                          "text": "e",
+                          "isQuoted": false
+                        },
+                        "decorators": null,
+                        "flags": 16,
+                        "overriddenModuleName": null,
+                        "type": null,
+                        "initializer": {
+                          "kind": 17,
+                          "range": "[Circular]",
+                          "typeName": {
+                            "kind": 3,
+                            "range": "[Circular]",
+                            "identifier": {
+                              "kind": 6,
+                              "range": "[Circular]",
+                              "text": "__Exception",
+                              "isQuoted": false
+                            },
+                            "next": null
+                          },
+                          "typeArguments": null,
+                          "args": [
+                            {
+                              "kind": 21,
+                              "range": "[Circular]",
+                              "expression": {
+                                "kind": 6,
+                                "range": "[Circular]",
+                                "text": "__ExceptionState",
+                                "isQuoted": false
+                              },
+                              "property": {
+                                "kind": 6,
+                                "range": "[Circular]",
+                                "text": "Type",
+                                "isQuoted": false
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "kind": 38,
+                    "range": "[Circular]",
+                    "expression": {
+                      "kind": 27,
+                      "range": "[Circular]",
+                      "operator": 88,
+                      "operand": {
+                        "kind": 21,
+                        "range": "[Circular]",
+                        "expression": {
+                          "kind": 6,
+                          "range": "[Circular]",
+                          "text": "__ExceptionState",
+                          "isQuoted": false
+                        },
+                        "property": {
+                          "kind": 6,
+                          "range": "[Circular]",
+                          "text": "Failures",
+                          "isQuoted": false
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": 38,
+                    "expression": {
+                      "kind": 9,
+                      "range": "[Circular]",
+                      "expression": {
+                        "kind": 21,
+                        "expression": {
+                          "kind": 6,
+                          "text": "console",
+                          "isQuoted": false
+                        },
+                        "property": {
+                          "kind": 6,
+                          "text": "log",
+                          "isQuoted": false
+                        }
+                      },
+                      "typeArguments": null,
+                      "args": [
+                        {
+                          "kind": 8,
+                          "operator": 81,
+                          "left": {
+                            "kind": 16,
+                            "literalKind": 2,
+                            "value": "Caught Error: "
+                          },
+                          "right": {
+                            "kind": 9,
+                            "expression": {
+                              "kind": 21,
+                              "expression": {
+                                "kind": 6,
+                                "text": "e",
+                                "isQuoted": false
+                              },
+                              "property": {
+                                "kind": 6,
+                                "text": "toString",
+                                "isQuoted": false
+                              }
+                            },
+                            "typeArguments": null,
+                            "args": []
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "ifFalse": null
+            }
+          ]
+        },
+        "arrowKind": 0
+      },
+      {
+        "kind": 38,
+        "expression": {
+          "kind": 9,
+          "range": "[Circular]",
+          "expression": {
+            "kind": 6,
+            "text": "main",
+            "isQuoted": false
+          },
+          "typeArguments": null,
+          "args": []
+        }
+      },
+      {
+        "kind": 55,
+        "name": {
+          "kind": 6,
+          "text": "bar",
+          "isQuoted": false
+        },
+        "decorators": null,
+        "flags": 0,
+        "overriddenModuleName": null,
+        "typeParameters": null,
+        "signature": {
+          "kind": 2,
+          "isNullable": false,
+          "currentlyResolving": false,
+          "parameters": [],
+          "returnType": {
+            "kind": 1,
+            "isNullable": false,
+            "currentlyResolving": false,
+            "name": {
+              "kind": 3,
+              "identifier": {
+                "kind": 6,
+                "range": "[Circular]",
+                "text": "void",
+                "isQuoted": false
+              },
+              "next": null
+            },
+            "typeArguments": []
+          },
+          "explicitThisType": null
+        },
+        "body": {
+          "kind": 30,
+          "statements": [
+            {
+              "kind": 38,
+              "expression": {
+                "kind": 9,
+                "range": "[Circular]",
+                "expression": {
+                  "kind": 6,
+                  "text": "abort",
+                  "isQuoted": false
+                },
+                "typeArguments": null,
+                "args": [
+                  {
+                    "kind": 16,
+                    "literalKind": 2,
+                    "value": "Aborted from bar"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "arrowKind": 0
+      }
+    ],
+    "debugInfoIndex": -1,
+    "exportPaths": null,
+    "lineCache": null,
+    "lineColumn": 1,
+    "internalPath": "assembly/test",
+    "simplePath": "test"
+  },
+  "tries": [],
+  "functions": [
+    {
+      "node": "[Circular]",
+      "ref": "[Circular]",
+      "name": "main",
+      "path": [],
+      "tries": [
+        {
+          "node": {
+            "kind": 46,
+            "range": "[Circular]",
+            "bodyStatements": [
+              {
+                "kind": 38,
+                "expression": {
+                  "kind": 9,
+                  "range": "[Circular]",
+                  "expression": {
+                    "kind": 6,
+                    "range": "[Circular]",
+                    "text": "__try_expect",
+                    "isQuoted": false
+                  },
+                  "typeArguments": null,
+                  "args": [
+                    {
+                      "kind": 16,
+                      "literalKind": 2,
+                      "value": "true"
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": 41,
+                "range": "[Circular]",
+                "condition": {
+                  "kind": 8,
+                  "range": "[Circular]",
+                  "operator": 73,
+                  "left": {
+                    "kind": 21,
+                    "range": "[Circular]",
+                    "expression": {
+                      "kind": 6,
+                      "range": "[Circular]",
+                      "text": "__ExceptionState",
+                      "isQuoted": false
+                    },
+                    "property": {
+                      "kind": 6,
+                      "range": "[Circular]",
+                      "text": "Failures",
+                      "isQuoted": false
+                    }
+                  },
+                  "right": {
+                    "kind": 16,
+                    "range": "[Circular]",
+                    "literalKind": 1,
+                    "value": "[Circular]"
+                  }
+                },
+                "ifTrue": {
+                  "kind": 30,
+                  "range": "[Circular]",
+                  "statements": [
+                    {
+                      "kind": 43,
+                      "range": "[Circular]",
+                      "value": null
+                    }
+                  ]
+                },
+                "ifFalse": null
+              }
+            ],
+            "catchVariable": "[Circular]",
+            "catchStatements": [
+              {
+                "kind": 38,
+                "expression": {
+                  "kind": 9,
+                  "range": "[Circular]",
+                  "expression": {
+                    "kind": 21,
+                    "expression": {
+                      "kind": 6,
+                      "text": "console",
+                      "isQuoted": false
+                    },
+                    "property": {
+                      "kind": 6,
+                      "text": "log",
+                      "isQuoted": false
+                    }
+                  },
+                  "typeArguments": null,
+                  "args": [
+                    {
+                      "kind": 8,
+                      "operator": 81,
+                      "left": {
+                        "kind": 16,
+                        "literalKind": 2,
+                        "value": "Caught Error: "
+                      },
+                      "right": {
+                        "kind": 9,
+                        "expression": {
+                          "kind": 21,
+                          "expression": {
+                            "kind": 6,
+                            "text": "e",
+                            "isQuoted": false
+                          },
+                          "property": {
+                            "kind": 6,
+                            "text": "toString",
+                            "isQuoted": false
+                          }
+                        },
+                        "typeArguments": null,
+                        "args": []
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "finallyStatements": null
+          },
+          "ref": "[Circular]",
+          "tries": [],
+          "tryBlock": "[Circular]",
+          "catchBlock": "[Circular]",
+          "finallyBlock": null
+        }
+      ],
+      "exceptions": [
+        {
+          "node": {
+            "kind": 9,
+            "range": "[Circular]",
+            "expression": {
+              "kind": 6,
+              "text": "expect",
+              "isQuoted": false
+            },
+            "typeArguments": null,
+            "args": "[Circular]"
+          },
+          "ref": "[Circular]",
+          "calling": {
+            "node": {
+              "kind": 55,
+              "name": {
+                "kind": 6,
+                "text": "expect",
+                "isQuoted": false
+              },
+              "decorators": null,
+              "flags": 2,
+              "overriddenModuleName": null,
+              "typeParameters": null,
+              "signature": {
+                "kind": 2,
+                "isNullable": false,
+                "currentlyResolving": false,
+                "parameters": [
+                  {
+                    "kind": 5,
+                    "parameterKind": 0,
+                    "name": {
+                      "kind": 6,
+                      "text": "left",
+                      "isQuoted": false
+                    },
+                    "type": {
+                      "kind": 1,
+                      "isNullable": false,
+                      "currentlyResolving": false,
+                      "name": {
+                        "kind": 3,
+                        "identifier": {
+                          "kind": 6,
+                          "range": "[Circular]",
+                          "text": "string",
+                          "isQuoted": false
+                        },
+                        "next": null
+                      },
+                      "typeArguments": []
+                    },
+                    "initializer": null,
+                    "implicitFieldDeclaration": null,
+                    "flags": 0
+                  }
+                ],
+                "returnType": {
+                  "kind": 1,
+                  "isNullable": false,
+                  "currentlyResolving": false,
+                  "name": {
+                    "kind": 3,
+                    "identifier": {
+                      "kind": 6,
+                      "range": "[Circular]",
+                      "text": "Expectation",
+                      "isQuoted": false
+                    },
+                    "next": null
+                  },
+                  "typeArguments": []
+                },
+                "explicitThisType": null
+              },
+              "body": {
+                "kind": 30,
+                "statements": [
+                  {
+                    "kind": 43,
+                    "value": {
+                      "kind": 17,
+                      "typeName": {
+                        "kind": 3,
+                        "identifier": {
+                          "kind": 6,
+                          "range": "[Circular]",
+                          "text": "Expectation",
+                          "isQuoted": false
+                        },
+                        "next": null
+                      },
+                      "typeArguments": null,
+                      "args": [
+                        {
+                          "kind": 6,
+                          "text": "left",
+                          "isQuoted": false
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "arrowKind": 0
+            },
+            "ref": [
+              {
+                "kind": 42,
+                "declarations": [
+                  {
+                    "kind": 56,
+                    "range": "[Circular]",
+                    "name": {
+                      "kind": 6,
+                      "range": "[Circular]",
+                      "text": "__ErrorState",
+                      "isQuoted": false
+                    },
+                    "decorators": null,
+                    "flags": 0,
+                    "overriddenModuleName": null,
+                    "foreignName": {
+                      "kind": 6,
+                      "range": "[Circular]",
+                      "text": "ErrorState",
+                      "isQuoted": false
+                    }
+                  }
+                ],
+                "namespaceName": null,
+                "path": {
+                  "kind": 16,
+                  "range": "[Circular]",
+                  "literalKind": 2,
+                  "value": "../../types/error"
+                },
+                "internalPath": "assembly/types/error"
+              },
+              {
+                "kind": 42,
+                "range": "[Circular]",
+                "declarations": [
+                  {
+                    "kind": 56,
+                    "range": "[Circular]",
+                    "name": {
+                      "kind": 6,
+                      "range": "[Circular]",
+                      "text": "__UnreachableState",
+                      "isQuoted": false
+                    },
+                    "decorators": null,
+                    "flags": 0,
+                    "overriddenModuleName": null,
+                    "foreignName": {
+                      "kind": 6,
+                      "range": "[Circular]",
+                      "text": "UnreachableState",
+                      "isQuoted": false
+                    }
+                  }
+                ],
+                "namespaceName": null,
+                "path": {
+                  "kind": 16,
+                  "range": "[Circular]",
+                  "literalKind": 2,
+                  "value": "../../types/unreachable"
+                },
+                "internalPath": "assembly/types/unreachable"
+              },
+              {
+                "kind": 42,
+                "range": "[Circular]",
+                "declarations": [
+                  {
+                    "kind": 56,
+                    "range": "[Circular]",
+                    "name": {
+                      "kind": 6,
+                      "range": "[Circular]",
+                      "text": "__AbortState",
+                      "isQuoted": false
+                    },
+                    "decorators": null,
+                    "flags": 0,
+                    "overriddenModuleName": null,
+                    "foreignName": {
+                      "kind": 6,
+                      "range": "[Circular]",
+                      "text": "AbortState",
+                      "isQuoted": false
+                    }
+                  }
+                ],
+                "namespaceName": null,
+                "path": {
+                  "kind": 16,
+                  "range": "[Circular]",
+                  "literalKind": 2,
+                  "value": "../../types/abort"
+                },
+                "internalPath": "assembly/types/abort"
+              },
+              {
+                "kind": 42,
+                "range": "[Circular]",
+                "declarations": [
+                  {
+                    "kind": 56,
+                    "range": "[Circular]",
+                    "name": {
+                      "kind": 6,
+                      "range": "[Circular]",
+                      "text": "__Exception",
+                      "isQuoted": false
+                    },
+                    "decorators": null,
+                    "flags": 0,
+                    "overriddenModuleName": null,
+                    "foreignName": {
+                      "kind": 6,
+                      "range": "[Circular]",
+                      "text": "Exception",
+                      "isQuoted": false
+                    }
+                  },
+                  {
+                    "kind": 56,
+                    "range": "[Circular]",
+                    "name": {
+                      "kind": 6,
+                      "range": "[Circular]",
+                      "text": "__ExceptionState",
+                      "isQuoted": false
+                    },
+                    "decorators": null,
+                    "flags": 0,
+                    "overriddenModuleName": null,
+                    "foreignName": {
+                      "kind": 6,
+                      "range": "[Circular]",
+                      "text": "ExceptionState",
+                      "isQuoted": false
+                    }
+                  }
+                ],
+                "namespaceName": null,
+                "path": {
+                  "kind": 16,
+                  "range": "[Circular]",
+                  "literalKind": 2,
+                  "value": "../../types/exception"
+                },
+                "internalPath": "assembly/types/exception"
+              },
+              {
+                "kind": 55,
+                "name": {
+                  "kind": 6,
+                  "text": "describe",
+                  "isQuoted": false
+                },
+                "decorators": null,
+                "flags": 2,
+                "overriddenModuleName": null,
+                "typeParameters": null,
+                "signature": {
+                  "kind": 2,
+                  "isNullable": false,
+                  "currentlyResolving": false,
+                  "parameters": [
+                    {
+                      "kind": 5,
+                      "parameterKind": 0,
+                      "name": {
+                        "kind": 6,
+                        "text": "description",
+                        "isQuoted": false
+                      },
+                      "type": {
+                        "kind": 1,
+                        "isNullable": false,
+                        "currentlyResolving": false,
+                        "name": {
+                          "kind": 3,
+                          "identifier": {
+                            "kind": 6,
+                            "range": "[Circular]",
+                            "text": "string",
+                            "isQuoted": false
+                          },
+                          "next": null
+                        },
+                        "typeArguments": []
+                      },
+                      "initializer": null,
+                      "implicitFieldDeclaration": null,
+                      "flags": 0
+                    },
+                    {
+                      "kind": 5,
+                      "parameterKind": 0,
+                      "name": {
+                        "kind": 6,
+                        "text": "routine",
+                        "isQuoted": false
+                      },
+                      "type": {
+                        "kind": 2,
+                        "isNullable": false,
+                        "currentlyResolving": false,
+                        "parameters": [],
+                        "returnType": {
+                          "kind": 1,
+                          "isNullable": false,
+                          "currentlyResolving": false,
+                          "name": {
+                            "kind": 3,
+                            "identifier": {
+                              "kind": 6,
+                              "range": "[Circular]",
+                              "text": "void",
+                              "isQuoted": false
+                            },
+                            "next": null
+                          },
+                          "typeArguments": []
+                        },
+                        "explicitThisType": null
+                      },
+                      "initializer": null,
+                      "implicitFieldDeclaration": null,
+                      "flags": 0
+                    }
+                  ],
+                  "returnType": {
+                    "kind": 1,
+                    "isNullable": false,
+                    "currentlyResolving": false,
+                    "name": {
+                      "kind": 3,
+                      "identifier": {
+                        "kind": 6,
+                        "range": "[Circular]",
+                        "text": "void",
+                        "isQuoted": false
+                      },
+                      "next": null
+                    },
+                    "typeArguments": []
+                  },
+                  "explicitThisType": null
+                },
+                "body": {
+                  "kind": 30,
+                  "statements": [
+                    {
+                      "kind": 38,
+                      "expression": {
+                        "kind": 9,
+                        "range": "[Circular]",
+                        "expression": {
+                          "kind": 6,
+                          "text": "routine",
+                          "isQuoted": false
+                        },
+                        "typeArguments": null,
+                        "args": []
+                      }
+                    }
+                  ]
+                },
+                "arrowKind": 0
+              },
+              "[Circular]",
+              {
+                "kind": 51,
+                "name": {
+                  "kind": 6,
+                  "text": "Expectation",
+                  "isQuoted": false
+                },
+                "decorators": null,
+                "flags": 0,
+                "overriddenModuleName": null,
+                "typeParameters": null,
+                "extendsType": null,
+                "implementsTypes": null,
+                "members": [
+                  {
+                    "kind": 54,
+                    "name": {
+                      "kind": 6,
+                      "text": "left",
+                      "isQuoted": false
+                    },
+                    "decorators": null,
+                    "flags": 262400,
+                    "overriddenModuleName": null,
+                    "type": {
+                      "kind": 1,
+                      "isNullable": false,
+                      "currentlyResolving": false,
+                      "name": {
+                        "kind": 3,
+                        "identifier": {
+                          "kind": 6,
+                          "range": "[Circular]",
+                          "text": "string",
+                          "isQuoted": false
+                        },
+                        "next": null
+                      },
+                      "typeArguments": []
+                    },
+                    "initializer": null,
+                    "parameterIndex": -1
+                  },
+                  {
+                    "kind": 58,
+                    "name": {
+                      "kind": 26,
+                      "text": "constructor",
+                      "isQuoted": false
+                    },
+                    "decorators": null,
+                    "flags": 786432,
+                    "overriddenModuleName": null,
+                    "typeParameters": null,
+                    "signature": {
+                      "kind": 2,
+                      "isNullable": false,
+                      "currentlyResolving": false,
+                      "parameters": [
+                        {
+                          "kind": 5,
+                          "parameterKind": 0,
+                          "name": {
+                            "kind": 6,
+                            "text": "left",
+                            "isQuoted": false
+                          },
+                          "type": {
+                            "kind": 1,
+                            "isNullable": false,
+                            "currentlyResolving": false,
+                            "name": {
+                              "kind": 3,
+                              "identifier": {
+                                "kind": 6,
+                                "range": "[Circular]",
+                                "text": "string",
+                                "isQuoted": false
+                              },
+                              "next": null
+                            },
+                            "typeArguments": []
+                          },
+                          "initializer": null,
+                          "implicitFieldDeclaration": null,
+                          "flags": 0
+                        }
+                      ],
+                      "returnType": {
+                        "kind": 1,
+                        "isNullable": false,
+                        "currentlyResolving": false,
+                        "name": {
+                          "kind": 3,
+                          "range": "[Circular]",
+                          "identifier": {
+                            "kind": 6,
+                            "range": "[Circular]",
+                            "text": "",
+                            "isQuoted": false
+                          },
+                          "next": null
+                        },
+                        "typeArguments": null
+                      },
+                      "explicitThisType": null
+                    },
+                    "body": {
+                      "kind": 30,
+                      "statements": [
+                        {
+                          "kind": 38,
+                          "expression": {
+                            "kind": 8,
+                            "range": "[Circular]",
+                            "operator": 101,
+                            "left": {
+                              "kind": 21,
+                              "expression": {
+                                "kind": 24,
+                                "text": "this",
+                                "isQuoted": false
+                              },
+                              "property": {
+                                "kind": 6,
+                                "text": "left",
+                                "isQuoted": false
+                              }
+                            },
+                            "right": {
+                              "kind": 6,
+                              "text": "left",
+                              "isQuoted": false
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "arrowKind": 0
+                  },
+                  {
+                    "kind": 58,
+                    "name": {
+                      "kind": 6,
+                      "text": "toBe",
+                      "isQuoted": false
+                    },
+                    "decorators": null,
+                    "flags": 262144,
+                    "overriddenModuleName": null,
+                    "typeParameters": null,
+                    "signature": {
+                      "kind": 2,
+                      "isNullable": false,
+                      "currentlyResolving": false,
+                      "parameters": [
+                        {
+                          "kind": 5,
+                          "parameterKind": 0,
+                          "name": {
+                            "kind": 6,
+                            "text": "right",
+                            "isQuoted": false
+                          },
+                          "type": {
+                            "kind": 1,
+                            "isNullable": false,
+                            "currentlyResolving": false,
+                            "name": {
+                              "kind": 3,
+                              "identifier": {
+                                "kind": 6,
+                                "range": "[Circular]",
+                                "text": "string",
+                                "isQuoted": false
+                              },
+                              "next": null
+                            },
+                            "typeArguments": []
+                          },
+                          "initializer": null,
+                          "implicitFieldDeclaration": null,
+                          "flags": 0
+                        }
+                      ],
+                      "returnType": {
+                        "kind": 1,
+                        "isNullable": false,
+                        "currentlyResolving": false,
+                        "name": {
+                          "kind": 3,
+                          "identifier": {
+                            "kind": 6,
+                            "range": "[Circular]",
+                            "text": "void",
+                            "isQuoted": false
+                          },
+                          "next": null
+                        },
+                        "typeArguments": []
+                      },
+                      "explicitThisType": null
+                    },
+                    "body": {
+                      "kind": 30,
+                      "statements": [
+                        {
+                          "kind": 41,
+                          "condition": {
+                            "kind": 8,
+                            "operator": 77,
+                            "left": {
+                              "kind": 21,
+                              "expression": {
+                                "kind": 24,
+                                "text": "this",
+                                "isQuoted": false
+                              },
+                              "property": {
+                                "kind": 6,
+                                "text": "left",
+                                "isQuoted": false
+                              }
+                            },
+                            "right": {
+                              "kind": 6,
+                              "text": "right",
+                              "isQuoted": false
+                            }
+                          },
+                          "ifTrue": {
+                            "kind": 30,
+                            "statements": [
+                              {
+                                "kind": 38,
+                                "expression": {
+                                  "kind": 9,
+                                  "range": "[Circular]",
+                                  "expression": {
+                                    "kind": 21,
+                                    "expression": {
+                                      "kind": 6,
+                                      "text": "console",
+                                      "isQuoted": false
+                                    },
+                                    "property": {
+                                      "kind": 6,
+                                      "text": "log",
+                                      "isQuoted": false
+                                    }
+                                  },
+                                  "typeArguments": null,
+                                  "args": [
+                                    {
+                                      "kind": 8,
+                                      "operator": 81,
+                                      "left": {
+                                        "kind": 16,
+                                        "literalKind": 2,
+                                        "value": "  (expected) -> "
+                                      },
+                                      "right": {
+                                        "kind": 6,
+                                        "text": "right",
+                                        "isQuoted": false
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "kind": 38,
+                                "expression": {
+                                  "kind": 9,
+                                  "range": "[Circular]",
+                                  "expression": {
+                                    "kind": 21,
+                                    "expression": {
+                                      "kind": 6,
+                                      "text": "console",
+                                      "isQuoted": false
+                                    },
+                                    "property": {
+                                      "kind": 6,
+                                      "text": "log",
+                                      "isQuoted": false
+                                    }
+                                  },
+                                  "typeArguments": null,
+                                  "args": [
+                                    {
+                                      "kind": 8,
+                                      "operator": 81,
+                                      "left": {
+                                        "kind": 16,
+                                        "literalKind": 2,
+                                        "value": "  (received) -> "
+                                      },
+                                      "right": {
+                                        "kind": 21,
+                                        "expression": {
+                                          "kind": 24,
+                                          "text": "this",
+                                          "isQuoted": false
+                                        },
+                                        "property": {
+                                          "kind": 6,
+                                          "text": "left",
+                                          "isQuoted": false
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "kind": 38,
+                                "expression": {
+                                  "kind": 9,
+                                  "range": "[Circular]",
+                                  "expression": {
+                                    "kind": 21,
+                                    "expression": {
+                                      "kind": 6,
+                                      "text": "process",
+                                      "isQuoted": false
+                                    },
+                                    "property": {
+                                      "kind": 6,
+                                      "text": "exit",
+                                      "isQuoted": false
+                                    }
+                                  },
+                                  "typeArguments": null,
+                                  "args": [
+                                    {
+                                      "kind": 16,
+                                      "literalKind": 1,
+                                      "value": {
+                                        "low": 1,
+                                        "high": 0,
+                                        "unsigned": false
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          },
+                          "ifFalse": null
+                        }
+                      ]
+                    },
+                    "arrowKind": 0
+                  }
+                ],
+                "indexSignature": null
+              }
+            ],
+            "name": "expect",
+            "path": [],
+            "tries": [],
+            "exceptions": [],
+            "callers": [
+              "[Circular]"
+            ],
+            "exported": true,
+            "generatedImport": false
+          },
+          "name": "expect",
+          "parentFn": "[Circular]",
+          "generated": true
+        }
+      ],
+      "callers": [],
+      "exported": true,
+      "generatedImport": true
+    }
+  ],
+  "imports": [],
+  "state": "done",
+  "dependencies": {},
+  "local": {
+    "functions": [
+      "[Circular]",
+      {
+        "node": "[Circular]",
+        "ref": "[Circular]",
+        "name": "bar",
+        "path": [],
+        "tries": [],
+        "exceptions": [],
+        "callers": [],
+        "exported": false,
+        "generatedImport": false
+      }
+    ],
+    "imports": [
+      "[Circular]"
+    ]
+  },
+  "generated": true
+}

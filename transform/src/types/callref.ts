@@ -1,22 +1,30 @@
 import { CallExpression, IdentifierExpression, Node, NodeKind, PropertyAccessExpression, Token } from "assemblyscript/dist/assemblyscript.js";
 import { FunctionRef } from "./functionref.js";
-import { blockify, getBreaker, getFnName } from "../utils.js";
+import { blockify, getBreaker, getFnName, replaceRef } from "../utils.js";
 import { indent } from "../globals/indent.js";
+import { toString } from "../lib/util.js";
+import { BaseRef } from "./baseref.js";
 
-export class CallRef {
+export class CallRef extends BaseRef {
   public node: CallExpression;
   public ref: Node | Node[] | null;
   public calling: FunctionRef;
   public name: string;
 
-  public parentFn: FunctionRef | null = null
+  public parentFn: FunctionRef | null = null;
+
+  private generated: boolean = false;
   constructor(node: CallExpression, ref: Node | Node[] | null, calling: FunctionRef) {
+    super();
     this.node = node;
     this.ref = ref;
     this.calling = calling;
     this.name = getFnName(node.expression);
   }
   generate(): void {
+    if (this.generated) return;
+    this.generated = true;
+
     const breaker = getBreaker(this.node, this.parentFn?.node);
 
     const newName = this.node.expression.kind == NodeKind.PropertyAccess
@@ -52,8 +60,13 @@ export class CallRef {
         this.node.range
       )
     );
-
-    console.log(indent + "Replaced call: " + getFnName(newName));
-    // replaceRef(this.node, [unrollCheck, overrideCall], this.ref);
+    // this.node.expression = newName;
+    console.log(indent + "Replaced call: " + toString(this.node));
+    replaceRef(this.node, [overrideCall, unrollCheck], this.ref);
+  }
+  update(ref: this): this {
+    this.node = ref.node;
+    this.ref = ref.ref;
+    return this;
   }
 }

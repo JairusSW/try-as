@@ -37,6 +37,38 @@ export function replaceRef(node, replacement, ref) {
         }
     }
 }
+export function addAfter(node, additions, ref) {
+    if (!node || !ref)
+        return;
+    const targetExpr = stripExpr(node);
+    if (Array.isArray(ref)) {
+        for (let i = 0; i < ref.length; i++) {
+            if (stripExpr(ref[i]) === targetExpr) {
+                if (Array.isArray(additions))
+                    ref.splice(i + 1, 0, ...additions);
+                else
+                    ref.splice(i + 1, 0, additions);
+                return;
+            }
+        }
+    }
+    else if (typeof ref === "object") {
+        for (const key of Object.keys(ref)) {
+            const current = ref[key];
+            if (Array.isArray(current)) {
+                for (let i = 0; i < current.length; i++) {
+                    if (stripExpr(current[i]) === targetExpr) {
+                        if (Array.isArray(additions))
+                            current.splice(i + 1, 0, ...additions);
+                        else
+                            current.splice(i + 1, 0, additions);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+}
 export function replaceAfter(node, replacement, ref, Reference) {
     if (!node || !ref)
         return;

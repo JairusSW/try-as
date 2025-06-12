@@ -3,17 +3,24 @@ import { FunctionRef } from "./functionref.js";
 import { getBreaker, getFnName, replaceRef } from "../utils.js";
 import { toString } from "../lib/util.js";
 import { indent } from "../globals/indent.js";
+import { BaseRef } from "./baseref.js";
 
-export class ExceptionRef {
+export class ExceptionRef extends BaseRef {
   public node: CallExpression | ThrowStatement;
   public ref: Node | Node[] | null;
 
   public parentFn: FunctionRef | null = null;
+
+  private generated: boolean = false;
   constructor(node: CallExpression | ThrowStatement, ref: Node | Node[] | null) {
+    super();
     this.node = node;
     this.ref = ref;
   }
   generate(): void {
+    if (this.generated) return;
+    this.generated = true;
+
     if (this.node.kind == NodeKind.Call) {
       const node = this.node as CallExpression;
       const fnName = getFnName(node.expression);
@@ -66,5 +73,10 @@ export class ExceptionRef {
       console.log(indent + "Added Exception: " + toString(newException));
       replaceRef(this.node, [newException, breaker], this.ref);
     }
+  }
+  update(ref: this): this {
+    this.node = ref.node;
+    this.ref = ref.ref;
+    return this;
   }
 }

@@ -1,24 +1,34 @@
 // import { foo } from "./foo";
 
+// import { expect } from "./__tests__/lib";
 import { FOO, foo } from "./foo";
-import { ExceptionState as __ExceptionState, Exception as __Exception } from "./types/exception";
 // import { JSON } from "json-as"
 
-// function callFoo(): void {
-//   foo();
-//   console.log("this should never execute!");
-// }
-
-// function bar(): void {
-
-// }
-// function callCallFoo(): void {
-//   callFoo();
-//   console.log("this should never execute!");
-// }
-// try {const newNamefully shutting down...");
-//   process.exit(0);
-// }
+function callFoo(): void {
+  foo();
+  console.log("this should never execute!");
+}
+function callCallFoo(): void {
+  callFoo();
+  console.log("this should never execute!");
+}
+try {
+  // Do something
+  foo();
+  callFoo();
+  callCallFoo();
+  console.log("This should not execute");
+} catch (e) {
+  console.log("Got an error: " + e.toString());
+  // try {
+  //   foo();
+  // } catch (e) {
+  //   console.log("Got another error: " + e.toString());
+  // }
+} finally {
+  console.log("Gracefully shutting down...");
+  process.exit(0);
+}
 
 // namespace BAR {
 //   export function bar(): void {
@@ -50,19 +60,19 @@ import { ExceptionState as __ExceptionState, Exception as __Exception } from "./
 //   }
 // }
 
-class Vec3 {
+// class Vec3 {
 
-}
-
-
-// export function main(): void {
-  try {
-    foo()
-  } catch (e) {
-    console.log("Caught Error: " + e.toString())
-  }
 // }
 
+// export function main(): void {
+// try {
+//   // FOO.foo();
+//   expect("true").toBe("true");
+// } catch (e) {
+//   console.log("Caught Error: " + e.toString())
+// }
+// }
+// main();
 function bar(): void {
   abort("Aborted from bar");
 }
