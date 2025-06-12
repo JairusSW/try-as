@@ -1,9 +1,10 @@
 import { Transform } from "assemblyscript/dist/transform.js";
 import { SourceLinker } from "./passes/source.js";
-import { isStdlib } from "./lib/util.js";
+import { isStdlib, toString } from "./lib/util.js";
 import { fileURLToPath } from "url";
 import path from "path";
-import fs from "fs";
+import fs, { writeFileSync } from "fs";
+import { removeExtension } from "./utils.js";
 const WRITE = process.env["WRITE"];
 export default class Transformer extends Transform {
     afterParse(parser) {
@@ -56,6 +57,18 @@ export default class Transformer extends Transform {
             }
         });
         SourceLinker.link(sources);
+        if (WRITE) {
+            const source1 = parser.sources.find((v) => v.normalizedPath.startsWith("assembly/foo"));
+            if (source1) {
+                console.log("Writing out");
+                writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension("assembly/foo") + ".tmp2.ts"), toString(source1));
+            }
+            const source = parser.sources.find((v) => v.normalizedPath.startsWith(WRITE));
+            if (source) {
+                console.log("Writing out");
+                writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension(WRITE) + ".tmp2.ts"), toString(source));
+            }
+        }
     }
 }
 //# sourceMappingURL=index.js.map

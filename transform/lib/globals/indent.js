@@ -1,10 +1,10 @@
 class Indent {
     value = "";
     add() {
-        return this.value += "  ";
+        return this.value += " |";
     }
     rm() {
-        return this.value.slice(-2);
+        return this.value = this.value.slice(-2);
     }
     toString() {
         return this.value;

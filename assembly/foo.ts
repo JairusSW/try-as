@@ -1,3 +1,5 @@
+
+import { AbortState as __AbortState } from "./types/abort";
 export function foo(): void {
   abort("Aborted from foo");
 }

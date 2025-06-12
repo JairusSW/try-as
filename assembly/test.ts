@@ -1,6 +1,7 @@
 // import { foo } from "./foo";
 
 import { FOO, foo } from "./foo";
+import { ExceptionState as __ExceptionState, Exception as __Exception } from "./types/exception";
 // import { JSON } from "json-as"
 
 // function callFoo(): void {
@@ -15,21 +16,7 @@ import { FOO, foo } from "./foo";
 //   callFoo();
 //   console.log("this should never execute!");
 // }
-// try {
-//   // Do something
-//   // foo();
-//   callFoo();
-//   // callCallFoo();
-//   console.log("This should not execute");
-// } catch (e) {
-//   console.log("Got an error: " + e.toString());
-//   // try {
-//   //   foo();
-//   // } catch (e) {
-//   //   console.log("Got another error: " + e.toString());
-//   // }
-// } finally {
-//   console.log("Gracefully shutting down...");
+// try {const newNamefully shutting down...");
 //   process.exit(0);
 // }
 
@@ -64,10 +51,18 @@ import { FOO, foo } from "./foo";
 // }
 
 class Vec3 {
-  
+
 }
-try {
-  foo()
-} catch (e) {
-  console.log("Caught Error: " + e.toString())
+
+
+// export function main(): void {
+  try {
+    foo()
+  } catch (e) {
+    console.log("Caught Error: " + e.toString())
+  }
+// }
+
+function bar(): void {
+  abort("Aborted from bar");
 }

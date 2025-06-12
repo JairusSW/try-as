@@ -6,7 +6,8 @@ import { SourceLinker } from "./passes/source.js";
 import { isStdlib, toString } from "./lib/util.js";
 import { fileURLToPath } from "url";
 import path from "path";
-import fs from "fs";
+import fs, { writeFileSync } from "fs";
+import { removeExtension } from "./utils.js";
 // import { Linker, PassKind } from "./passes/linker.js";
 // import { removeExtension } from "./utils.js";
 // import { ExceptionLinker } from "./linkers/exception.old.js";
@@ -119,5 +120,19 @@ export default class Transformer extends Transform {
     // console.log(Try.SN.sources.find((v) => v.source.normalizedPath == "~lib/json-as/")?.functions);
 
     SourceLinker.link(sources);
+
+    
+    if (WRITE) {
+      const source1 = parser.sources.find((v) => v.normalizedPath.startsWith("assembly/foo"));
+      if (source1) {
+        console.log("Writing out");
+        writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension("assembly/foo") + ".tmp2.ts"), toString(source1));
+      }
+      const source = parser.sources.find((v) => v.normalizedPath.startsWith(WRITE));
+      if (source) {
+        console.log("Writing out");
+        writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension(WRITE) + ".tmp2.ts"), toString(source));
+      }
+    }
   }
 }
