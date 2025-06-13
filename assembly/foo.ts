@@ -15,13 +15,14 @@ export function foo(): void {
 
 export namespace FOO {
   export function foo(): void {
-  console.log("Executing FOO.foo");
+    console.log("Executing FOO.foo");
     abort("Aborted from FOO.foo");
   }
 }
 
-export namespace JSON {
-  export function parse<T>(s: string): T {
-    throw new Error("not implemented")
-  }
-}
+export *from "./json"
+// export namespace JSON {
+//   export function parse<T>(s: string): T {
+//     throw new Error("not implemented")
+//   }
+// }

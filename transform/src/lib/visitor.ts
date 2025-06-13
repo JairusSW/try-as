@@ -376,7 +376,7 @@ export class Visitor {
       this.visit(node.implementsTypes, node);
       this.visit(node.members, node);
     } else {
-      throw new Error("Expected to type parameters to match class declaration, but found type mismatch instead!");
+      throw new Error("Expected type parameters to match class declaration, but found type mismatch instead!");
     }
   }
   visitDoStatement(node: DoStatement, ref: Node | Node[] | null = null): void {

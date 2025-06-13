@@ -39,7 +39,7 @@ export class TryRef extends BaseRef {
             this.finallyBlock = Node.createBlockStatement(cloneNode(this.node.finallyStatements), this.node.range);
             console.log(indent + "Finally Block: " + toString(this.finallyBlock).split("\n").join("\n" + indent));
         }
-        replaceRef(this.node, [this.tryBlock, this.catchBlock].filter((v) => v != null), this.ref);
+        replaceRef(this.node, [this.tryBlock, this.catchBlock, this.finallyBlock].filter((v) => v != null), this.ref);
     }
     update(ref) {
         this.node = ref.node;

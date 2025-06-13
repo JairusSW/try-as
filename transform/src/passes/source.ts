@@ -7,12 +7,13 @@ import { getFnName } from "../utils.js";
 import { ExceptionRef } from "../types/exceptionref.js";
 import { CallRef } from "../types/callref.js";
 import { CommonFlags } from "types:assemblyscript/src/common";
-import { ThrowStatement, TryStatement } from "types:assemblyscript/src/ast";
+import { ExportDefaultStatement, ExportImportStatement, ExportStatement, ThrowStatement, TryStatement } from "types:assemblyscript/src/ast";
 import { TryRef } from "../types/tryref.js";
 import { fileURLToPath } from "url";
 import { Globals } from "../globals/globals.js";
 import path from "path";
 import fs from "fs";
+import { toString } from "../lib/util.js";
 
 class SourceState {
   public sources: Map<string, SourceRef> = new Map();
@@ -36,11 +37,11 @@ export class SourceLinker extends Visitor {
   public foundException: boolean = false;
 
   visitImportStatement(node: ImportStatement, ref: Node | Node[] | null = null): void {
-    if (this.state != "gather") return super.visitImportStatement(node, ref);
+    if (this.state != "gather" || !node.internalPath) return super.visitImportStatement(node, ref);
     if (node.internalPath.startsWith("~lib/rt") || node.internalPath.startsWith("~lib/performance") || node.internalPath.startsWith("~lib/wasi_") || node.internalPath.startsWith("~lib/shared/")) return super.visitImportStatement(node, ref);
     this.source.local.imports.push(node);
     const targetSourceRef = SourceLinker.SS.sources.get(node.internalPath) || SourceLinker.SS.sources.get(node.internalPath + "/index");
-    if (!targetSourceRef) throw new Error("Could not find " + node.internalPath + " in sources!");
+    if (!targetSourceRef) return super.visitImportStatement(node, ref);// throw new Error("Could not find " + node.internalPath + " in sources!");
     if (targetSourceRef.state != "ready") return super.visitImportStatement(node, ref);
     if (node.internalPath == node.range.source.internalPath) return super.visitImportStatement(node, ref);
     console.log(indent + node.range.source.internalPath + " -> " + targetSourceRef.node.internalPath);
@@ -48,11 +49,37 @@ export class SourceLinker extends Visitor {
     this.source.dependencies.add(targetSourceRef);
     const newLinker = new SourceLinker();
     newLinker.link(targetSourceRef.node);
+    super.visitImportStatement(node, ref);
+  }
+
+  visitExportImportStatement(node: ExportImportStatement, ref?: Node | Node[] | null): void {
+    console.log(indent + "Found ExportImportStatement " + toString(node));
+    super.visitExportImportStatement(node, ref);
+  }
+  visitExportDefaultStatement(node: ExportDefaultStatement, ref?: Node | Node[] | null): void {
+    console.log(indent + "Found ExportDefaultStatement " + toString(node));
+    super.visitExportDefaultStatement(node, ref);
+  }
+  visitExportStatement(node: ExportStatement, ref?: Node | Node[] | null): void {
+    if (this.state != "gather" || !node.internalPath) return super.visitExportStatement(node, ref);
+    if (node.internalPath.startsWith("~lib/rt") || node.internalPath.startsWith("~lib/performance") || node.internalPath.startsWith("~lib/wasi_") || node.internalPath.startsWith("~lib/shared/")) return super.visitImportStatement(node, ref);
+    this.source.local.exports.push(node);
+    const targetSourceRef = SourceLinker.SS.sources.get(node.internalPath) || SourceLinker.SS.sources.get(node.internalPath + "/index");
+    if (!targetSourceRef) return super.visitExportStatement(node, ref);// throw new Error("Could not find " + node.internalPath + " in sources!");
+    if (targetSourceRef.state != "ready") return super.visitExportStatement(node, ref);
+    if (node.internalPath == node.range.source.internalPath) return super.visitExportStatement(node, ref);
+    console.log(indent + node.range.source.internalPath + " -> " + targetSourceRef.node.internalPath);
+
+    this.source.dependencies.add(targetSourceRef);
+    const newLinker = new SourceLinker();
+    newLinker.link(targetSourceRef.node);
+    super.visitExportStatement(node, ref);
   }
 
   visitFunctionDeclaration(node: FunctionDeclaration, isDefault: boolean = false, ref: Node | Node[] | null = null): void {
     if (this.state == "gather") {
       const fnRef = new FunctionRef(node, ref, this.path.slice());
+      // console.log(indent + "Found function " + fnRef.name);
       this.source.local.functions.push(fnRef);
     } else if (this.state == "link") {
       if (node.range.source.sourceKind == SourceKind.UserEntry && (node.flags & CommonFlags.Export)) {
@@ -123,31 +150,7 @@ export class SourceLinker extends Visitor {
       return super.visitCallExpression(node, ref);
     }
 
-    let fnRef = this.source.functions.find((v) => v.name == fnName);
-    if (fnRef) {
-      console.log(indent + "Identified " + fnName + "() as exception");
-      this.foundException = true;
-    } else {
-      fnRef = this.source.local.functions.find((v) => v.name == fnName);
-      if (fnRef) {
-        console.log(indent + "Found " + fnName + " locally");
-      } else {
-        const externDec = this.source.local.imports.find((a) =>
-          a.declarations.find((b) =>
-            fnName == b.name.text || fnName.startsWith(b.name.text + ".")
-          )
-        );
-        if (externDec) {
-          // console.log(indent + "Looking for " + targetName + " in " + externDec.internalPath);
-          const externSrc = SourceLinker.SS.sources.get(externDec.internalPath) || SourceLinker.SS.sources.get(externDec.internalPath + "/index");
-          if (!externSrc) throw new Error("Could not find " + externDec.internalPath + " in sources!");
-          fnRef = externSrc.functions.find((v) => v.name == fnName || fnName.startsWith(v.name + ".")) || externSrc.local.functions.find((v) => v.name == fnName || fnName.startsWith(v.name + "."));
-          if (fnRef) console.log(indent + "Found " + fnName + " externally");
-        } else {
-          // console.log(indent + "Could not find " + targetName);
-        }
-      }
-    }
+    let fnRef = this.source.findFn(fnName);
     if (!fnRef) return super.visitCallExpression(node, ref);
 
     const callRef = new CallRef(node, ref, fnRef);
@@ -181,6 +184,8 @@ export class SourceLinker extends Visitor {
   }
 
   visitThrowStatement(node: ThrowStatement, ref: Node | Node[] | null = null): void {
+    console.log(indent + "Found exception " + toString(node));
+    this.foundException = true;
     const newException = new ExceptionRef(node, ref);
     newException.parentFn = this.parentFn;
     this.lastFn?.exceptions.push(newException);
@@ -219,27 +224,22 @@ export class SourceLinker extends Visitor {
 
   visitNamespaceDeclaration(node: NamespaceDeclaration, isDefault: boolean = false, ref: Node | Node[] | null = null): void {
     this.path.push(node.name.text);
+    console.log(indent + "Found namespace: " + node.name.text);
     super.visitNamespaceDeclaration(node, isDefault, ref);
-    const index = this.path.lastIndexOf(node.name.text);
-    if (index !== -1) {
-      this.path.splice(index, 1);
-    }
+    this.path.pop();
   }
   visitClassDeclaration(node: ClassDeclaration, isDefault: boolean = false, ref: Node | Node[] | null = null): void {
     super.visit(node.name, node);
-    super.visit(node.decorators, node);
+    this.visit(node.decorators, node);
     if (node.isGeneric ? node.typeParameters != null : node.typeParameters == null) {
       super.visit(node.typeParameters, node);
       super.visit(node.extendsType, node);
       super.visit(node.implementsTypes, node);
       this.path.push(node.name.text);
-      this.visit(node.members, node);
-      const index = this.path.lastIndexOf(node.name.text);
-      if (index !== -1) {
-        this.path.splice(index, 1);
-      }
+      super.visit(node.members, node);
+      this.path.pop();
     } else {
-      throw new Error("Expected to type parameters to match class declaration, but found type mismatch instead!");
+      throw new Error("Expected type parameters to match class declaration, but found type mismatch instead!");
     }
   }
 

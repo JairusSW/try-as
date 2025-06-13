@@ -11,6 +11,7 @@ import { fileURLToPath } from "url";
 import { Globals } from "../globals/globals.js";
 import path from "path";
 import fs from "fs";
+import { toString } from "../lib/util.js";
 class SourceState {
     sources = new Map();
 }
@@ -28,14 +29,14 @@ export class SourceLinker extends Visitor {
     callStack = new Set();
     foundException = false;
     visitImportStatement(node, ref = null) {
-        if (this.state != "gather")
+        if (this.state != "gather" || !node.internalPath)
             return super.visitImportStatement(node, ref);
         if (node.internalPath.startsWith("~lib/rt") || node.internalPath.startsWith("~lib/performance") || node.internalPath.startsWith("~lib/wasi_") || node.internalPath.startsWith("~lib/shared/"))
             return super.visitImportStatement(node, ref);
         this.source.local.imports.push(node);
         const targetSourceRef = SourceLinker.SS.sources.get(node.internalPath) || SourceLinker.SS.sources.get(node.internalPath + "/index");
         if (!targetSourceRef)
-            throw new Error("Could not find " + node.internalPath + " in sources!");
+            return super.visitImportStatement(node, ref);
         if (targetSourceRef.state != "ready")
             return super.visitImportStatement(node, ref);
         if (node.internalPath == node.range.source.internalPath)
@@ -44,6 +45,34 @@ export class SourceLinker extends Visitor {
         this.source.dependencies.add(targetSourceRef);
         const newLinker = new SourceLinker();
         newLinker.link(targetSourceRef.node);
+        super.visitImportStatement(node, ref);
+    }
+    visitExportImportStatement(node, ref) {
+        console.log(indent + "Found ExportImportStatement " + toString(node));
+        super.visitExportImportStatement(node, ref);
+    }
+    visitExportDefaultStatement(node, ref) {
+        console.log(indent + "Found ExportDefaultStatement " + toString(node));
+        super.visitExportDefaultStatement(node, ref);
+    }
+    visitExportStatement(node, ref) {
+        if (this.state != "gather" || !node.internalPath)
+            return super.visitExportStatement(node, ref);
+        if (node.internalPath.startsWith("~lib/rt") || node.internalPath.startsWith("~lib/performance") || node.internalPath.startsWith("~lib/wasi_") || node.internalPath.startsWith("~lib/shared/"))
+            return super.visitImportStatement(node, ref);
+        this.source.local.exports.push(node);
+        const targetSourceRef = SourceLinker.SS.sources.get(node.internalPath) || SourceLinker.SS.sources.get(node.internalPath + "/index");
+        if (!targetSourceRef)
+            return super.visitExportStatement(node, ref);
+        if (targetSourceRef.state != "ready")
+            return super.visitExportStatement(node, ref);
+        if (node.internalPath == node.range.source.internalPath)
+            return super.visitExportStatement(node, ref);
+        console.log(indent + node.range.source.internalPath + " -> " + targetSourceRef.node.internalPath);
+        this.source.dependencies.add(targetSourceRef);
+        const newLinker = new SourceLinker();
+        newLinker.link(targetSourceRef.node);
+        super.visitExportStatement(node, ref);
     }
     visitFunctionDeclaration(node, isDefault = false, ref = null) {
         if (this.state == "gather") {
@@ -120,30 +149,7 @@ export class SourceLinker extends Visitor {
             this.lastFn?.exceptions.push(newException);
             return super.visitCallExpression(node, ref);
         }
-        let fnRef = this.source.functions.find((v) => v.name == fnName);
-        if (fnRef) {
-            console.log(indent + "Identified " + fnName + "() as exception");
-            this.foundException = true;
-        }
-        else {
-            fnRef = this.source.local.functions.find((v) => v.name == fnName);
-            if (fnRef) {
-                console.log(indent + "Found " + fnName + " locally");
-            }
-            else {
-                const externDec = this.source.local.imports.find((a) => a.declarations.find((b) => fnName == b.name.text || fnName.startsWith(b.name.text + ".")));
-                if (externDec) {
-                    const externSrc = SourceLinker.SS.sources.get(externDec.internalPath) || SourceLinker.SS.sources.get(externDec.internalPath + "/index");
-                    if (!externSrc)
-                        throw new Error("Could not find " + externDec.internalPath + " in sources!");
-                    fnRef = externSrc.functions.find((v) => v.name == fnName || fnName.startsWith(v.name + ".")) || externSrc.local.functions.find((v) => v.name == fnName || fnName.startsWith(v.name + "."));
-                    if (fnRef)
-                        console.log(indent + "Found " + fnName + " externally");
-                }
-                else {
-                }
-            }
-        }
+        let fnRef = this.source.findFn(fnName);
         if (!fnRef)
             return super.visitCallExpression(node, ref);
         const callRef = new CallRef(node, ref, fnRef);
@@ -175,6 +181,8 @@ export class SourceLinker extends Visitor {
             this.lastFn?.exceptions.push(callRef);
     }
     visitThrowStatement(node, ref = null) {
+        console.log(indent + "Found exception " + toString(node));
+        this.foundException = true;
         const newException = new ExceptionRef(node, ref);
         newException.parentFn = this.parentFn;
         this.lastFn?.exceptions.push(newException);
@@ -207,28 +215,23 @@ export class SourceLinker extends Visitor {
     }
     visitNamespaceDeclaration(node, isDefault = false, ref = null) {
         this.path.push(node.name.text);
+        console.log(indent + "Found namespace: " + node.name.text);
         super.visitNamespaceDeclaration(node, isDefault, ref);
-        const index = this.path.lastIndexOf(node.name.text);
-        if (index !== -1) {
-            this.path.splice(index, 1);
-        }
+        this.path.pop();
     }
     visitClassDeclaration(node, isDefault = false, ref = null) {
         super.visit(node.name, node);
-        super.visit(node.decorators, node);
+        this.visit(node.decorators, node);
         if (node.isGeneric ? node.typeParameters != null : node.typeParameters == null) {
             super.visit(node.typeParameters, node);
             super.visit(node.extendsType, node);
             super.visit(node.implementsTypes, node);
             this.path.push(node.name.text);
-            this.visit(node.members, node);
-            const index = this.path.lastIndexOf(node.name.text);
-            if (index !== -1) {
-                this.path.splice(index, 1);
-            }
+            super.visit(node.members, node);
+            this.path.pop();
         }
         else {
-            throw new Error("Expected to type parameters to match class declaration, but found type mismatch instead!");
+            throw new Error("Expected type parameters to match class declaration, but found type mismatch instead!");
         }
     }
     link(source) {

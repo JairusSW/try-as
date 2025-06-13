@@ -125,7 +125,7 @@ export class TryRef extends BaseRef {
 
     replaceRef(
       this.node,
-      [this.tryBlock, this.catchBlock].filter((v) => v != null),
+      [this.tryBlock, this.catchBlock, this.finallyBlock].filter((v) => v != null),
       this.ref,
     );
   }

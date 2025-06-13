@@ -1,11 +1,13 @@
-import { ImportStatement, Source } from "assemblyscript/dist/assemblyscript.js";
+import { ExportStatement, ImportStatement, Source } from "assemblyscript/dist/assemblyscript.js";
 import { FunctionRef } from "./functionref.js";
 import { TryRef } from "./tryref.js";
 import { BaseRef } from "./baseref.js";
+import { SourceLinker } from "../passes/source.js";
 
 export class SourceLocalRef {
   public functions: FunctionRef[] = [];
   public imports: ImportStatement[] = [];
+  public exports: ExportStatement[] = [];
 }
 export class SourceRef extends BaseRef {
   public node: Source;
@@ -22,6 +24,76 @@ export class SourceRef extends BaseRef {
     super();
     this.node = source;
   }
+  /**
+   * Find a function by name in this source, or in external sources via imports.
+   * @param name The name of the function to find.
+   * @param indent The indentation to prefix log messages with.
+   * @param visitedPaths A set of paths that have already been searched.
+   * @returns The found FunctionRef or null.
+   */
+  findFn(name: string, indent: string = "", visitedPaths = new Set<string>()): FunctionRef | null {
+    const currentPath = this.node.internalPath;
+    if (!currentPath || visitedPaths.has(currentPath)) return null;
+    visitedPaths.add(currentPath);
+
+    let fnRef = this.functions.find(fn => fn.name === name);
+    if (fnRef) {
+      console.log(indent + `Identified ${name}() as exception`);
+      return fnRef;
+    }
+
+    fnRef = this.local.functions.find(fn => fn.name === name);
+    if (fnRef) {
+      console.log(indent + `Found ${name} locally`);
+      return fnRef;
+    }
+
+    const importMatch = this.local.imports.find(imp =>
+      imp.declarations.some(decl =>
+        name === decl.name.text || name.startsWith(decl.name.text + ".")
+      )
+    );
+
+    if (importMatch) {
+      const basePath = importMatch.internalPath;
+      let externSrc = SourceLinker.SS.sources.get(basePath) || SourceLinker.SS.sources.get(basePath + "/index");
+
+      if (!externSrc) {
+        throw new Error("Could not find " + basePath + " in sources!");
+      }
+
+      const result = externSrc.findFn(name, indent + "  ", visitedPaths);
+      if (result) {
+        console.log(indent + `Found ${name} externally`);
+        return result;
+      }
+
+      const exported = externSrc.local.exports.find(exp => {
+        if (exp.members) {
+          return exp.members.some(member =>
+            name === member.exportedName.text || name.startsWith(member.exportedName.text + ".")
+          );
+        } else {
+          return true;
+        }
+      });
+
+      if (exported) {
+        const exportPath = exported.internalPath;
+        const reexported = SourceLinker.SS.sources.get(exportPath) || SourceLinker.SS.sources.get(exportPath + "/index");
+        if (reexported) {
+          const result = reexported.findFn(name, indent + "  ", visitedPaths);
+          if (result) {
+            console.log(indent + `Found ${name} exported externally`);
+            return result;
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
   generate(): void {
     if (this.generated) return;
     this.generated = true;
