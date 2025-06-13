@@ -1,6 +1,6 @@
 import { Node } from "assemblyscript/dist/assemblyscript.js";
-import path from "path";
 import { toString } from "./lib/util.js";
+import path from "path";
 export function replaceRef(node, replacement, ref) {
     if (!node || !ref)
         return;
@@ -108,31 +108,6 @@ export function stripExpr(node) {
         return node["expression"];
     return node;
 }
-export function nodeEq(a, b) {
-    if (!a || !b)
-        return false;
-    if (!a["kind"] || !b["kind"])
-        return false;
-    if (a === b)
-        return true;
-    if (typeof a !== "object" || a === null || typeof b !== "object" || b === null)
-        return false;
-    const keys1 = Object.keys(a);
-    const keys2 = Object.keys(b);
-    if (keys1 !== keys2)
-        return false;
-    for (let key of keys1) {
-        if (!keys2.includes(key))
-            return false;
-        if (!nodeEq(a[key], b[key]))
-            return false;
-    }
-    return true;
-}
-export function isPrimitive(type) {
-    const primitiveTypes = ["u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "f32", "f64", "bool", "boolean"];
-    return primitiveTypes.some((v) => type.startsWith(v));
-}
 export function blockify(node) {
     if (!node)
         return null;
@@ -180,33 +155,6 @@ export function cloneNode(input, seen = new WeakMap(), path = "") {
         }
     }
     return clone;
-}
-export function hasBaseException(statements) {
-    return statements.some((v) => {
-        if (!v)
-            return false;
-        if (v.kind == 38)
-            v = v.expression;
-        if (v.kind == 9 && v.expression.kind == 6 && (v.expression.text == "abort" || v.expression.text == "unreachable"))
-            return true;
-        if (v.kind == 45)
-            return true;
-        return false;
-    });
-}
-export function hasOnlyExceptions(statements) {
-    return statements.every((v) => {
-        if (!v)
-            return false;
-        v = stripExpr(v);
-        if (v.kind !== 9)
-            return false;
-        const callExpr = v;
-        if (callExpr.expression.kind === 6 && (callExpr.expression.text === "abort" || callExpr.expression.text === "unreachable")) {
-            return true;
-        }
-        return false;
-    });
 }
 export function removeExtension(filePath) {
     const parsed = path.parse(filePath);

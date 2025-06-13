@@ -3,6 +3,10 @@ import { FunctionRef } from "./functionref.js";
 import { TryRef } from "./tryref.js";
 import { BaseRef } from "./baseref.js";
 import { SourceLinker } from "../passes/source.js";
+import { indent } from "../globals/indent.js";
+
+const rawValue = process.env["DEBUG"];
+const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 
 export class SourceLocalRef {
   public functions: FunctionRef[] = [];
@@ -31,20 +35,20 @@ export class SourceRef extends BaseRef {
    * @param visitedPaths A set of paths that have already been searched.
    * @returns The found FunctionRef or null.
    */
-  findFn(name: string, indent: string = "", visitedPaths = new Set<string>()): FunctionRef | null {
+  findFn(name: string, visitedPaths = new Set<string>()): FunctionRef | null {
     const currentPath = this.node.internalPath;
     if (!currentPath || visitedPaths.has(currentPath)) return null;
     visitedPaths.add(currentPath);
 
     let fnRef = this.functions.find(fn => fn.name === name);
     if (fnRef) {
-      console.log(indent + `Identified ${name}() as exception`);
+      if (DEBUG > 0) (indent + `Identified ${name}() as exception`);
       return fnRef;
     }
 
     fnRef = this.local.functions.find(fn => fn.name === name);
     if (fnRef) {
-      console.log(indent + `Found ${name} locally`);
+      if (DEBUG > 0) console.log(indent + `Found ${name} locally`);
       return fnRef;
     }
 
@@ -62,9 +66,9 @@ export class SourceRef extends BaseRef {
         throw new Error("Could not find " + basePath + " in sources!");
       }
 
-      const result = externSrc.findFn(name, indent + "  ", visitedPaths);
+      const result = externSrc.findFn(name, visitedPaths);
       if (result) {
-        console.log(indent + `Found ${name} externally`);
+        if (DEBUG > 0) console.log(indent + `Found ${name} externally`);
         return result;
       }
 
@@ -82,9 +86,9 @@ export class SourceRef extends BaseRef {
         const exportPath = exported.internalPath;
         const reexported = SourceLinker.SS.sources.get(exportPath) || SourceLinker.SS.sources.get(exportPath + "/index");
         if (reexported) {
-          const result = reexported.findFn(name, indent + "  ", visitedPaths);
+          const result = reexported.findFn(name, visitedPaths);
           if (result) {
-            console.log(indent + `Found ${name} exported externally`);
+            if (DEBUG > 0) console.log(indent + `Found ${name} exported externally`);
             return result;
           }
         }

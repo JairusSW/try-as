@@ -5,6 +5,9 @@ import { toString } from "../lib/util.js";
 import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
 
+const rawValue = process.env["DEBUG"];
+const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
+
 export class ExceptionRef extends BaseRef {
   public node: CallExpression | ThrowStatement;
   public ref: Node | Node[] | null;
@@ -51,7 +54,7 @@ export class ExceptionRef extends BaseRef {
 
       const breaker = getBreaker(node, this.parentFn?.node);
 
-      console.log(indent + "Added Exception: " + toString(newException));
+      if (DEBUG > 0) console.log(indent + "Added Exception: " + toString(newException));
       replaceRef(this.node, [newException, breaker], this.ref);
     } else if (this.node.kind == NodeKind.Throw) {
       const node = this.node as ThrowStatement;
@@ -70,7 +73,7 @@ export class ExceptionRef extends BaseRef {
       );
 
       const breaker = getBreaker(node, this.parentFn?.node);
-      console.log(indent + "Added Exception: " + toString(newException));
+      if (DEBUG > 0) console.log(indent + "Added Exception: " + toString(newException));
       replaceRef(this.node, [newException, breaker], this.ref);
     }
   }

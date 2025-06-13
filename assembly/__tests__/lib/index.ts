@@ -17,6 +17,8 @@ class Expectation {
       console.log("  (expected) -> " + right);
       console.log("  (received) -> " + this.left);
       process.exit(1);
+    } else {
+      console.log("  \"" + right + "\" == \"" + this.left + "\"");
     }
   }
 }

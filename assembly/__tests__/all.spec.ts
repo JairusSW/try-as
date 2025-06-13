@@ -1,13 +1,13 @@
-// import { deepImportedFunction, importedFunction } from "./imports";
 import { describe, expect } from "./lib";
+import { deepImportedFunction, importedFunction } from "./imports";
 
-describe("Should handle immediate abort call", (): void => {
-  try {
-    abort("This should abort");
-  } catch (e) {
-    expect(e.toString()).toBe("abort: This should abort");
-  }
-});
+// describe("Should handle immediate abort call", (): void => {
+//   try {
+//     abort("This should abort");
+//   } catch (e) {
+//     expect(e.toString()).toBe("abort: This should abort");
+//   }
+// });
 
 // describe("Should execute finally block", () => {
 //   let finallyExecuted = false;
@@ -132,13 +132,13 @@ describe("Should handle immediate abort call", (): void => {
 //   }
 // });
 
-// describe("Should handle abort from a deeply nested imported function", () => {
-//   try {
-//     deepImportedFunction();
-//   } catch (e) {
-//     expect(e.toString()).toBe("abort: Aborted from deepImportedFunction");
-//   }
-// });
+describe("Should handle abort from a deeply nested imported function", () => {
+  try {
+    deepImportedFunction();
+  } catch (e) {
+    expect(e.toString()).toBe("abort: Aborted from deepImportedFunction");
+  }
+});
 
 // describe("Should abort in finally after successful imported function", () => {
 //   try {

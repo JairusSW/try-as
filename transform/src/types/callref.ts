@@ -5,6 +5,9 @@ import { indent } from "../globals/indent.js";
 import { toString } from "../lib/util.js";
 import { BaseRef } from "./baseref.js";
 
+const rawValue = process.env["DEBUG"];
+const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
+
 export class CallRef extends BaseRef {
   public node: CallExpression;
   public ref: Node | Node[] | null;
@@ -30,11 +33,11 @@ export class CallRef extends BaseRef {
     const newName = this.node.expression.kind == NodeKind.PropertyAccess
       ? Node.createPropertyAccessExpression(
         (this.node.expression as PropertyAccessExpression).expression,
-        Node.createIdentifierExpression("__try_" + (this.node.expression as PropertyAccessExpression).property.text, this.node.range),
+        Node.createIdentifierExpression((this.calling.tries.length ? "" : "__try_") + (this.node.expression as PropertyAccessExpression).property.text, this.node.range),
         this.node.range
       )
       :
-      Node.createIdentifierExpression("__try_" + (this.node.expression as IdentifierExpression).text, this.node.range);
+      Node.createIdentifierExpression((this.calling.tries.length ? "" : "__try_") + (this.node.expression as IdentifierExpression).text, this.node.range);
 
     const unrollCheck = Node.createIfStatement(
       Node.createBinaryExpression(
@@ -61,7 +64,7 @@ export class CallRef extends BaseRef {
       )
     );
     // this.node.expression = newName;
-    console.log(indent + "Replaced call: " + toString(this.node));
+    if (DEBUG > 0) console.log(indent + "Replaced call: " + toString(this.node));
     replaceRef(this.node, [overrideCall, unrollCheck], this.ref);
   }
   update(ref: this): this {

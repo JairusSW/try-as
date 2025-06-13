@@ -1,5 +1,8 @@
 import { BaseRef } from "./baseref.js";
 import { SourceLinker } from "../passes/source.js";
+import { indent } from "../globals/indent.js";
+const rawValue = process.env["DEBUG"];
+const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 export class SourceLocalRef {
     functions = [];
     imports = [];
@@ -18,19 +21,21 @@ export class SourceRef extends BaseRef {
         super();
         this.node = source;
     }
-    findFn(name, indent = "", visitedPaths = new Set()) {
+    findFn(name, visitedPaths = new Set()) {
         const currentPath = this.node.internalPath;
         if (!currentPath || visitedPaths.has(currentPath))
             return null;
         visitedPaths.add(currentPath);
         let fnRef = this.functions.find(fn => fn.name === name);
         if (fnRef) {
-            console.log(indent + `Identified ${name}() as exception`);
+            if (DEBUG > 0)
+                (indent + `Identified ${name}() as exception`);
             return fnRef;
         }
         fnRef = this.local.functions.find(fn => fn.name === name);
         if (fnRef) {
-            console.log(indent + `Found ${name} locally`);
+            if (DEBUG > 0)
+                console.log(indent + `Found ${name} locally`);
             return fnRef;
         }
         const importMatch = this.local.imports.find(imp => imp.declarations.some(decl => name === decl.name.text || name.startsWith(decl.name.text + ".")));
@@ -40,9 +45,10 @@ export class SourceRef extends BaseRef {
             if (!externSrc) {
                 throw new Error("Could not find " + basePath + " in sources!");
             }
-            const result = externSrc.findFn(name, indent + "  ", visitedPaths);
+            const result = externSrc.findFn(name, visitedPaths);
             if (result) {
-                console.log(indent + `Found ${name} externally`);
+                if (DEBUG > 0)
+                    console.log(indent + `Found ${name} externally`);
                 return result;
             }
             const exported = externSrc.local.exports.find(exp => {
@@ -57,9 +63,10 @@ export class SourceRef extends BaseRef {
                 const exportPath = exported.internalPath;
                 const reexported = SourceLinker.SS.sources.get(exportPath) || SourceLinker.SS.sources.get(exportPath + "/index");
                 if (reexported) {
-                    const result = reexported.findFn(name, indent + "  ", visitedPaths);
+                    const result = reexported.findFn(name, visitedPaths);
                     if (result) {
-                        console.log(indent + `Found ${name} exported externally`);
+                        if (DEBUG > 0)
+                            console.log(indent + `Found ${name} exported externally`);
                         return result;
                     }
                 }

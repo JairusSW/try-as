@@ -1,11 +1,14 @@
 import { BlockStatement, CommonFlags, FunctionDeclaration, ImportDeclaration, ImportStatement, Node, NodeKind, SourceKind, Statement, Token } from "assemblyscript/dist/assemblyscript.js";
 import { CallRef } from "./callref.js";
-import { addAfter, blockify, cloneNode, getBreaker, getFnName, replaceRef } from "../utils.js";
+import { addAfter, blockify, cloneNode, getBreaker, getFnName } from "../utils.js";
 import { ExceptionRef } from "./exceptionref.js";
 import { TryRef } from "./tryref.js";
 import { SourceLinker } from "../passes/source.js";
 import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
+
+const rawValue = process.env["DEBUG"];
+const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 
 export class FunctionRef extends BaseRef {
   public node: FunctionDeclaration;
@@ -38,7 +41,7 @@ export class FunctionRef extends BaseRef {
     return this.node.flags & CommonFlags.Export && this.node.range.source.sourceKind == SourceKind.UserEntry;
   }
   generate(): void {
-    console.log(indent + "Generating function " + this.name);
+    if (DEBUG > 0) console.log(indent + "Generating function " + this.name);
     indent.add();
     if (this.exported && !this.generatedImport) {
       this.generatedImport = true;
@@ -64,7 +67,7 @@ export class FunctionRef extends BaseRef {
           }
         }
 
-        if (callerImport && callerDeclaration) {
+        if (callerImport && callerDeclaration && !this.tries.length) {
           const newCallerImport = Node.createImportDeclaration(
             Node.createIdentifierExpression("__try_" + callerDeclaration.foreignName.text, caller.node.range.source.range),
             Node.createIdentifierExpression("__try_" + caller.name, caller.node.range.source.range),
@@ -72,7 +75,7 @@ export class FunctionRef extends BaseRef {
           );
 
           callerImport.declarations.push(newCallerImport);
-          console.log(indent + "Added import " + newCallerImport.foreignName.text);
+          if (DEBUG > 0) (indent + "Added import " + newCallerImport.foreignName.text);
         }
       }
     }
@@ -108,9 +111,7 @@ export class FunctionRef extends BaseRef {
       this.node.range
     );
 
-    if (!this.tries.length) {
-      this.node.name = Node.createIdentifierExpression("__try_" + this.node.name.text, this.node.name.range)
-    }
+    if (!this.tries.length) this.node.name = Node.createIdentifierExpression("__try_" + this.node.name.text, this.node.name.range)
 
     if (this.node.body.kind != NodeKind.Block) {
       this.node.body = blockify(this.node.body);
@@ -119,18 +120,27 @@ export class FunctionRef extends BaseRef {
     (this.node.body as BlockStatement).statements.unshift(unrollCheck);
 
     for (const exception of this.exceptions) {
+      console.log(indent + "Generating exceptions");
+      indent.add();
       exception.generate();
+      indent.rm();
     }
-    if (!this.tries.length) {
+    if (!this.isEntry() && !this.tries.length) {
       for (const caller of this.callers) {
+        console.log(indent + "Generating callers");
+        indent.add();
         caller.generate();
+        indent.rm();
       }
     }
     for (const tryRef of this.tries) {
+      console.log(indent + "Generating tries");
+      indent.add();
       tryRef.generate();
+      indent.rm();
     }
 
-    if (!this.isEntry() && !this.tries.length) addAfter(this.node, replacementFunction, this.ref);
+    if (!this.tries.length) addAfter(this.node, replacementFunction, this.ref);
     indent.rm();
   }
   update(ref: this): this {

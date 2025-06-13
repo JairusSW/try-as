@@ -12,6 +12,8 @@ import { Globals } from "../globals/globals.js";
 import path from "path";
 import fs from "fs";
 import { toString } from "../lib/util.js";
+const rawValue = process.env["DEBUG"];
+const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 class SourceState {
     sources = new Map();
 }
@@ -41,21 +43,14 @@ export class SourceLinker extends Visitor {
             return super.visitImportStatement(node, ref);
         if (node.internalPath == node.range.source.internalPath)
             return super.visitImportStatement(node, ref);
-        console.log(indent + node.range.source.internalPath + " -> " + targetSourceRef.node.internalPath);
+        if (DEBUG > 0)
+            console.log(indent + node.range.source.internalPath + " -> " + targetSourceRef.node.internalPath);
         this.source.dependencies.add(targetSourceRef);
         const newLinker = new SourceLinker();
         newLinker.link(targetSourceRef.node);
         super.visitImportStatement(node, ref);
     }
-    visitExportImportStatement(node, ref) {
-        console.log(indent + "Found ExportImportStatement " + toString(node));
-        super.visitExportImportStatement(node, ref);
-    }
-    visitExportDefaultStatement(node, ref) {
-        console.log(indent + "Found ExportDefaultStatement " + toString(node));
-        super.visitExportDefaultStatement(node, ref);
-    }
-    visitExportStatement(node, ref) {
+    visitExportStatement(node, ref = null) {
         if (this.state != "gather" || !node.internalPath)
             return super.visitExportStatement(node, ref);
         if (node.internalPath.startsWith("~lib/rt") || node.internalPath.startsWith("~lib/performance") || node.internalPath.startsWith("~lib/wasi_") || node.internalPath.startsWith("~lib/shared/"))
@@ -68,7 +63,8 @@ export class SourceLinker extends Visitor {
             return super.visitExportStatement(node, ref);
         if (node.internalPath == node.range.source.internalPath)
             return super.visitExportStatement(node, ref);
-        console.log(indent + node.range.source.internalPath + " -> " + targetSourceRef.node.internalPath);
+        if (DEBUG > 0)
+            console.log(indent + node.range.source.internalPath + " -> " + targetSourceRef.node.internalPath);
         this.source.dependencies.add(targetSourceRef);
         const newLinker = new SourceLinker();
         newLinker.link(targetSourceRef.node);
@@ -103,12 +99,14 @@ export class SourceLinker extends Visitor {
             return;
         indent.add();
         this.callStack.add(fnRef);
-        console.log(indent + "Stack [" + Array.from(this.callStack.values()).map(v => v.name).join(", ") + "]");
+        if (DEBUG > 0)
+            console.log(indent + "Stack [" + Array.from(this.callStack.values()).map(v => v.name).join(", ") + "]");
         const lastFn = this.lastFn;
+        const parentFn = this.parentFn;
         this.lastFn = fnRef;
         this.parentFn = fnRef;
         super.visitFunctionDeclaration(fnRef.node, false, fnRef.ref);
-        this.parentFn = null;
+        this.parentFn = parentFn;
         this.lastFn = lastFn;
         if (this.foundException) {
             for (const fn of this.callStack.values()) {
@@ -116,13 +114,15 @@ export class SourceLinker extends Visitor {
                 if (fn.node.range.source.internalPath != this.source.node.internalPath) {
                     const alienSrc = SourceLinker.SS.sources.get(fn.node.range.source.internalPath);
                     if (!alienSrc.functions.some(v => v == fn)) {
-                        console.log(indent + "Added function (fn): " + fn.name);
+                        if (DEBUG > 0)
+                            console.log(indent + "Added function (fn): " + fn.name);
                         alienSrc.functions.push(fn);
                     }
                 }
                 else {
                     if (!this.source.functions.some(v => v == fn)) {
-                        console.log(indent + "Added function (fn): " + fn.name);
+                        if (DEBUG > 0)
+                            console.log(indent + "Added function (fn): " + fn.name);
                         this.source.functions.push(fn);
                     }
                 }
@@ -142,11 +142,15 @@ export class SourceLinker extends Visitor {
             return super.visitCallExpression(node, ref);
         const fnName = getFnName(node.expression);
         if (fnName == "unreachable" || fnName == "abort") {
-            console.log(indent + "Found exception " + fnName);
+            if (DEBUG > 0)
+                console.log(indent + "Found exception " + toString(node));
             this.foundException = true;
             const newException = new ExceptionRef(node, ref);
             newException.parentFn = this.parentFn;
-            this.lastFn?.exceptions.push(newException);
+            if (this.lastFn)
+                this.lastFn.exceptions.push(newException);
+            else
+                this.lastTry.exceptions.push(newException);
             return super.visitCallExpression(node, ref);
         }
         let fnRef = this.source.findFn(fnName);
@@ -161,13 +165,15 @@ export class SourceLinker extends Visitor {
                 if (fn.node.range.source.internalPath != this.source.node.internalPath) {
                     const alienSrc = SourceLinker.SS.sources.get(fn.node.range.source.internalPath);
                     if (!alienSrc.functions.some(v => v == fn)) {
-                        console.log(indent + "Added function (call): " + fn.name);
+                        if (DEBUG > 0)
+                            console.log(indent + "Added function (call): " + fn.name);
                         alienSrc.functions.push(fn);
                     }
                 }
                 else {
                     if (!this.source.functions.some(v => v == fn)) {
-                        console.log(indent + "Added function (call): " + fn.name);
+                        if (DEBUG > 0)
+                            console.log(indent + "Added function (call): " + fn.name);
                         this.source.functions.push(fn);
                     }
                 }
@@ -181,11 +187,15 @@ export class SourceLinker extends Visitor {
             this.lastFn?.exceptions.push(callRef);
     }
     visitThrowStatement(node, ref = null) {
-        console.log(indent + "Found exception " + toString(node));
+        if (DEBUG > 0)
+            console.log(indent + "Found exception " + toString(node));
         this.foundException = true;
         const newException = new ExceptionRef(node, ref);
         newException.parentFn = this.parentFn;
-        this.lastFn?.exceptions.push(newException);
+        if (this.lastFn)
+            this.lastFn.exceptions.push(newException);
+        else
+            this.lastTry.exceptions.push(newException);
         return super.visitThrowStatement(node, ref);
     }
     visitTryStatement(node, ref = null) {
@@ -215,7 +225,8 @@ export class SourceLinker extends Visitor {
     }
     visitNamespaceDeclaration(node, isDefault = false, ref = null) {
         this.path.push(node.name.text);
-        console.log(indent + "Found namespace: " + node.name.text);
+        if (DEBUG > 0)
+            console.log(indent + "Found namespace: " + node.name.text);
         super.visitNamespaceDeclaration(node, isDefault, ref);
         this.path.pop();
     }
@@ -241,16 +252,20 @@ export class SourceLinker extends Visitor {
         this.source = SourceLinker.SS.sources.get(source.internalPath);
         this.source.state = "linking";
         this.state = "gather";
-        console.log(indent + "Gathering " + source.internalPath);
+        if (DEBUG > 0)
+            console.log(indent + "Gathering " + source.internalPath);
         super.visit(source);
         this.state = "link";
-        console.log(indent + "Linking " + source.internalPath);
+        if (DEBUG > 0)
+            console.log(indent + "Linking " + source.internalPath);
         super.visit(source);
-        console.log(indent + "Done linking " + source.internalPath);
+        if (DEBUG > 0)
+            console.log(indent + "Done linking " + source.internalPath);
         this.state = "done";
         this.source.state = "done";
         indent.rm();
         this.addImports(source);
+        debugger;
     }
     addImports(node) {
         const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
@@ -282,16 +297,20 @@ export class SourceLinker extends Visitor {
     static link(sources) {
         for (const source of sources) {
             SourceLinker.SS.sources.set(source.internalPath, new SourceRef(source));
-            console.log(source.internalPath);
+            if (DEBUG > 0)
+                console.log(source.internalPath);
         }
         const entrySource = sources.find((v) => v.sourceKind == 1);
         if (!entrySource)
             throw new Error("Could not find main entry point in sources");
-        console.log("========LINKING========\n");
-        console.log("Entry: " + entrySource.internalPath);
+        if (DEBUG > 0)
+            console.log("========LINKING========\n");
+        if (DEBUG > 0)
+            console.log("Entry: " + entrySource.internalPath);
         const linker = new SourceLinker();
         linker.link(entrySource);
-        console.log("\n========GENERATING========\n");
+        if (DEBUG > 0)
+            console.log("\n========GENERATING========\n");
         const entryRef = SourceLinker.SS.sources.get(entrySource.internalPath);
         if (!entryRef)
             throw new Error("Could not find " + entrySource.internalPath + " in sources!");

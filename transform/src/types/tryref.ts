@@ -3,12 +3,18 @@ import { cloneNode, replaceRef } from "../utils.js";
 import { toString } from "../lib/util.js";
 import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
+import { CallRef } from "./callref.js";
+import { ExceptionRef } from "./exceptionref.js";
+
+const rawValue = process.env["DEBUG"];
+const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 
 export class TryRef extends BaseRef {
   public node: TryStatement;
   public ref: Node | Node[] | null;
 
   public tries: TryRef[] = [];
+  public exceptions: (CallRef | ExceptionRef)[] = [];
 
   public tryBlock: DoStatement;
   public catchBlock: IfStatement | null = null;
@@ -19,6 +25,9 @@ export class TryRef extends BaseRef {
     this.ref = ref;
   }
   generate(): void {
+    for (const exception of this.exceptions) {
+      exception.generate();
+    }
     for (const tri of this.tries) {
       tri.generate();
     }
@@ -40,7 +49,7 @@ export class TryRef extends BaseRef {
     );
 
     // console.log("Ref: " + toString(ref));
-    console.log(indent + "Try Block/Loop: " + toString(this.tryBlock).split("\n").join("\n" + indent));
+    if (DEBUG > 0) console.log(indent + "Try Block/Loop: " + toString(this.tryBlock).split("\n").join("\n" + indent));
 
     if (this.node.catchStatements?.length) {
       const catchRange = new Range(
@@ -114,13 +123,13 @@ export class TryRef extends BaseRef {
         null,
         this.node.range,
       );
-      console.log(indent + "Catch Block: " + toString(this.catchBlock).split("\n").join("\n" + indent));
+      if (DEBUG > 0) console.log(indent + "Catch Block: " + toString(this.catchBlock).split("\n").join("\n" + indent));
     }
 
     if (this.node.finallyStatements) {
       this.finallyBlock = Node.createBlockStatement(cloneNode(this.node.finallyStatements), this.node.range);
 
-      console.log(indent + "Finally Block: " + toString(this.finallyBlock).split("\n").join("\n" + indent));
+      if (DEBUG > 0) console.log(indent + "Finally Block: " + toString(this.finallyBlock).split("\n").join("\n" + indent));
     }
 
     replaceRef(

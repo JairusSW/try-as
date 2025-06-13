@@ -1,7 +1,6 @@
-import { BlockStatement, BreakStatement, CallExpression, ExpressionStatement, FunctionDeclaration, IdentifierExpression, IfStatement, Node, NodeKind, PropertyAccessExpression, ReturnStatement, Statement, Token } from "assemblyscript/dist/assemblyscript.js";
-import path from "path";
+import { BlockStatement, BreakStatement, FunctionDeclaration, IdentifierExpression, IfStatement, Node, NodeKind, PropertyAccessExpression, ReturnStatement,  Token } from "assemblyscript/dist/assemblyscript.js";
 import { toString } from "./lib/util.js";
-// import { Try } from "./transform.js";
+import path from "path";
 
 export function replaceRef(node: Node, replacement: Node | Node[], ref: Node | Node[] | null): void {
   if (!node || !ref) return;
@@ -12,7 +11,7 @@ export function replaceRef(node: Node, replacement: Node | Node[], ref: Node | N
       if (stripExpr(ref[i]) === nodeExpr) {
         if (Array.isArray(replacement)) ref.splice(i, 1, ...replacement);
         else ref.splice(i, 1, replacement);
-        return; // Exit early after replacement
+        return;
       }
     }
   } else if (typeof ref === "object") {
@@ -99,30 +98,6 @@ export function stripExpr(node: Node): Node {
   return node;
 }
 
-export function nodeEq(a: Node, b: Node): boolean {
-  if (!a || !b) return false;
-  if (!a["kind"] || !b["kind"]) return false;
-  if (a === b) return true;
-  if (typeof a !== "object" || a === null || typeof b !== "object" || b === null) return false;
-
-  const keys1 = Object.keys(a);
-  const keys2 = Object.keys(b);
-
-  if (keys1 !== keys2) return false;
-
-  for (let key of keys1) {
-    if (!keys2.includes(key)) return false;
-    if (!nodeEq(a[key], b[key])) return false;
-  }
-
-  return true;
-}
-
-export function isPrimitive(type: string): boolean {
-  const primitiveTypes = ["u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "f32", "f64", "bool", "boolean"];
-  return primitiveTypes.some((v) => type.startsWith(v));
-}
-
 export function blockify(node: Node): BlockStatement {
   if (!node) return null;
   let block = node.kind == NodeKind.Block ? node : Node.createBlockStatement([node], node.range);
@@ -172,45 +147,6 @@ export function cloneNode<T = Node | Node[] | null>(input: T, seen = new WeakMap
   }
 
   return clone;
-}
-
-export function hasBaseException(statements: Statement[]): boolean {
-  return statements.some((v) => {
-    if (!v) return false;
-    if (v.kind == NodeKind.Expression) v = (v as ExpressionStatement).expression;
-    if (v.kind == NodeKind.Call && (v as CallExpression).expression.kind == NodeKind.Identifier && (((v as CallExpression).expression as IdentifierExpression).text == "abort" || ((v as CallExpression).expression as IdentifierExpression).text == "unreachable")) return true;
-    if (v.kind == NodeKind.Throw) return true;
-    return false;
-  });
-}
-
-// export function hasException(statements: Statement[]): boolean {
-//   return statements.some((v) => {
-//     if (!v) return false;
-//     if (v.kind == NodeKind.Expression) v = (v as ExpressionStatement).expression;
-//     if (v.kind == NodeKind.Call) {
-//       if ((v as CallExpression).expression.kind == NodeKind.Identifier && (((v as CallExpression).expression as IdentifierExpression).text == "abort" || ((v as CallExpression).expression as IdentifierExpression).text == "unreachable")) return true;
-//       if (Try.SN.getFnByName(v.range.source, getFnName((v as CallExpression).expression))) return true;
-//     }
-//     if (v.kind == NodeKind.Throw) return true;
-//     return false;
-//   });
-// }
-
-export function hasOnlyExceptions(statements: Statement[]): boolean {
-  return statements.every((v) => {
-    if (!v) return false;
-    v = stripExpr(v);
-    if (v.kind !== NodeKind.Call) return false;
-
-    const callExpr = v as CallExpression;
-
-    if (callExpr.expression.kind === NodeKind.Identifier && ((callExpr.expression as IdentifierExpression).text === "abort" || (callExpr.expression as IdentifierExpression).text === "unreachable")) {
-      return true;
-    }
-
-    return false;
-  });
 }
 
 export function removeExtension(filePath: string): string {

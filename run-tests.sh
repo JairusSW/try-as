@@ -7,7 +7,7 @@ for file in ./assembly/__tests__/*.spec.ts; do
   output="./build/${filename%.ts}.wasm"
 
   start_time=$(date +%s%3N)
-  WRITE="$filename" npx asc "$file" --transform ./transform -o "$output" || { echo "Tests failed"; exit 1; }
+  DEBUG=1 WRITE="$filename,imports.ts" npx asc "$file" --transform ./transform -o "$output" || { echo "Tests failed"; exit 1; }
   end_time=$(date +%s%3N) 
 
   build_time=$((end_time - start_time))
