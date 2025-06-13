@@ -4,7 +4,7 @@
 // import { describe } from "./__tests__/lib";
 // import { JSON } from "./foo";
 // import { FOO, foo } from "./foo";
-// import { JSON } from "json-as"
+import { JSON } from "json-as"
 
 // function callFoo(): void {
 //   foo();
@@ -39,19 +39,19 @@
 //     expect(e.toString()).toBe("abort: This should abort");
 //   }
 // });
-// class Vec3 {
-//   x: f32 = 0.0;
-//   y: f32 = 0.0;
-//   z: f32 = 0.0;
-// }
+class Vec3 {
+  x: f32 = 0.0;
+  y: f32 = 0.0;
+  z: f32 = 0.0;
+}
 
-// try {
-//   JSON.parse<Vec3>("{\"x\": 1,\"y\":2,\"z\":3}");
-// } catch (e) {
-//   console.log("Caught an Error: " + e.toString());
-// } finally {
-//   console.log("Finally.");
-// }
+try {
+  JSON.parse<Vec3>("{\"x\": 1,\"y\":2,\"z\":3}");
+} catch (e) {
+  console.log("Caught an Error: " + e.toString());
+} finally {
+  console.log("Finally.");
+}
 function describe(description: string, routine: () => void): void {
   routine();
 }

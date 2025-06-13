@@ -193,6 +193,7 @@ export class SourceLinker extends Visitor {
   }
 
   visitThrowStatement(node: ThrowStatement, ref: Node | Node[] | null = null): void {
+    if (!this.lastTry) return super.visitThrowStatement(node, ref);
     if (DEBUG > 0) console.log(indent + "Found exception " + toString(node));
     this.foundException = true;
     const newException = new ExceptionRef(node, ref);
