@@ -5,7 +5,7 @@
    ██    ██████    ████   █████ ███████ ███████ 
    ██    ██   ██    ██          ██   ██      ██ 
    ██    ██   ██    ██          ██   ██ ███████ </span>
-    AssemblyScript - v0.1.3-preview.1
+    AssemblyScript - v0.1.3-preview.2
   </pre>
 </h5>
 
@@ -28,7 +28,7 @@ The exception handling is in the early stages of development. Its not recommende
 ## 💾 Installation
 
 ```bash
-npm install try-as
+npm install try-as@preview
 ```
 
 Add the `--transform` to your `asc` command (e.g. in package.json)

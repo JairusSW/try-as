@@ -54,7 +54,7 @@ export class SourceLinker extends Visitor {
         if (this.state != "gather" || !node.internalPath)
             return super.visitExportStatement(node, ref);
         if (node.internalPath.startsWith("~lib/rt") || node.internalPath.startsWith("~lib/performance") || node.internalPath.startsWith("~lib/wasi_") || node.internalPath.startsWith("~lib/shared/"))
-            return super.visitImportStatement(node, ref);
+            return super.visitExportStatement(node, ref);
         this.source.local.exports.push(node);
         const targetSourceRef = SourceLinker.SS.sources.get(node.internalPath) || SourceLinker.SS.sources.get(node.internalPath + "/index");
         if (!targetSourceRef)
