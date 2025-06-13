@@ -5,7 +5,7 @@
    ██    ██████    ████   █████ ███████ ███████ 
    ██    ██   ██    ██          ██   ██      ██ 
    ██    ██   ██    ██          ██   ██ ███████ </span>
-    AssemblyScript - v0.1.3-preview.2
+    AssemblyScript - v0.1.3-preview.3
   </pre>
 </h5>
 
@@ -62,6 +62,27 @@ try {
   console.log("Gracefully shutting down...");
   process.exit(0);
 }
+```
+
+For strong typing of the error object, import `Exception` from `try-as`
+
+```js
+import { JSON } from "json-as";
+import { Exception } from "try-as";
+
+function isJSONValid<T>(data: string): boolean {
+  try {
+    JSON.parse<T>(data);
+  } catch (e) {
+    const err = e as Exception; // Under the hood, `e` is already an `Exception`, so you can use all the methods without casting!
+    console.log("Badly formatted JSON!");
+    return false;
+  }
+  console.log("JSON is valid!");
+  return true;
+}
+
+isJSONValid<i32[]>("definitely-not-an-array");
 ```
 
 ## 📃 License

@@ -1,5 +1,13 @@
 # Change Log
 
+## 2025-06-13 - 0.1.3-preview.3
+
+- docs: add further example to README
+
+## 2025-06-13 - 0.1.3-preview.2
+
+- refactor: full rewrite
+
 ## 2025-05-27 - 0.1.1
 
 - fix: add missing null check
