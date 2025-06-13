@@ -59,7 +59,7 @@ export class FunctionRef extends BaseRef {
         let callerDeclaration: ImportDeclaration | null = null;
 
         for (const imp of callerSrc.local.imports) {
-          const decl = imp.declarations.find(b => caller.name === b.name.text);
+          const decl = imp.declarations.find((b) => caller.name === b.name.text);
           if (decl) {
             callerImport = imp;
             callerDeclaration = decl;
@@ -68,50 +68,25 @@ export class FunctionRef extends BaseRef {
         }
 
         if (callerImport && callerDeclaration && !this.tries.length) {
-          const newCallerImport = Node.createImportDeclaration(
-            Node.createIdentifierExpression("__try_" + callerDeclaration.foreignName.text, caller.node.range.source.range),
-            Node.createIdentifierExpression("__try_" + caller.name, caller.node.range.source.range),
-            caller.node.range.source.range
-          );
+          const newCallerImport = Node.createImportDeclaration(Node.createIdentifierExpression("__try_" + callerDeclaration.foreignName.text, caller.node.range.source.range), Node.createIdentifierExpression("__try_" + caller.name, caller.node.range.source.range), caller.node.range.source.range);
 
           callerImport.declarations.push(newCallerImport);
-          if (DEBUG > 0) (indent + "Added import " + newCallerImport.foreignName.text);
+          if (DEBUG > 0) indent + "Added import " + newCallerImport.foreignName.text;
         }
       }
     }
 
     const returnStmt = getBreaker(this.node, this.node);
-    const unrollCheck = Node.createIfStatement(
-      Node.createBinaryExpression(Token.GreaterThan,
-        Node.createPropertyAccessExpression(
-          Node.createIdentifierExpression("__ExceptionState", this.node.range),
-          Node.createIdentifierExpression("Failures", this.node.range),
-          this.node.range
-        ),
-        Node.createIntegerLiteralExpression(i64_zero, this.node.range),
-        this.node.range
-      ),
-      blockify(returnStmt),
-      null,
-      this.node.range
-    );
+    const unrollCheck = Node.createIfStatement(Node.createBinaryExpression(Token.GreaterThan, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Failures", this.node.range), this.node.range), Node.createIntegerLiteralExpression(i64_zero, this.node.range), this.node.range), blockify(returnStmt), null, this.node.range);
 
     // const newBody = Node.createBlockStatement(
     //   [unrollCheck, ...blockify(this.node.body).statements],
     //   this.node.range
     // );
 
-    const replacementFunction = Node.createFunctionDeclaration(
-      Node.createIdentifierExpression(this.node.name.text, this.node.name.range),
-      this.node.decorators,
-      this.node.flags, this.node.typeParameters,
-      this.node.signature,
-      this.cloneBody,
-      this.node.arrowKind,
-      this.node.range
-    );
+    const replacementFunction = Node.createFunctionDeclaration(Node.createIdentifierExpression(this.node.name.text, this.node.name.range), this.node.decorators, this.node.flags, this.node.typeParameters, this.node.signature, this.cloneBody, this.node.arrowKind, this.node.range);
 
-    if (!this.tries.length) this.node.name = Node.createIdentifierExpression("__try_" + this.node.name.text, this.node.name.range)
+    if (!this.tries.length) this.node.name = Node.createIdentifierExpression("__try_" + this.node.name.text, this.node.name.range);
 
     if (this.node.body.kind != NodeKind.Block) {
       this.node.body = blockify(this.node.body);

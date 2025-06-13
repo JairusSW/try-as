@@ -24,10 +24,7 @@ export class CallRef extends BaseRef {
             return;
         this.generated = true;
         const breaker = getBreaker(this.node, this.parentFn?.node);
-        const newName = this.node.expression.kind == 21
-            ? Node.createPropertyAccessExpression(this.node.expression.expression, Node.createIdentifierExpression((this.calling.tries.length ? "" : "__try_") + this.node.expression.property.text, this.node.range), this.node.range)
-            :
-                Node.createIdentifierExpression((this.calling.tries.length ? "" : "__try_") + this.node.expression.text, this.node.range);
+        const newName = this.node.expression.kind == 21 ? Node.createPropertyAccessExpression(this.node.expression.expression, Node.createIdentifierExpression((this.calling.tries.length ? "" : "__try_") + this.node.expression.property.text, this.node.range), this.node.range) : Node.createIdentifierExpression((this.calling.tries.length ? "" : "__try_") + this.node.expression.text, this.node.range);
         const unrollCheck = Node.createIfStatement(Node.createBinaryExpression(73, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Failures", this.node.range), this.node.range), Node.createIntegerLiteralExpression(i64_zero, this.node.range), this.node.range), blockify(breaker), null, this.node.range);
         const overrideCall = Node.createExpressionStatement(Node.createCallExpression(newName, this.node.typeArguments, this.node.args, this.node.range));
         if (DEBUG > 0)

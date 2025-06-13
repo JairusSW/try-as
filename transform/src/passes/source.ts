@@ -43,7 +43,7 @@ export class SourceLinker extends Visitor {
     if (node.internalPath.startsWith("~lib/rt") || node.internalPath.startsWith("~lib/performance") || node.internalPath.startsWith("~lib/wasi_") || node.internalPath.startsWith("~lib/shared/")) return super.visitImportStatement(node, ref);
     this.source.local.imports.push(node);
     const targetSourceRef = SourceLinker.SS.sources.get(node.internalPath) || SourceLinker.SS.sources.get(node.internalPath + "/index");
-    if (!targetSourceRef) return super.visitImportStatement(node, ref);// throw new Error("Could not find " + node.internalPath + " in sources!");
+    if (!targetSourceRef) return super.visitImportStatement(node, ref); // throw new Error("Could not find " + node.internalPath + " in sources!");
     if (targetSourceRef.state != "ready") return super.visitImportStatement(node, ref);
     if (node.internalPath == node.range.source.internalPath) return super.visitImportStatement(node, ref);
     if (DEBUG > 0) console.log(indent + node.range.source.internalPath + " -> " + targetSourceRef.node.internalPath);
@@ -71,7 +71,7 @@ export class SourceLinker extends Visitor {
     if (node.internalPath.startsWith("~lib/rt") || node.internalPath.startsWith("~lib/performance") || node.internalPath.startsWith("~lib/wasi_") || node.internalPath.startsWith("~lib/shared/")) return super.visitExportStatement(node, ref);
     this.source.local.exports.push(node);
     const targetSourceRef = SourceLinker.SS.sources.get(node.internalPath) || SourceLinker.SS.sources.get(node.internalPath + "/index");
-    if (!targetSourceRef) return super.visitExportStatement(node, ref);// throw new Error("Could not find " + node.internalPath + " in sources!");
+    if (!targetSourceRef) return super.visitExportStatement(node, ref); // throw new Error("Could not find " + node.internalPath + " in sources!");
     if (targetSourceRef.state != "ready") return super.visitExportStatement(node, ref);
     if (node.internalPath == node.range.source.internalPath) return super.visitExportStatement(node, ref);
     if (DEBUG > 0) console.log(indent + node.range.source.internalPath + " -> " + targetSourceRef.node.internalPath);
@@ -88,7 +88,7 @@ export class SourceLinker extends Visitor {
       // console.log(indent + "Found function " + fnRef.name);
       this.source.local.functions.push(fnRef);
     } else if (this.state == "link") {
-      if (node.range.source.sourceKind == SourceKind.UserEntry && (node.flags & CommonFlags.Export)) {
+      if (node.range.source.sourceKind == SourceKind.UserEntry && node.flags & CommonFlags.Export) {
         const fnRef = this.source.local.functions.find((v) => v.name == node.name.text);
         this.source.functions.push(fnRef);
 
@@ -97,7 +97,7 @@ export class SourceLinker extends Visitor {
         this.parentFn = fnRef;
         super.visitFunctionDeclaration(node, isDefault, ref);
         this.parentFn = null;
-        this.lastFn = lastFn
+        this.lastFn = lastFn;
         return;
       }
     }
@@ -110,7 +110,15 @@ export class SourceLinker extends Visitor {
     if (this.source.functions.some((v) => v.name == fnRef.name)) return;
     indent.add();
     this.callStack.add(fnRef);
-    if (DEBUG > 0) console.log(indent + "Stack [" + Array.from(this.callStack.values()).map(v => v.name).join(", ") + "]")
+    if (DEBUG > 0)
+      console.log(
+        indent +
+          "Stack [" +
+          Array.from(this.callStack.values())
+            .map((v) => v.name)
+            .join(", ") +
+          "]",
+      );
     const lastFn = this.lastFn;
     const parentFn = this.parentFn;
     this.lastFn = fnRef;
@@ -124,12 +132,12 @@ export class SourceLinker extends Visitor {
         fn.hasException = true;
         if (fn.node.range.source.internalPath != this.source.node.internalPath) {
           const alienSrc = SourceLinker.SS.sources.get(fn.node.range.source.internalPath);
-          if (!alienSrc.functions.some(v => v == fn)) {
+          if (!alienSrc.functions.some((v) => v == fn)) {
             if (DEBUG > 0) console.log(indent + "Added function (fn): " + fn.name);
             alienSrc.functions.push(fn);
           }
         } else {
-          if (!this.source.functions.some(v => v == fn)) {
+          if (!this.source.functions.some((v) => v == fn)) {
             if (DEBUG > 0) console.log(indent + "Added function (fn): " + fn.name);
             this.source.functions.push(fn);
           }
@@ -170,12 +178,12 @@ export class SourceLinker extends Visitor {
         fn.hasException = true;
         if (fn.node.range.source.internalPath != this.source.node.internalPath) {
           const alienSrc = SourceLinker.SS.sources.get(fn.node.range.source.internalPath);
-          if (!alienSrc.functions.some(v => v == fn)) {
+          if (!alienSrc.functions.some((v) => v == fn)) {
             if (DEBUG > 0) console.log(indent + "Added function (call): " + fn.name);
             alienSrc.functions.push(fn);
           }
         } else {
-          if (!this.source.functions.some(v => v == fn)) {
+          if (!this.source.functions.some((v) => v == fn)) {
             if (DEBUG > 0) console.log(indent + "Added function (call): " + fn.name);
             this.source.functions.push(fn);
           }
@@ -277,7 +285,6 @@ export class SourceLinker extends Visitor {
     this.source.state = "done";
     indent.rm();
     this.addImports(source);
-    debugger
   }
 
   addImports(node: Source): void {
@@ -319,7 +326,7 @@ export class SourceLinker extends Visitor {
   static link(sources: Source[]): void {
     for (const source of sources) {
       SourceLinker.SS.sources.set(source.internalPath, new SourceRef(source));
-      if (DEBUG > 0) console.log(source.internalPath)
+      if (DEBUG > 0) console.log(source.internalPath);
     }
 
     const entrySource = sources.find((v) => v.sourceKind == SourceKind.UserEntry);
@@ -335,15 +342,5 @@ export class SourceLinker extends Visitor {
     const entryRef = SourceLinker.SS.sources.get(entrySource.internalPath);
     if (!entryRef) throw new Error("Could not find " + entrySource.internalPath + " in sources!");
     entryRef.generate();
-
-    for (const [path, source] of SourceLinker.SS.sources) {
-      if ([
-        "assembly/test",
-        "assembly/foo"
-      ].includes(path)) {
-        debugger;
-        // console.log(path, source.functions, source.tries)
-      }
-    }
   }
 }

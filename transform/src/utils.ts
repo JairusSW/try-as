@@ -1,4 +1,4 @@
-import { BlockStatement, BreakStatement, FunctionDeclaration, IdentifierExpression, IfStatement, Node, NodeKind, PropertyAccessExpression, ReturnStatement,  Token } from "assemblyscript/dist/assemblyscript.js";
+import { BlockStatement, BreakStatement, FunctionDeclaration, IdentifierExpression, IfStatement, Node, NodeKind, PropertyAccessExpression, ReturnStatement, Token } from "assemblyscript/dist/assemblyscript.js";
 import { toString } from "./lib/util.js";
 import path from "path";
 

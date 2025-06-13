@@ -38,14 +38,13 @@ export default class Transformer extends Transform {
       parser.parseFile(fs.readFileSync(path.join(baseDir, "assembly", "types", "unreachable.ts")).toString(), "~lib/try-as/assembly/types/unreachable.ts", false);
     }
 
-    sources = parser.sources
-      .filter((source) => {
-        const p = source.internalPath;
-        if (p.startsWith("~lib/rt") || p.startsWith("~lib/performance") || p.startsWith("~lib/wasi_") || p.startsWith("~lib/shared/")) {
-          return false;
-        }
-        return true
-      })
+    sources = parser.sources.filter((source) => {
+      const p = source.internalPath;
+      if (p.startsWith("~lib/rt") || p.startsWith("~lib/performance") || p.startsWith("~lib/wasi_") || p.startsWith("~lib/shared/")) {
+        return false;
+      }
+      return true;
+    });
 
     Globals.baseCWD = path.join(process.cwd(), this.baseDir).replaceAll("\\", "/");
 

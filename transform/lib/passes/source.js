@@ -76,7 +76,7 @@ export class SourceLinker extends Visitor {
             this.source.local.functions.push(fnRef);
         }
         else if (this.state == "link") {
-            if (node.range.source.sourceKind == 1 && (node.flags & 2)) {
+            if (node.range.source.sourceKind == 1 && node.flags & 2) {
                 const fnRef = this.source.local.functions.find((v) => v.name == node.name.text);
                 this.source.functions.push(fnRef);
                 const lastFn = this.lastFn;
@@ -100,7 +100,12 @@ export class SourceLinker extends Visitor {
         indent.add();
         this.callStack.add(fnRef);
         if (DEBUG > 0)
-            console.log(indent + "Stack [" + Array.from(this.callStack.values()).map(v => v.name).join(", ") + "]");
+            console.log(indent +
+                "Stack [" +
+                Array.from(this.callStack.values())
+                    .map((v) => v.name)
+                    .join(", ") +
+                "]");
         const lastFn = this.lastFn;
         const parentFn = this.parentFn;
         this.lastFn = fnRef;
@@ -113,14 +118,14 @@ export class SourceLinker extends Visitor {
                 fn.hasException = true;
                 if (fn.node.range.source.internalPath != this.source.node.internalPath) {
                     const alienSrc = SourceLinker.SS.sources.get(fn.node.range.source.internalPath);
-                    if (!alienSrc.functions.some(v => v == fn)) {
+                    if (!alienSrc.functions.some((v) => v == fn)) {
                         if (DEBUG > 0)
                             console.log(indent + "Added function (fn): " + fn.name);
                         alienSrc.functions.push(fn);
                     }
                 }
                 else {
-                    if (!this.source.functions.some(v => v == fn)) {
+                    if (!this.source.functions.some((v) => v == fn)) {
                         if (DEBUG > 0)
                             console.log(indent + "Added function (fn): " + fn.name);
                         this.source.functions.push(fn);
@@ -164,14 +169,14 @@ export class SourceLinker extends Visitor {
                 fn.hasException = true;
                 if (fn.node.range.source.internalPath != this.source.node.internalPath) {
                     const alienSrc = SourceLinker.SS.sources.get(fn.node.range.source.internalPath);
-                    if (!alienSrc.functions.some(v => v == fn)) {
+                    if (!alienSrc.functions.some((v) => v == fn)) {
                         if (DEBUG > 0)
                             console.log(indent + "Added function (call): " + fn.name);
                         alienSrc.functions.push(fn);
                     }
                 }
                 else {
-                    if (!this.source.functions.some(v => v == fn)) {
+                    if (!this.source.functions.some((v) => v == fn)) {
                         if (DEBUG > 0)
                             console.log(indent + "Added function (call): " + fn.name);
                         this.source.functions.push(fn);
@@ -267,7 +272,6 @@ export class SourceLinker extends Visitor {
         this.source.state = "done";
         indent.rm();
         this.addImports(source);
-        debugger;
     }
     addImports(node) {
         const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
@@ -317,14 +321,6 @@ export class SourceLinker extends Visitor {
         if (!entryRef)
             throw new Error("Could not find " + entrySource.internalPath + " in sources!");
         entryRef.generate();
-        for (const [path, source] of SourceLinker.SS.sources) {
-            if ([
-                "assembly/test",
-                "assembly/foo"
-            ].includes(path)) {
-                debugger;
-            }
-        }
     }
 }
 //# sourceMappingURL=source.js.map

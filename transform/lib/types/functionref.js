@@ -50,7 +50,7 @@ export class FunctionRef extends BaseRef {
                 let callerImport = null;
                 let callerDeclaration = null;
                 for (const imp of callerSrc.local.imports) {
-                    const decl = imp.declarations.find(b => caller.name === b.name.text);
+                    const decl = imp.declarations.find((b) => caller.name === b.name.text);
                     if (decl) {
                         callerImport = imp;
                         callerDeclaration = decl;
@@ -61,7 +61,7 @@ export class FunctionRef extends BaseRef {
                     const newCallerImport = Node.createImportDeclaration(Node.createIdentifierExpression("__try_" + callerDeclaration.foreignName.text, caller.node.range.source.range), Node.createIdentifierExpression("__try_" + caller.name, caller.node.range.source.range), caller.node.range.source.range);
                     callerImport.declarations.push(newCallerImport);
                     if (DEBUG > 0)
-                        (indent + "Added import " + newCallerImport.foreignName.text);
+                        indent + "Added import " + newCallerImport.foreignName.text;
                 }
             }
         }

@@ -30,8 +30,7 @@ export default class Transformer extends Transform {
         if (isLib && !sources.some((v) => v.normalizedPath.startsWith("~lib/try-as/assembly/types/unreachable.ts"))) {
             parser.parseFile(fs.readFileSync(path.join(baseDir, "assembly", "types", "unreachable.ts")).toString(), "~lib/try-as/assembly/types/unreachable.ts", false);
         }
-        sources = parser.sources
-            .filter((source) => {
+        sources = parser.sources.filter((source) => {
             const p = source.internalPath;
             if (p.startsWith("~lib/rt") || p.startsWith("~lib/performance") || p.startsWith("~lib/wasi_") || p.startsWith("~lib/shared/")) {
                 return false;

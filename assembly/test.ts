@@ -4,7 +4,7 @@
 // import { describe } from "./__tests__/lib";
 // import { JSON } from "./foo";
 // import { FOO, foo } from "./foo";
-import { JSON } from "json-as"
+import { JSON } from "json-as";
 
 // function callFoo(): void {
 //   foo();
@@ -46,7 +46,7 @@ class Vec3 {
 }
 
 try {
-  JSON.parse<Vec3>("{\"x\": 1,\"y\":2,\"z\":3}");
+  JSON.parse<Vec3>('{"x": 1,"y":2,"z":3}');
 } catch (e) {
   console.log("Caught an Error: " + e.toString());
 } finally {

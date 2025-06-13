@@ -30,39 +30,11 @@ export class CallRef extends BaseRef {
 
     const breaker = getBreaker(this.node, this.parentFn?.node);
 
-    const newName = this.node.expression.kind == NodeKind.PropertyAccess
-      ? Node.createPropertyAccessExpression(
-        (this.node.expression as PropertyAccessExpression).expression,
-        Node.createIdentifierExpression((this.calling.tries.length ? "" : "__try_") + (this.node.expression as PropertyAccessExpression).property.text, this.node.range),
-        this.node.range
-      )
-      :
-      Node.createIdentifierExpression((this.calling.tries.length ? "" : "__try_") + (this.node.expression as IdentifierExpression).text, this.node.range);
+    const newName = this.node.expression.kind == NodeKind.PropertyAccess ? Node.createPropertyAccessExpression((this.node.expression as PropertyAccessExpression).expression, Node.createIdentifierExpression((this.calling.tries.length ? "" : "__try_") + (this.node.expression as PropertyAccessExpression).property.text, this.node.range), this.node.range) : Node.createIdentifierExpression((this.calling.tries.length ? "" : "__try_") + (this.node.expression as IdentifierExpression).text, this.node.range);
 
-    const unrollCheck = Node.createIfStatement(
-      Node.createBinaryExpression(
-        Token.GreaterThan,
-        Node.createPropertyAccessExpression(
-          Node.createIdentifierExpression("__ExceptionState", this.node.range),
-          Node.createIdentifierExpression("Failures", this.node.range),
-          this.node.range
-        ),
-        Node.createIntegerLiteralExpression(i64_zero, this.node.range),
-        this.node.range
-      ),
-      blockify(breaker),
-      null,
-      this.node.range
-    );
+    const unrollCheck = Node.createIfStatement(Node.createBinaryExpression(Token.GreaterThan, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Failures", this.node.range), this.node.range), Node.createIntegerLiteralExpression(i64_zero, this.node.range), this.node.range), blockify(breaker), null, this.node.range);
 
-    const overrideCall = Node.createExpressionStatement(
-      Node.createCallExpression(
-        newName,
-        this.node.typeArguments,
-        this.node.args,
-        this.node.range
-      )
-    );
+    const overrideCall = Node.createExpressionStatement(Node.createCallExpression(newName, this.node.typeArguments, this.node.args, this.node.range));
     // this.node.expression = newName;
     if (DEBUG > 0) console.log(indent + "Replaced call: " + toString(this.node));
     replaceRef(this.node, [overrideCall, unrollCheck], this.ref);

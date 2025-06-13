@@ -1,4 +1,3 @@
-
 // import { AbortState as __AbortState } from "./types/abort";
 // import { ErrorState as __ErrorState } from "./types/error";
 // import { ExceptionState as __ExceptionState } from "./types/exception";
@@ -20,7 +19,7 @@ export namespace FOO {
   }
 }
 
-export *from "./json"
+export * from "./json";
 // export namespace JSON {
 //   export function parse<T>(s: string): T {
 //     throw new Error("not implemented")

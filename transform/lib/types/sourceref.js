@@ -26,19 +26,19 @@ export class SourceRef extends BaseRef {
         if (!currentPath || visitedPaths.has(currentPath))
             return null;
         visitedPaths.add(currentPath);
-        let fnRef = this.functions.find(fn => fn.name === name);
+        let fnRef = this.functions.find((fn) => fn.name === name);
         if (fnRef) {
             if (DEBUG > 0)
-                (indent + `Identified ${name}() as exception`);
+                indent + `Identified ${name}() as exception`;
             return fnRef;
         }
-        fnRef = this.local.functions.find(fn => fn.name === name);
+        fnRef = this.local.functions.find((fn) => fn.name === name);
         if (fnRef) {
             if (DEBUG > 0)
                 console.log(indent + `Found ${name} locally`);
             return fnRef;
         }
-        const importMatch = this.local.imports.find(imp => imp.declarations.some(decl => name === decl.name.text || name.startsWith(decl.name.text + ".")));
+        const importMatch = this.local.imports.find((imp) => imp.declarations.some((decl) => name === decl.name.text || name.startsWith(decl.name.text + ".")));
         if (importMatch) {
             const basePath = importMatch.internalPath;
             let externSrc = SourceLinker.SS.sources.get(basePath) || SourceLinker.SS.sources.get(basePath + "/index");
@@ -51,9 +51,9 @@ export class SourceRef extends BaseRef {
                     console.log(indent + `Found ${name} externally`);
                 return result;
             }
-            const exported = externSrc.local.exports.find(exp => {
+            const exported = externSrc.local.exports.find((exp) => {
                 if (exp.members) {
-                    return exp.members.some(member => name === member.exportedName.text || name.startsWith(member.exportedName.text + "."));
+                    return exp.members.some((member) => name === member.exportedName.text || name.startsWith(member.exportedName.text + "."));
                 }
                 else {
                     return true;

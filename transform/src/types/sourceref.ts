@@ -23,7 +23,7 @@ export class SourceRef extends BaseRef {
 
   public local: SourceLocalRef = new SourceLocalRef();
 
-  private generated: boolean = false
+  private generated: boolean = false;
   constructor(source: Source) {
     super();
     this.node = source;
@@ -40,23 +40,19 @@ export class SourceRef extends BaseRef {
     if (!currentPath || visitedPaths.has(currentPath)) return null;
     visitedPaths.add(currentPath);
 
-    let fnRef = this.functions.find(fn => fn.name === name);
+    let fnRef = this.functions.find((fn) => fn.name === name);
     if (fnRef) {
-      if (DEBUG > 0) (indent + `Identified ${name}() as exception`);
+      if (DEBUG > 0) indent + `Identified ${name}() as exception`;
       return fnRef;
     }
 
-    fnRef = this.local.functions.find(fn => fn.name === name);
+    fnRef = this.local.functions.find((fn) => fn.name === name);
     if (fnRef) {
       if (DEBUG > 0) console.log(indent + `Found ${name} locally`);
       return fnRef;
     }
 
-    const importMatch = this.local.imports.find(imp =>
-      imp.declarations.some(decl =>
-        name === decl.name.text || name.startsWith(decl.name.text + ".")
-      )
-    );
+    const importMatch = this.local.imports.find((imp) => imp.declarations.some((decl) => name === decl.name.text || name.startsWith(decl.name.text + ".")));
 
     if (importMatch) {
       const basePath = importMatch.internalPath;
@@ -72,11 +68,9 @@ export class SourceRef extends BaseRef {
         return result;
       }
 
-      const exported = externSrc.local.exports.find(exp => {
+      const exported = externSrc.local.exports.find((exp) => {
         if (exp.members) {
-          return exp.members.some(member =>
-            name === member.exportedName.text || name.startsWith(member.exportedName.text + ".")
-          );
+          return exp.members.some((member) => name === member.exportedName.text || name.startsWith(member.exportedName.text + "."));
         } else {
           return true;
         }
