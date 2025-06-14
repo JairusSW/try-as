@@ -1,5 +1,9 @@
 # Change Log
 
+## 2025-06-14 - 0.1.3
+
+- merge: preview branch with master
+
 ## 2025-06-13 - 0.1.3-preview.3
 
 - docs: add further example to README

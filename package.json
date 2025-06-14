@@ -1,6 +1,6 @@
 {
   "name": "try-as",
-  "version": "0.1.3-preview.3",
+  "version": "0.1.3",
   "author": "Jairus Tanaka",
   "repository": {
     "type": "git",
@@ -41,6 +41,7 @@
     "test": "bash ./run-tests.sh",
     "build:test": "rm -rf ./build/ && DEBUG=true WRITE=assembly/test.ts ../compiler/bin/asc.js assembly/test.ts --transform json-as/transform --transform ./transform -o ./build/test.wasm --textFile ./build/test.wat --optimizeLevel 3 --shrinkLevel 0",
     "build:test:tmp": "../compiler/bin/asc.js assembly/test.tmp.ts -o ./build/test.wasm --textFile ./build/test.wat --optimizeLevel 3 --shrinkLevel 0",
+    "build:test:wine": "DEBUG=1 NODE_SKIP_PLATFORM_CHECK=1 wine ~/.win-bin/node/node.exe ./node_modules/assemblyscript/bin/asc.js assembly/test.ts --transform ./transform -o ./build/test.wasm --textFile ./build/test.wat --debug",
     "test:wasmtime": "wasmtime ./build/test.wasm",
     "test:wasmer": "wasmer ./build/test.wasm",
     "build:transform": "tsc -p ./transform",

@@ -5,7 +5,7 @@
    ██    ██████    ████   █████ ███████ ███████ 
    ██    ██   ██    ██          ██   ██      ██ 
    ██    ██   ██    ██          ██   ██ ███████ </span>
-    AssemblyScript - v0.1.3-preview.3
+    AssemblyScript - v0.1.3
   </pre>
 </h5>
 
@@ -21,14 +21,10 @@
 
 This library is an addon for AssemblyScript that brings JavaScript-like exception handling to the language, allowing you to use familiar `try/catch` syntax with a custom state management system. This allows AssemblyScript developers to write more readable, maintainable code, while retaining the performance benefits of WebAssembly.
 
-## 🚨 Early Development
-
-The exception handling is in the early stages of development. Its not recommended to use this library in production yet, but please, by all means, use it and if you find an issue, help improve it!
-
 ## 💾 Installation
 
 ```bash
-npm install try-as@preview
+npm install try-as
 ```
 
 Add the `--transform` to your `asc` command (e.g. in package.json)
@@ -54,7 +50,7 @@ This library does all the work behind-the-scenes, so you, the developer, can use
 
 ```js
 try {
-  abort("Failed to execute!", "test.ts");
+  abort("Failed to execute!");
   console.log("This should not execute");
 } catch (e) {
   console.log("Got an error: " + e.toString());
