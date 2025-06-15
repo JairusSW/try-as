@@ -306,21 +306,25 @@ export class SourceLinker extends Visitor {
             if (DEBUG > 0)
                 console.log(source.internalPath);
         }
-        const entrySource = sources.find((v) => v.sourceKind == 1);
-        if (!entrySource)
+        const entrySources = sources.filter((v) => v.sourceKind == 1);
+        if (!entrySources.length)
             throw new Error("Could not find main entry point in sources");
-        if (DEBUG > 0)
-            console.log("\n========LINKING========\n");
-        if (DEBUG > 0)
-            console.log("Entry: " + entrySource.internalPath);
-        const linker = new SourceLinker();
-        linker.link(entrySource);
-        if (DEBUG > 0)
-            console.log("\n========GENERATING========\n");
-        const entryRef = SourceLinker.SS.sources.get(entrySource.internalPath);
-        if (!entryRef)
-            throw new Error("Could not find " + entrySource.internalPath + " in sources!");
-        entryRef.generate();
+        for (const entrySource of entrySources) {
+            if (DEBUG > 0)
+                console.log("\n========LINKING========\n");
+            if (DEBUG > 0)
+                console.log("Entry: " + entrySource.internalPath);
+            const linker = new SourceLinker();
+            linker.link(entrySource);
+        }
+        for (const entrySource of entrySources) {
+            if (DEBUG > 0)
+                console.log("\n========GENERATING========\n");
+            const entryRef = SourceLinker.SS.sources.get(entrySource.internalPath);
+            if (!entryRef)
+                throw new Error("Could not find " + entrySource.internalPath + " in sources!");
+            entryRef.generate();
+        }
     }
 }
 //# sourceMappingURL=source.js.map
