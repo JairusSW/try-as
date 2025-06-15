@@ -20,7 +20,7 @@ export default class Transformer extends Transform {
     if (!isLib && !sources.some((v) => v.normalizedPath.startsWith("assembly/types/exception.ts"))) {
       const p = "./assembly/types/exception.ts";
       if (fs.existsSync(path.join(baseDir, p))) {
-        parser.parseFile(fs.readFileSync(path.join(baseDir, p)).toString(), p, false);
+        parser.parseFile(fs.readFileSync(path.join(baseDir, p.replaceAll("/", path.sep))).toString(), p, false);
       }
     }
     if (isLib && !sources.some((v) => v.normalizedPath.startsWith("~lib/try-as/assembly/types/exception.ts"))) {
@@ -30,7 +30,7 @@ export default class Transformer extends Transform {
     if (!isLib && !sources.some((v) => v.normalizedPath.startsWith("assembly/types/unreachable.ts"))) {
       const p = "./assembly/types/unreachable.ts";
       if (fs.existsSync(path.join(baseDir, p))) {
-        parser.parseFile(fs.readFileSync(path.join(baseDir, p)).toString(), p, false);
+        parser.parseFile(fs.readFileSync(path.join(baseDir, p.replaceAll("/", path.sep))).toString(), p, false);
       }
     }
 

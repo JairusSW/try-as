@@ -232,8 +232,6 @@ export class SourceLinker extends Visitor {
     }
     visitNamespaceDeclaration(node, isDefault = false, ref = null) {
         this.path.push(node.name.text);
-        if (DEBUG > 0)
-            console.log(indent + "Found namespace: " + node.name.text);
         super.visitNamespaceDeclaration(node, isDefault, ref);
         this.path.pop();
     }
@@ -301,6 +299,8 @@ export class SourceLinker extends Visitor {
         addImport("error", ["ErrorState"]);
     }
     static link(sources) {
+        if (DEBUG > 0)
+            console.log("\n========SOURCES========\n");
         for (const source of sources) {
             SourceLinker.SS.sources.set(source.internalPath, new SourceRef(source));
             if (DEBUG > 0)
@@ -310,7 +310,7 @@ export class SourceLinker extends Visitor {
         if (!entrySource)
             throw new Error("Could not find main entry point in sources");
         if (DEBUG > 0)
-            console.log("========LINKING========\n");
+            console.log("\n========LINKING========\n");
         if (DEBUG > 0)
             console.log("Entry: " + entrySource.internalPath);
         const linker = new SourceLinker();

@@ -243,7 +243,6 @@ export class SourceLinker extends Visitor {
 
   visitNamespaceDeclaration(node: NamespaceDeclaration, isDefault: boolean = false, ref: Node | Node[] | null = null): void {
     this.path.push(node.name.text);
-    if (DEBUG > 0) console.log(indent + "Found namespace: " + node.name.text);
     super.visitNamespaceDeclaration(node, isDefault, ref);
     this.path.pop();
   }
@@ -324,6 +323,7 @@ export class SourceLinker extends Visitor {
   }
 
   static link(sources: Source[]): void {
+    if (DEBUG > 0) console.log("\n========SOURCES========\n");
     for (const source of sources) {
       SourceLinker.SS.sources.set(source.internalPath, new SourceRef(source));
       if (DEBUG > 0) console.log(source.internalPath);
@@ -332,7 +332,7 @@ export class SourceLinker extends Visitor {
     const entrySource = sources.find((v) => v.sourceKind == SourceKind.UserEntry);
     if (!entrySource) throw new Error("Could not find main entry point in sources");
 
-    if (DEBUG > 0) console.log("========LINKING========\n");
+    if (DEBUG > 0) console.log("\n========LINKING========\n");
     if (DEBUG > 0) console.log("Entry: " + entrySource.internalPath);
 
     const linker = new SourceLinker();
