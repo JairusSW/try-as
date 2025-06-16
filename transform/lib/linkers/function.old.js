@@ -59,7 +59,7 @@ export class FunctionLinkerState {
   constructor(path, foundException, sourceData, sD, visitedSources) {
     this.path = path;
     this.sourceData = sourceData;
-    this.foundException = foundException;
+    Globals.foundException = foundException;
     this.sD = sD;
     this.visitedSources = visitedSources;
   }
@@ -85,7 +85,7 @@ export class FunctionLinker extends Visitor {
   visitFunctionDeclaration(node, isDefault, ref) {
     super.visitFunctionDeclaration(node, isDefault, ref);
     const hasException = CallLinker.hasException(node.body);
-    if (this.foundException || hasException) {
+    if (Globals.foundException || hasException) {
       const path = this.path.size ? new Map(this.path.entries()) : null;
       this.sD.fns.push(
         new FunctionData(
@@ -104,13 +104,13 @@ export class FunctionLinker extends Visitor {
             " in " +
             node.range.source.internalPath,
         );
-      this.foundException = false;
+      Globals.foundException = false;
     }
   }
   visitMethodDeclaration(node, ref) {
-    this.foundException = false;
+    Globals.foundException = false;
     super.visitMethodDeclaration(node, ref);
-    if (this.foundException) {
+    if (Globals.foundException) {
       const hasException = CallLinker.hasException(node.body);
       const path = this.path.size ? new Map(this.path.entries()) : null;
       this.sD.fns.push(new FunctionData(node, ref, false, hasException, path));
@@ -120,12 +120,12 @@ export class FunctionLinker extends Visitor {
     const fnName = getFnName(node.expression);
     if (!fnName) return super.visitCallExpression(node, ref);
     if (fnName === "abort" || fnName === "unreachable") {
-      this.foundException = true;
+      Globals.foundException = true;
     }
     super.visitCallExpression(node, ref);
   }
   visitThrowStatement(node, ref) {
-    this.foundException = true;
+    Globals.foundException = true;
   }
   visitNamespaceDeclaration(node, isDefault, ref) {
     const nsName = node.name.text;
@@ -163,7 +163,7 @@ export class FunctionLinker extends Visitor {
   saveState(o = this) {
     return new FunctionLinkerState(
       this.path,
-      this.foundException,
+      Globals.foundException,
       this.sourceData,
       this.sD,
       this.visitedSources,

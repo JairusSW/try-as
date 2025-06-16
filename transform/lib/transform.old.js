@@ -24,7 +24,7 @@ export class TryTransform extends Visitor {
     this.foundTry = true;
     this.baseStatements = node.bodyStatements;
     if (DEBUG) console.log("Found try: " + toString(node));
-    this.foundExceptions = [];
+    Globals.foundExceptions = [];
     let tryBlock;
     let catchBlock;
     let finallyBlock;

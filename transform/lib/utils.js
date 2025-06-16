@@ -173,4 +173,80 @@ export function getBreaker(node, parent = null) {
     }
     return breakStmt;
 }
+export function isRefStatement(node, ref) {
+    if (node)
+        return isRefStatement(null, node) || isRefStatement(null, ref);
+    if (!ref)
+        return false;
+    if (Array.isArray(ref)) {
+        if (ref.some(r => !isRefStatement(null, r)))
+            return false;
+        return true;
+    }
+    if (ref.kind == 0)
+        return true;
+    if (ref.kind == 10)
+        return true;
+    if (ref.kind == 30)
+        return true;
+    if (ref.kind == 31)
+        return true;
+    if (ref.kind == 32)
+        return true;
+    if (ref.kind == 33)
+        return true;
+    if (ref.kind == 34)
+        return true;
+    if (ref.kind == 35)
+        return true;
+    if (ref.kind == 36)
+        return true;
+    if (ref.kind == 37)
+        return true;
+    if (ref.kind == 38)
+        return true;
+    if (ref.kind == 39)
+        return true;
+    if (ref.kind == 40)
+        return true;
+    if (ref.kind == 41)
+        return true;
+    if (ref.kind == 42)
+        return true;
+    if (ref.kind == 43)
+        return true;
+    if (ref.kind == 44)
+        return true;
+    if (ref.kind == 45)
+        return true;
+    if (ref.kind == 46)
+        return true;
+    if (ref.kind == 47)
+        return true;
+    if (ref.kind == 49)
+        return true;
+    if (ref.kind == 50)
+        return true;
+    if (ref.kind == 51)
+        return true;
+    if (ref.kind == 52)
+        return true;
+    if (ref.kind == 54)
+        return true;
+    if (ref.kind == 55)
+        return true;
+    if (ref.kind == 56)
+        return true;
+    if (ref.kind == 57)
+        return true;
+    if (ref.kind == 58)
+        return true;
+    if (ref.kind == 59)
+        return true;
+    if (ref.kind == 60)
+        return true;
+    if (ref.kind == 61)
+        return true;
+    return false;
+}
 //# sourceMappingURL=utils.js.map

@@ -4,6 +4,7 @@ import { TryRef } from "./tryref.js";
 import { BaseRef } from "./baseref.js";
 import { SourceLinker } from "../passes/source.js";
 import { indent } from "../globals/indent.js";
+import { Globals } from "../globals/globals.js";
 
 const rawValue = process.env["DEBUG"];
 const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
@@ -14,6 +15,7 @@ export class SourceLocalRef {
   public exports: ExportStatement[] = [];
 }
 export class SourceRef extends BaseRef {
+  public linker: SourceLinker;
   public node: Source;
   public tries: TryRef[] = [];
   public functions: FunctionRef[] = [];
@@ -27,6 +29,7 @@ export class SourceRef extends BaseRef {
   constructor(source: Source) {
     super();
     this.node = source;
+    this.linker = new SourceLinker(this);
   }
   /**
    * Find a function by name in this source, or in external sources via imports.
@@ -35,28 +38,28 @@ export class SourceRef extends BaseRef {
    * @param visitedPaths A set of paths that have already been searched.
    * @returns The found FunctionRef or null.
    */
-  findFn(name: string, visitedPaths = new Set<string>()): FunctionRef | null {
+  findFn(name: string, visitedPaths = new Set<string>()): [FunctionRef | null, SourceRef | null] {
     const currentPath = this.node.internalPath;
-    if (!currentPath || visitedPaths.has(currentPath)) return null;
+    if (!currentPath || visitedPaths.has(currentPath)) return [null, null];
     visitedPaths.add(currentPath);
 
     let fnRef = this.functions.find((fn) => fn.name === name);
     if (fnRef) {
       if (DEBUG > 0) indent + `Identified ${name}() as exception`;
-      return fnRef;
+      return [fnRef, this];
     }
 
     fnRef = this.local.functions.find((fn) => fn.name === name);
     if (fnRef) {
       if (DEBUG > 0) console.log(indent + `Found ${name} locally`);
-      return fnRef;
+      return [fnRef, this];
     }
 
     const importMatch = this.local.imports.find((imp) => imp.declarations.some((decl) => name === decl.name.text || name.startsWith(decl.name.text + ".")));
 
     if (importMatch) {
       const basePath = importMatch.internalPath;
-      let externSrc = SourceLinker.SS.sources.get(basePath) || SourceLinker.SS.sources.get(basePath + "/index");
+      let externSrc = Globals.sources.get(basePath) || Globals.sources.get(basePath + "/index");
 
       if (!externSrc) {
         throw new Error("Could not find " + basePath + " in sources!");
@@ -78,7 +81,7 @@ export class SourceRef extends BaseRef {
 
       if (exported) {
         const exportPath = exported.internalPath;
-        const reexported = SourceLinker.SS.sources.get(exportPath) || SourceLinker.SS.sources.get(exportPath + "/index");
+        const reexported = Globals.sources.get(exportPath) || Globals.sources.get(exportPath + "/index");
         if (reexported) {
           const result = reexported.findFn(name, visitedPaths);
           if (result) {
@@ -89,7 +92,7 @@ export class SourceRef extends BaseRef {
       }
     }
 
-    return null;
+    return [null, null]
   }
 
   generate(): void {

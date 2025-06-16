@@ -1,4 +1,4 @@
-import { BlockStatement, BreakStatement, FunctionDeclaration, IdentifierExpression, IfStatement, Node, NodeKind, PropertyAccessExpression, ReturnStatement, Token } from "assemblyscript/dist/assemblyscript.js";
+import { BlockStatement, BreakStatement, ExpressionStatement, FunctionDeclaration, IdentifierExpression, IfStatement, Node, NodeKind, PropertyAccessExpression, ReturnStatement, Statement, Token } from "assemblyscript/dist/assemblyscript.js";
 import { toString } from "./lib/util.js";
 import path from "path";
 
@@ -167,4 +167,46 @@ export function getBreaker(node: Node, parent: FunctionDeclaration | null = null
   }
 
   return breakStmt;
+}
+
+export function isRefStatement(node: Node | null, ref: Node | Node[] | null): boolean {
+  if (node) return isRefStatement(null, node) || isRefStatement(null, ref);
+  if (!ref) return false;
+  if (Array.isArray(ref)) {
+    if (ref.some(r => !isRefStatement(null, r))) return false;
+    return true;
+  }
+  if (ref.kind == NodeKind.Source) return true;
+  if (ref.kind == NodeKind.Class) return true;
+  if (ref.kind == NodeKind.Block) return true;
+  if (ref.kind == NodeKind.Break) return true;
+  if (ref.kind == NodeKind.Continue) return true;
+  if (ref.kind == NodeKind.Do) return true;
+  if (ref.kind == NodeKind.Empty) return true;
+  if (ref.kind == NodeKind.Export) return true;
+  if (ref.kind == NodeKind.ExportDefault) return true;
+  if (ref.kind == NodeKind.ExportImport) return true;
+  if (ref.kind == NodeKind.Expression) return true;
+  if (ref.kind == NodeKind.For) return true;
+  if (ref.kind == NodeKind.ForOf) return true;
+  if (ref.kind == NodeKind.If) return true;
+  if (ref.kind == NodeKind.Import) return true;
+  if (ref.kind == NodeKind.Return) return true;
+  if (ref.kind == NodeKind.Switch) return true;
+  if (ref.kind == NodeKind.Throw) return true;
+  if (ref.kind == NodeKind.Try) return true;
+  if (ref.kind == NodeKind.Variable) return true;
+  if (ref.kind == NodeKind.While) return true;
+  if (ref.kind == NodeKind.Module) return true;
+  if (ref.kind == NodeKind.ClassDeclaration) return true;
+  if (ref.kind == NodeKind.EnumDeclaration) return true;
+  if (ref.kind == NodeKind.FieldDeclaration) return true;
+  if (ref.kind == NodeKind.FunctionDeclaration) return true;
+  if (ref.kind == NodeKind.ImportDeclaration) return true;
+  if (ref.kind == NodeKind.InterfaceDeclaration) return true;
+  if (ref.kind == NodeKind.MethodDeclaration) return true;
+  if (ref.kind == NodeKind.NamespaceDeclaration) return true;
+  if (ref.kind == NodeKind.TypeDeclaration) return true;
+  if (ref.kind == NodeKind.VariableDeclaration) return true;
+  return false;
 }

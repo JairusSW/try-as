@@ -43,7 +43,7 @@ export class Linker extends Visitor {
     if (node.flags & 2) fnRef.exported = true;
     if (hasBaseException(node.body.statements)) fnRef.hasException = true;
     super.visit(node.body, node);
-    if (this.foundException) {
+    if (Globals.foundException) {
       fnRef.hasException = true;
       Try.SN.addFnRef(node.range.source, fnRef, false);
       console.log(
@@ -53,14 +53,14 @@ export class Linker extends Visitor {
           " from " +
           node.range.source.internalPath,
       );
-      if (!this.searching) this.foundException = false;
+      if (!this.searching) Globals.foundException = false;
     }
   }
   visitCallExpression(_node, ref) {
     if (this.pass == PassKind.Collect) {
       const fnName = getFnName(_node.expression, this.path);
       if (fnName == "unreachable" || fnName == "abort") {
-        this.foundException = true;
+        Globals.foundException = true;
         return;
       }
       const callRef = new CallRef(_node, ref, this.path.slice());

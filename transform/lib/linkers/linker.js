@@ -31,7 +31,7 @@ export class Linker extends Visitor {
     if (hasBaseException(blockify(node.body).statements))
       fnRef.hasException = true;
     super.visit(node.body, node);
-    if (this.foundException) {
+    if (Globals.foundException) {
       fnRef.hasException = true;
       Try.SN.addFnRef(node.range.source, fnRef, false);
       console.log(
@@ -41,14 +41,14 @@ export class Linker extends Visitor {
           " from " +
           node.range.source.internalPath,
       );
-      if (!this.searching) this.foundException = false;
+      if (!this.searching) Globals.foundException = false;
     }
   }
   visitCallExpression(_node, ref) {
     if (this.pass == PassKind.Collect) {
       const fnName = getFnName(_node.expression, this.path);
       if (fnName == "unreachable" || fnName == "abort") {
-        this.foundException = true;
+        Globals.foundException = true;
         return;
       }
       const callRef = new CallRef(_node, ref, this.path.slice());
@@ -72,7 +72,7 @@ export class Linker extends Visitor {
     if (fnRef.callers.find((c) => c.node == node)) return;
     fnRef.callers.push(callRef);
     console.log("Added Call:" + fnRef.node.name.text);
-    this.callStack.push(fnRef);
+    Globals.callStack.push(fnRef);
     super.visit(node.args, node);
     super.visit(fnRef.node, fnRef.ref);
   }

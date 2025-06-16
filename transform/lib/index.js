@@ -40,13 +40,16 @@ export default class Transformer extends Transform {
         Globals.baseCWD = path.join(process.cwd(), this.baseDir).replaceAll("\\", "/");
         SourceLinker.link(sources);
         if (WRITE) {
+            console.log("\n========WRITING========\n");
             for (let file of WRITE.split(",")) {
+                console.log("Writing " + file);
                 file = removeExtension(file);
                 const source = parser.sources.find((v) => v.normalizedPath.includes(file));
                 if (source) {
-                    fs.writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension(file) + ".tmp.ts"), toString(source));
+                    fs.writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension(file).replace("~lib/", "./node_modules/") + ".tmp.ts"), toString(source));
                 }
             }
+            console.log("\n");
         }
     }
 }

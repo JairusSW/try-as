@@ -6,6 +6,7 @@ import { TryRef } from "./tryref.js";
 import { SourceLinker } from "../passes/source.js";
 import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
+import { Globals } from "../globals/globals.js";
 
 const rawValue = process.env["DEBUG"];
 const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
@@ -27,6 +28,8 @@ export class FunctionRef extends BaseRef {
   private generatedImport: boolean = false;
 
   private cloneBody: Statement;
+
+  public state: "ready" | "done" = "ready";
   constructor(node: FunctionDeclaration, ref: Node | Node[] | null, path: string[] = []) {
     super();
     this.node = node;
@@ -52,7 +55,7 @@ export class FunctionRef extends BaseRef {
         if (seenSources.has(caller.node.range.source.internalPath)) continue;
         seenSources.add(caller.node.range.source.internalPath);
 
-        const callerSrc = SourceLinker.SS.sources.get(caller.node.range.source.internalPath);
+        const callerSrc = Globals.sources.get(caller.node.range.source.internalPath);
         if (!callerSrc) throw new Error("Could not find " + caller.node.range.source.internalPath + " in sources!");
 
         let callerImport: ImportStatement | null = null;
