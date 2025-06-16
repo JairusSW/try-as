@@ -5,7 +5,7 @@
    ██    ██████    ████   █████ ███████ ███████ 
    ██    ██   ██    ██          ██   ██      ██ 
    ██    ██   ██    ██          ██   ██ ███████ </span>
-    AssemblyScript - v0.1.5-preview.1
+    AssemblyScript - v0.1.5-preview.2
   </pre>
 </h5>
 
