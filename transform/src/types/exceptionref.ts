@@ -42,11 +42,25 @@ export class ExceptionRef extends BaseRef {
           Node.createCallExpression(
             Node.createPropertyAccessExpression(
               Node.createIdentifierExpression("__ErrorState", node.range),
-              Node.createIdentifierExpression("error", node.range), 
+              Node.createIdentifierExpression("error", node.range),
               node.range
-            ), 
-            null, 
-            [value], 
+            ),
+            null,
+            [
+              value,
+              Node.createStringLiteralExpression(
+                node.range.source.normalizedPath,
+                node.range
+              ),
+              Node.createFloatLiteralExpression(
+                node.range.source.lineAt(node.range.start),
+                node.range
+              ),
+              Node.createFloatLiteralExpression(
+                node.range.source.columnAt(),
+                node.range
+              )
+            ],
             node.range
           )
         );

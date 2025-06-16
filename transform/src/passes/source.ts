@@ -26,8 +26,6 @@ export class SourceLinker extends Visitor {
 
   public path: string[] = [];
   public lastFn: FunctionRef | null = null;
-  public lastTry: TryRef | null = null;
-  public lastRet: ReturnStatement | null = null;
   public parentFn: FunctionRef | null = null;
   public entryFn: FunctionRef | null = null;
 
@@ -155,7 +153,7 @@ export class SourceLinker extends Visitor {
 
   visitCallExpression(node: CallExpression, ref: Node | Node[] | null = null): void {
     if (this.state != "link" && this.state != "done") return super.visitCallExpression(node, ref);
-    if (this.node.sourceKind == SourceKind.UserEntry && !this.lastTry) return super.visitCallExpression(node, ref);
+    if (!Globals.lastTry) return super.visitCallExpression(node, ref);
 
     const fnName = getFnName(node.expression);
     if (fnName == "unreachable" || fnName == "abort") {
@@ -164,7 +162,7 @@ export class SourceLinker extends Visitor {
       const newException = new ExceptionRef(node, ref);
       newException.parentFn = this.parentFn;
       if (this.lastFn) this.lastFn.exceptions.push(newException);
-      else this.lastTry.exceptions.push(newException);
+      else Globals.lastTry.exceptions.push(newException);
       return super.visitCallExpression(node, ref);
     }
 
@@ -205,13 +203,13 @@ export class SourceLinker extends Visitor {
 
   visitThrowStatement(node: ThrowStatement, ref: Node | Node[] | null = null): void {
     if (this.state != "link" && this.state != "done") return super.visitThrowStatement(node, ref);
-    if (this.node.sourceKind == SourceKind.UserEntry && !this.lastTry) return super.visitThrowStatement(node, ref);
+    if (!Globals.lastTry) return super.visitThrowStatement(node, ref);
     if (DEBUG > 0) console.log(indent + "Found exception " + toString(node));
     Globals.foundException = true;
     const newException = new ExceptionRef(node, ref);
     newException.parentFn = this.parentFn;
     if (this.lastFn) this.lastFn.exceptions.push(newException);
-    else this.lastTry.exceptions.push(newException);
+    else Globals.lastTry.exceptions.push(newException);
     return super.visitThrowStatement(node, ref);
   }
 
@@ -219,38 +217,37 @@ export class SourceLinker extends Visitor {
     if (this.lastFn) {
       const tryRef = new TryRef(node, ref);
       this.lastFn.tries.push(tryRef);
-      const lastTry = this.lastTry;
-      this.lastTry = tryRef;
-
+      const lastTry = Globals.lastTry;
       const parentFn = this.parentFn;
+      Globals.lastTry = tryRef;
       this.parentFn = null;
       this.visit(node.bodyStatements, node);
       this.parentFn = parentFn;
+      Globals.lastTry = lastTry;
       this.visit(node.catchVariable, node);
       this.visit(node.catchStatements, node);
       this.visit(node.finallyStatements, node);
 
-      this.lastTry = lastTry;
       return;
     }
 
     if (this.state != "link") return super.visitTryStatement(node, ref);
 
     const tryRef = new TryRef(node, ref);
-    (this.lastTry ? this.lastTry.tries : this.source.tries).push(tryRef);
+    (Globals.lastTry ? Globals.lastTry.tries : this.source.tries).push(tryRef);
 
-    const lastTry = this.lastTry;
-    this.lastTry = tryRef;
-
+    const lastTry = Globals.lastTry;
     const parentFn = this.parentFn;
+    Globals.lastTry = tryRef;
     this.parentFn = null;
     this.visit(node.bodyStatements, node);
     this.parentFn = parentFn;
+      Globals.lastTry = lastTry;
     this.visit(node.catchVariable, node);
     this.visit(node.catchStatements, node);
     this.visit(node.finallyStatements, node);
 
-    this.lastTry = lastTry;
+    Globals.lastTry = lastTry;
   }
 
   visitNamespaceDeclaration(node: NamespaceDeclaration, isDefault: boolean = false, ref: Node | Node[] | null = null): void {

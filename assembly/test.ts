@@ -25,7 +25,7 @@ try {
   if (err.is<MyError>()) {
     console.log("Caught MyError: " + err.as<MyError>().message);
   }
+  throw e
 } finally {
   console.log("Finally.");
 }
-

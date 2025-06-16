@@ -1,4 +1,5 @@
 import { AbortState } from "./abort";
+import { UnreachableState } from "./unreachable";
 import { DISCRIMINATOR, ErrorState } from "./error";
 
 export enum ExceptionType {
@@ -22,9 +23,9 @@ export class Exception {
   public get columnNumber(): i32 { return this.type == ExceptionType.Abort ? this.columnNumber : -1; };
 
   // Error
-  public get message(): string | null { return (this.type == ExceptionType.Error && this.is<Error>()) ? this.message : null; };
-  public get name(): string | null { return (this.type == ExceptionType.Error && this.is<Error>()) ? this.name : null; };
-  public get stack(): string | null { return (this.type == ExceptionType.Error && this.is<Error>()) ? this.stack : null; };
+  public get message(): string | null { return (this.type == ExceptionType.Error && (ErrorState.isErrorType || ErrorState.hasMessage)) ? this.message : null; };
+  public get name(): string | null { return (this.type == ExceptionType.Error && ErrorState.isErrorType) ? this.name : null; };
+  public get stack(): string | null { return (this.type == ExceptionType.Error && ErrorState.isErrorType) ? this.stack : null; };
 
   constructor(type: ExceptionType) {
     this.type = type;
@@ -38,7 +39,7 @@ export class Exception {
       if (AbortState.lineNumber) out += ` in (${AbortState.lineNumber}:${AbortState.columnNumber})`;
     } else if (this.type == ExceptionType.Unreachable) {
       out = "unreachable";
-    } else if (this.type == ExceptionType.Error) {
+    } else if (this.type == ExceptionType.Error && ErrorState.hasMessage) {
       out = "Error: " + ErrorState.message;
     }
     return out;
@@ -53,5 +54,24 @@ export class Exception {
     if (this.type != ExceptionType.Error) return changetype<T>(0);
     if (ErrorState.discriminator != DISCRIMINATOR<T>()) return changetype<T>(0);
     return load<T>(ErrorState.storage);
+  }
+  rethrow(): void {
+    if (this.type == ExceptionType.Abort) {
+      abort(this.msg, this.fileName, this.lineNumber, this.columnNumber);
+    } else if (this.type == ExceptionType.Unreachable) {
+      unreachable();
+    } else if (this.type == ExceptionType.Error) {
+      abort(ErrorState.hasMessage ? ErrorState.message : "", ErrorState.fileName, ErrorState.lineNumber, ErrorState.columnNumber);
+    }
+  }
+  private __try_rethrow(): void {
+    if (this.type == ExceptionType.Abort) {
+      AbortState.abort(this.msg, this.fileName, this.lineNumber, this.columnNumber);
+    } else if (this.type == ExceptionType.Unreachable) {
+      UnreachableState.unreachable();
+    } else if (this.type == ExceptionType.Error) {
+      ExceptionState.Failures++;
+      ExceptionState.Type = ExceptionType.Error;
+    }
   }
 }

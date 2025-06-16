@@ -21,8 +21,6 @@ export class SourceLinker extends Visitor {
     source;
     path = [];
     lastFn = null;
-    lastTry = null;
-    lastRet = null;
     parentFn = null;
     entryFn = null;
     constructor(sourceRef) {
@@ -146,7 +144,7 @@ export class SourceLinker extends Visitor {
     visitCallExpression(node, ref = null) {
         if (this.state != "link" && this.state != "done")
             return super.visitCallExpression(node, ref);
-        if (this.node.sourceKind == 1 && !this.lastTry)
+        if (!Globals.lastTry)
             return super.visitCallExpression(node, ref);
         const fnName = getFnName(node.expression);
         if (fnName == "unreachable" || fnName == "abort") {
@@ -158,7 +156,7 @@ export class SourceLinker extends Visitor {
             if (this.lastFn)
                 this.lastFn.exceptions.push(newException);
             else
-                this.lastTry.exceptions.push(newException);
+                Globals.lastTry.exceptions.push(newException);
             return super.visitCallExpression(node, ref);
         }
         let [fnRef, fnSrc] = this.source.findFn(fnName);
@@ -198,7 +196,7 @@ export class SourceLinker extends Visitor {
     visitThrowStatement(node, ref = null) {
         if (this.state != "link" && this.state != "done")
             return super.visitThrowStatement(node, ref);
-        if (this.node.sourceKind == 1 && !this.lastTry)
+        if (!Globals.lastTry)
             return super.visitThrowStatement(node, ref);
         if (DEBUG > 0)
             console.log(indent + "Found exception " + toString(node));
@@ -208,39 +206,40 @@ export class SourceLinker extends Visitor {
         if (this.lastFn)
             this.lastFn.exceptions.push(newException);
         else
-            this.lastTry.exceptions.push(newException);
+            Globals.lastTry.exceptions.push(newException);
         return super.visitThrowStatement(node, ref);
     }
     visitTryStatement(node, ref = null) {
         if (this.lastFn) {
             const tryRef = new TryRef(node, ref);
             this.lastFn.tries.push(tryRef);
-            const lastTry = this.lastTry;
-            this.lastTry = tryRef;
+            const lastTry = Globals.lastTry;
             const parentFn = this.parentFn;
+            Globals.lastTry = tryRef;
             this.parentFn = null;
             this.visit(node.bodyStatements, node);
             this.parentFn = parentFn;
+            Globals.lastTry = lastTry;
             this.visit(node.catchVariable, node);
             this.visit(node.catchStatements, node);
             this.visit(node.finallyStatements, node);
-            this.lastTry = lastTry;
             return;
         }
         if (this.state != "link")
             return super.visitTryStatement(node, ref);
         const tryRef = new TryRef(node, ref);
-        (this.lastTry ? this.lastTry.tries : this.source.tries).push(tryRef);
-        const lastTry = this.lastTry;
-        this.lastTry = tryRef;
+        (Globals.lastTry ? Globals.lastTry.tries : this.source.tries).push(tryRef);
+        const lastTry = Globals.lastTry;
         const parentFn = this.parentFn;
+        Globals.lastTry = tryRef;
         this.parentFn = null;
         this.visit(node.bodyStatements, node);
         this.parentFn = parentFn;
+        Globals.lastTry = lastTry;
         this.visit(node.catchVariable, node);
         this.visit(node.catchStatements, node);
         this.visit(node.finallyStatements, node);
-        this.lastTry = lastTry;
+        Globals.lastTry = lastTry;
     }
     visitNamespaceDeclaration(node, isDefault = false, ref = null) {
         this.path.push(node.name.text);

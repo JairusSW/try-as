@@ -3,6 +3,7 @@ class _Globals {
     sources = new Map();
     callStack = new Set();
     foundException = false;
+    lastTry = null;
 }
 export const Globals = new _Globals();
 //# sourceMappingURL=globals.js.map

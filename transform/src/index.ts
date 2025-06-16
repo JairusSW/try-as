@@ -1,5 +1,6 @@
 import { Parser } from "assemblyscript/dist/assemblyscript.js";
 import { Transform } from "assemblyscript/dist/transform.js";
+import { ThrowReplacer } from "./passes/replacer.js";
 import { SourceLinker } from "./passes/source.js";
 import { Globals } from "./globals/globals.js";
 import { removeExtension } from "./utils.js";
@@ -61,6 +62,11 @@ export default class Transformer extends Transform {
         }
       }
       console.log("\n")
+    }
+
+    const throwReplacer = new ThrowReplacer();
+    for (const source of sources) {
+      throwReplacer.visitSource(source);
     }
   }
 }

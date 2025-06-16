@@ -44,6 +44,7 @@ export class FunctionRef extends BaseRef {
     return this.node.flags & CommonFlags.Export && this.node.range.source.sourceKind == SourceKind.UserEntry;
   }
   generate(): void {
+    if (this.node.name.text.startsWith("__try_")) return;
     if (DEBUG > 0) console.log(indent + "Generating function " + this.name);
     indent.add();
     if (this.exported && !this.generatedImport) {

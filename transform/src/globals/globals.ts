@@ -6,6 +6,7 @@ class _Globals {
   public sources: Map<string, SourceRef> = new Map();
   public callStack: Set<FunctionRef> = new Set();
   public foundException: boolean = false;
+    public lastTry: TryRef | null = null;
 }
 
 export const Globals = new _Globals();

@@ -31,6 +31,8 @@ export class FunctionRef extends BaseRef {
         return this.node.flags & 2 && this.node.range.source.sourceKind == 1;
     }
     generate() {
+        if (this.node.name.text.startsWith("__try_"))
+            return;
         if (DEBUG > 0)
             console.log(indent + "Generating function " + this.name);
         indent.add();

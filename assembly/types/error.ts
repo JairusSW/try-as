@@ -36,8 +36,16 @@ export namespace ErrorState {
   export let name: string = "";
   export let stack: string | null = null;
 
+  export let fileName: string | null = null;
+  export let lineNumber: i32 = 0;
+  export let columnNumber: i32 = 0;
+
   export let storage: usize = memory.data(8);
   export let discriminator: i32 = 0;
+
+  export let isErrorType: bool = false;
+  export let hasMessage: bool = false;
+
   // @ts-ignore: inline
   @inline export function reset(): void {
     ExceptionState.Failures = 0;
@@ -46,16 +54,36 @@ export namespace ErrorState {
     ErrorState.stack = null;
   }
   // @ts-ignore: inline
-  @inline export function error<T>(error: T): void {
+  @inline export function error<T>(error: T, fileName: string, lineNumber: f64, columnNumber: f64): void {
     ExceptionState.Failures++;
     ExceptionState.Type = ExceptionType.Error;
+
+    ErrorState.fileName = fileName;
+    ErrorState.lineNumber = i32(lineNumber);
+    ErrorState.columnNumber = i32(columnNumber);
+
+    if (idof<T>() == idof<Exception>()) return;
 
     ErrorState.discriminator = DISCRIMINATOR<T>();
     store<T>(ErrorState.storage, error);
 
-    if (idof<T>() == idof<Error>()) {
+    if (error instanceof Error) {
+      ErrorState.isErrorType = true;
       ErrorState.message = (error as Error).message;
       ErrorState.stack = (error as Error).stack as string | null;
+      ErrorState.hasMessage = true;
+      return;
     }
+
+    // @ts-ignore: defined
+    if (isDefined(error.toString())) {
+      // @ts-ignore: defined
+      ErrorState.message = error.toString();
+      ErrorState.hasMessage = true;
+      return;
+    }
+
+    ErrorState.hasMessage = false;
+    ErrorState.isErrorType = false;
   }
 }
