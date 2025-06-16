@@ -16,6 +16,7 @@ const rawValue = process.env["DEBUG"];
 const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 class SourceState {
     sources = new Map();
+    foundException = false;
 }
 export class SourceLinker extends Visitor {
     static SS = new SourceState();
@@ -30,6 +31,7 @@ export class SourceLinker extends Visitor {
     entryFn = null;
     callStack = new Set();
     foundException = false;
+    parentScope = null;
     visitImportStatement(node, ref = null) {
         if (this.state != "gather" || !node.internalPath)
             return super.visitImportStatement(node, ref);
@@ -73,6 +75,7 @@ export class SourceLinker extends Visitor {
     visitFunctionDeclaration(node, isDefault = false, ref = null) {
         if (this.state == "gather") {
             const fnRef = new FunctionRef(node, ref, this.path.slice());
+            console.log(indent + "Found function " + fnRef.name);
             this.source.local.functions.push(fnRef);
         }
         else if (this.state == "link") {
@@ -87,10 +90,44 @@ export class SourceLinker extends Visitor {
                 this.lastFn = lastFn;
                 return;
             }
+            else {
+                const fnRef = this.source.local.functions.find((v) => v.name == node.name.text);
+                const lastFn = this.lastFn;
+                this.lastFn = fnRef;
+                this.parentFn = fnRef;
+                super.visitFunctionDeclaration(node, isDefault, ref);
+                this.parentFn = null;
+                this.lastFn = lastFn;
+                if (SourceLinker.SS.foundException) {
+                    for (const fn of this.callStack.values()) {
+                        fn.hasException = true;
+                        if (fn.node.range.source.internalPath != this.source.node.internalPath) {
+                            const alienSrc = SourceLinker.SS.sources.get(fn.node.range.source.internalPath);
+                            if (!alienSrc.functions.some((v) => v == fn)) {
+                                if (DEBUG > 0)
+                                    console.log(indent + "Added function (fn dec): " + fn.name);
+                                alienSrc.functions.push(fn);
+                            }
+                        }
+                        else {
+                            if (!this.source.functions.some((v) => v == fn)) {
+                                if (DEBUG > 0)
+                                    console.log(indent + "Added function (fn dec): " + fn.name);
+                                this.source.functions.push(fn);
+                            }
+                        }
+                    }
+                    this.callStack.clear();
+                    SourceLinker.SS.foundException = false;
+                }
+                else {
+                    this.callStack.delete(fnRef);
+                }
+            }
         }
-        this.parentFn = this.source.local.functions.find((v) => v.name == node.name.text);
-        super.visitFunctionDeclaration(node, isDefault, ref);
-        this.parentFn = null;
+        else {
+            return super.visitFunctionDeclaration(node, isDefault, ref);
+        }
     }
     linkFunctionRef(fnRef) {
         if (!fnRef)
@@ -113,11 +150,11 @@ export class SourceLinker extends Visitor {
         super.visitFunctionDeclaration(fnRef.node, false, fnRef.ref);
         this.parentFn = parentFn;
         this.lastFn = lastFn;
-        if (this.foundException) {
+        if (SourceLinker.SS.foundException) {
             for (const fn of this.callStack.values()) {
                 fn.hasException = true;
                 if (fn.node.range.source.internalPath != this.source.node.internalPath) {
-                    const alienSrc = SourceLinker.SS.sources.get(fn.node.range.source.internalPath);
+                    const alienSrc = SourceLinker.SS.sources.get(fn.node.range.source.internalPath) || SourceLinker.SS.sources.get(fn.node.range.source.internalPath + "/index");
                     if (!alienSrc.functions.some((v) => v == fn)) {
                         if (DEBUG > 0)
                             console.log(indent + "Added function (fn): " + fn.name);
@@ -133,7 +170,7 @@ export class SourceLinker extends Visitor {
                 }
             }
             this.callStack.clear();
-            this.foundException = false;
+            SourceLinker.SS.foundException = false;
         }
         else {
             this.callStack.delete(fnRef);
@@ -149,7 +186,7 @@ export class SourceLinker extends Visitor {
         if (fnName == "unreachable" || fnName == "abort") {
             if (DEBUG > 0)
                 console.log(indent + "Found exception " + toString(node));
-            this.foundException = true;
+            SourceLinker.SS.foundException = true;
             const newException = new ExceptionRef(node, ref);
             newException.parentFn = this.parentFn;
             if (this.lastFn)
@@ -158,13 +195,13 @@ export class SourceLinker extends Visitor {
                 this.lastTry.exceptions.push(newException);
             return super.visitCallExpression(node, ref);
         }
-        let fnRef = this.source.findFn(fnName);
+        let fnRef = this.source.findFn(fnName, node.range.source);
         if (!fnRef)
             return super.visitCallExpression(node, ref);
         const callRef = new CallRef(node, ref, fnRef);
         fnRef.callers.push(callRef);
         callRef.parentFn = this.parentFn;
-        if (this.foundException) {
+        if (SourceLinker.SS.foundException) {
             for (const fn of this.callStack.values()) {
                 fn.hasException = true;
                 if (fn.node.range.source.internalPath != this.source.node.internalPath) {
@@ -184,7 +221,7 @@ export class SourceLinker extends Visitor {
                 }
             }
             this.callStack.clear();
-            this.foundException = false;
+            SourceLinker.SS.foundException = false;
         }
         this.linkFunctionRef(fnRef);
         super.visitCallExpression(node, ref);
@@ -196,7 +233,7 @@ export class SourceLinker extends Visitor {
             return super.visitThrowStatement(node, ref);
         if (DEBUG > 0)
             console.log(indent + "Found exception " + toString(node));
-        this.foundException = true;
+        SourceLinker.SS.foundException = true;
         const newException = new ExceptionRef(node, ref);
         newException.parentFn = this.parentFn;
         if (this.lastFn)
@@ -232,7 +269,9 @@ export class SourceLinker extends Visitor {
     }
     visitNamespaceDeclaration(node, isDefault = false, ref = null) {
         this.path.push(node.name.text);
+        this.parentScope = node;
         super.visitNamespaceDeclaration(node, isDefault, ref);
+        this.parentScope = null;
         this.path.pop();
     }
     visitClassDeclaration(node, isDefault = false, ref = null) {
@@ -270,6 +309,8 @@ export class SourceLinker extends Visitor {
         this.source.state = "done";
         indent.rm();
         this.addImports(source);
+        if (source.internalPath.includes("struct"))
+            debugger;
     }
     addImports(node) {
         const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
@@ -306,25 +347,21 @@ export class SourceLinker extends Visitor {
             if (DEBUG > 0)
                 console.log(source.internalPath);
         }
-        const entrySources = sources.filter((v) => v.sourceKind == 1);
-        if (!entrySources.length)
+        const entrySource = sources.find((v) => v.sourceKind == 1);
+        if (!entrySource)
             throw new Error("Could not find main entry point in sources");
-        for (const entrySource of entrySources) {
-            if (DEBUG > 0)
-                console.log("\n========LINKING========\n");
-            if (DEBUG > 0)
-                console.log("Entry: " + entrySource.internalPath);
-            const linker = new SourceLinker();
-            linker.link(entrySource);
-        }
-        for (const entrySource of entrySources) {
-            if (DEBUG > 0)
-                console.log("\n========GENERATING========\n");
-            const entryRef = SourceLinker.SS.sources.get(entrySource.internalPath);
-            if (!entryRef)
-                throw new Error("Could not find " + entrySource.internalPath + " in sources!");
-            entryRef.generate();
-        }
+        if (DEBUG > 0)
+            console.log("\n========LINKING========\n");
+        if (DEBUG > 0)
+            console.log("Entry: " + entrySource.internalPath);
+        const linker = new SourceLinker();
+        linker.link(entrySource);
+        if (DEBUG > 0)
+            console.log("\n========GENERATING========\n");
+        const entryRef = SourceLinker.SS.sources.get(entrySource.internalPath);
+        if (!entryRef)
+            throw new Error("Could not find " + entrySource.internalPath + " in sources!");
+        entryRef.generate();
     }
 }
 //# sourceMappingURL=source.js.map

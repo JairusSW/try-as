@@ -19,6 +19,7 @@ const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" 
 
 class SourceState {
   public sources: Map<string, SourceRef> = new Map();
+  public foundException: boolean = false;
 }
 
 export class SourceLinker extends Visitor {
@@ -87,7 +88,7 @@ export class SourceLinker extends Visitor {
   visitFunctionDeclaration(node: FunctionDeclaration, isDefault: boolean = false, ref: Node | Node[] | null = null): void {
     if (this.state == "gather") {
       const fnRef = new FunctionRef(node, ref, this.path.slice());
-      // console.log(indent + "Found function " + fnRef.name);
+      console.log(indent + "Found function " + fnRef.name);
       this.source.local.functions.push(fnRef);
     } else if (this.state == "link") {
       if (node.range.source.sourceKind == SourceKind.UserEntry && node.flags & CommonFlags.Export) {
@@ -111,7 +112,7 @@ export class SourceLinker extends Visitor {
         this.parentFn = null;
         this.lastFn = lastFn;
 
-        if (this.foundException) {
+        if (SourceLinker.SS.foundException) {
           for (const fn of this.callStack.values()) {
             fn.hasException = true;
             if (fn.node.range.source.internalPath != this.source.node.internalPath) {
@@ -128,7 +129,7 @@ export class SourceLinker extends Visitor {
             }
           }
           this.callStack.clear();
-          this.foundException = false;
+          SourceLinker.SS.foundException = false;
         } else {
           this.callStack.delete(fnRef);
         }
@@ -159,11 +160,11 @@ export class SourceLinker extends Visitor {
     this.parentFn = parentFn;
     this.lastFn = lastFn;
 
-    if (this.foundException) {
+    if (SourceLinker.SS.foundException) {
       for (const fn of this.callStack.values()) {
         fn.hasException = true;
         if (fn.node.range.source.internalPath != this.source.node.internalPath) {
-          const alienSrc = SourceLinker.SS.sources.get(fn.node.range.source.internalPath);
+          const alienSrc = SourceLinker.SS.sources.get(fn.node.range.source.internalPath) || SourceLinker.SS.sources.get(fn.node.range.source.internalPath + "/index");
           if (!alienSrc.functions.some((v) => v == fn)) {
             if (DEBUG > 0) console.log(indent + "Added function (fn): " + fn.name);
             alienSrc.functions.push(fn);
@@ -176,7 +177,7 @@ export class SourceLinker extends Visitor {
         }
       }
       this.callStack.clear();
-      this.foundException = false;
+      SourceLinker.SS.foundException = false;
     } else {
       this.callStack.delete(fnRef);
     }
@@ -190,7 +191,7 @@ export class SourceLinker extends Visitor {
     const fnName = getFnName(node.expression);
     if (fnName == "unreachable" || fnName == "abort") {
       if (DEBUG > 0) console.log(indent + "Found exception " + toString(node));
-      this.foundException = true;
+      SourceLinker.SS.foundException = true;
       const newException = new ExceptionRef(node, ref);
       newException.parentFn = this.parentFn;
       if (this.lastFn) this.lastFn.exceptions.push(newException);
@@ -198,14 +199,14 @@ export class SourceLinker extends Visitor {
       return super.visitCallExpression(node, ref);
     }
 
-    let fnRef = this.source.findFn(fnName);
+    let fnRef = this.source.findFn(fnName, node.range.source);
     if (!fnRef) return super.visitCallExpression(node, ref);
 
     const callRef = new CallRef(node, ref, fnRef);
     fnRef.callers.push(callRef);
     callRef.parentFn = this.parentFn;
 
-    if (this.foundException) {
+    if (SourceLinker.SS.foundException) {
       for (const fn of this.callStack.values()) {
         fn.hasException = true;
         if (fn.node.range.source.internalPath != this.source.node.internalPath) {
@@ -222,7 +223,7 @@ export class SourceLinker extends Visitor {
         }
       }
       this.callStack.clear();
-      this.foundException = false;
+      SourceLinker.SS.foundException = false;
     }
 
     this.linkFunctionRef(fnRef);
@@ -235,7 +236,7 @@ export class SourceLinker extends Visitor {
   visitThrowStatement(node: ThrowStatement, ref: Node | Node[] | null = null): void {
     if (!this.lastTry) return super.visitThrowStatement(node, ref);
     if (DEBUG > 0) console.log(indent + "Found exception " + toString(node));
-    this.foundException = true;
+    SourceLinker.SS.foundException = true;
     const newException = new ExceptionRef(node, ref);
     newException.parentFn = this.parentFn;
     if (this.lastFn) this.lastFn.exceptions.push(newException);

@@ -9,6 +9,7 @@ import fs from "fs";
 let WRITE = process.env["WRITE"];
 export default class Transformer extends Transform {
     afterParse(parser) {
+        console.log("Loading try-as transform");
         let sources = parser.sources;
         const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..");
         const isLib = path.dirname(baseDir).endsWith("node_modules");

@@ -1,6 +1,8 @@
 // import { foo } from "./foo";
 
-import { JSON } from "./json";
+import { parse } from "./json";
+
+// import { JSON } from "./json";
 
 // import { expect } from "./__tests__/lib";
 // import { describe } from "./__tests__/lib";
@@ -40,7 +42,7 @@ import { JSON } from "./json";
 //     expect(e.toString()).toBe("abort: This should abort");
 //   }
 // });
-@json
+// @json
 class Vec3 {
   x: f32 = 0.0;
   y: f32 = 0.0;
@@ -48,7 +50,7 @@ class Vec3 {
 }
 
 try {
-  JSON.parse<Vec3>('not-an-object');
+  parse<Vec3>('not-an-object');
 } catch (e) {
   console.log("Caught an Error: " + e.toString());
 } finally {
