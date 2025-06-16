@@ -62,10 +62,10 @@ export class SourceRef extends BaseRef {
         throw new Error("Could not find " + basePath + " in sources!");
       }
 
-      const result = externSrc.findFn(name, visitedPaths);
-      if (result) {
+      fnRef = externSrc.findFn(name, visitedPaths);
+      if (fnRef) {
         if (DEBUG > 0) console.log(indent + `Found ${name} externally`);
-        return result;
+        return fnRef;
       }
 
       const exported = externSrc.local.exports.find((exp) => {
@@ -80,10 +80,10 @@ export class SourceRef extends BaseRef {
         const exportPath = exported.internalPath;
         const reexported = SourceLinker.SS.sources.get(exportPath) || SourceLinker.SS.sources.get(exportPath + "/index");
         if (reexported) {
-          const result = reexported.findFn(name, visitedPaths);
-          if (result) {
+          fnRef = reexported.findFn(name, visitedPaths);
+          if (fnRef) {
             if (DEBUG > 0) console.log(indent + `Found ${name} exported externally`);
-            return result;
+            return fnRef;
           }
         }
       }

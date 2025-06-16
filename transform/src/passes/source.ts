@@ -38,6 +38,8 @@ export class SourceLinker extends Visitor {
   public callStack: Set<FunctionRef> = new Set();
   public foundException: boolean = false;
 
+  private parentScope: NamespaceDeclaration | null = null;
+
   visitImportStatement(node: ImportStatement, ref: Node | Node[] | null = null): void {
     if (this.state != "gather" || !node.internalPath) return super.visitImportStatement(node, ref);
     if (node.internalPath.startsWith("~lib/rt") || node.internalPath.startsWith("~lib/performance") || node.internalPath.startsWith("~lib/wasi_") || node.internalPath.startsWith("~lib/shared/")) return super.visitImportStatement(node, ref);
@@ -99,11 +101,41 @@ export class SourceLinker extends Visitor {
         this.parentFn = null;
         this.lastFn = lastFn;
         return;
+      } else {
+        const fnRef = this.source.local.functions.find((v) => v.name == node.name.text);
+
+        const lastFn = this.lastFn;
+        this.lastFn = fnRef;
+        this.parentFn = fnRef;
+        super.visitFunctionDeclaration(node, isDefault, ref);
+        this.parentFn = null;
+        this.lastFn = lastFn;
+
+        if (this.foundException) {
+          for (const fn of this.callStack.values()) {
+            fn.hasException = true;
+            if (fn.node.range.source.internalPath != this.source.node.internalPath) {
+              const alienSrc = SourceLinker.SS.sources.get(fn.node.range.source.internalPath);
+              if (!alienSrc.functions.some((v) => v == fn)) {
+                if (DEBUG > 0) console.log(indent + "Added function (fn dec): " + fn.name);
+                alienSrc.functions.push(fn);
+              }
+            } else {
+              if (!this.source.functions.some((v) => v == fn)) {
+                if (DEBUG > 0) console.log(indent + "Added function (fn dec): " + fn.name);
+                this.source.functions.push(fn);
+              }
+            }
+          }
+          this.callStack.clear();
+          this.foundException = false;
+        } else {
+          this.callStack.delete(fnRef);
+        }
       }
+    } else {
+      return super.visitFunctionDeclaration(node, isDefault, ref);
     }
-    this.parentFn = this.source.local.functions.find((v) => v.name == node.name.text);
-    super.visitFunctionDeclaration(node, isDefault, ref);
-    this.parentFn = null;
   }
   linkFunctionRef(fnRef: FunctionRef): void {
     if (!fnRef) return;
@@ -243,7 +275,9 @@ export class SourceLinker extends Visitor {
 
   visitNamespaceDeclaration(node: NamespaceDeclaration, isDefault: boolean = false, ref: Node | Node[] | null = null): void {
     this.path.push(node.name.text);
+    this.parentScope = node;
     super.visitNamespaceDeclaration(node, isDefault, ref);
+    this.parentScope = null;
     this.path.pop();
   }
   visitClassDeclaration(node: ClassDeclaration, isDefault: boolean = false, ref: Node | Node[] | null = null): void {
@@ -284,6 +318,7 @@ export class SourceLinker extends Visitor {
     this.source.state = "done";
     indent.rm();
     this.addImports(source);
+    if (source.internalPath.includes("struct")) debugger;
   }
 
   addImports(node: Source): void {
@@ -329,22 +364,18 @@ export class SourceLinker extends Visitor {
       if (DEBUG > 0) console.log(source.internalPath);
     }
 
-    const entrySources = sources.filter((v) => v.sourceKind == SourceKind.UserEntry);
-    if (!entrySources.length) throw new Error("Could not find main entry point in sources");
+    const entrySource = sources.find((v) => v.sourceKind == SourceKind.UserEntry);
+    if (!entrySource) throw new Error("Could not find main entry point in sources");
 
-    for (const entrySource of entrySources) {
-      if (DEBUG > 0) console.log("\n========LINKING========\n");
-      if (DEBUG > 0) console.log("Entry: " + entrySource.internalPath);
+    if (DEBUG > 0) console.log("\n========LINKING========\n");
+    if (DEBUG > 0) console.log("Entry: " + entrySource.internalPath);
 
-      const linker = new SourceLinker();
-      linker.link(entrySource);
-    }
+    const linker = new SourceLinker();
+    linker.link(entrySource);
 
-    for (const entrySource of entrySources) {
-      if (DEBUG > 0) console.log("\n========GENERATING========\n");
-      const entryRef = SourceLinker.SS.sources.get(entrySource.internalPath);
-      if (!entryRef) throw new Error("Could not find " + entrySource.internalPath + " in sources!");
-      entryRef.generate();
-    }
+    if (DEBUG > 0) console.log("\n========GENERATING========\n");
+    const entryRef = SourceLinker.SS.sources.get(entrySource.internalPath);
+    if (!entryRef) throw new Error("Could not find " + entrySource.internalPath + " in sources!");
+    entryRef.generate();
   }
 }

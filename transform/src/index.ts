@@ -11,6 +11,7 @@ import fs from "fs";
 let WRITE = process.env["WRITE"];
 export default class Transformer extends Transform {
   afterParse(parser: Parser): void {
+    console.log("Loading try-as transform");
     let sources = parser.sources;
 
     const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..");

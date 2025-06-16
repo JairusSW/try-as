@@ -1,11 +1,12 @@
 // import { foo } from "./foo";
 
+import { JSON } from "./json";
+
 // import { expect } from "./__tests__/lib";
 // import { describe } from "./__tests__/lib";
 // import { JSON } from "./foo";
 // import { FOO, foo } from "./foo";
-import { JSON } from "json-as";
-
+// import { JSON } from "json-as/assembly/index";
 // function callFoo(): void {
 //   foo();
 //   console.log("this should never execute!");
@@ -39,6 +40,7 @@ import { JSON } from "json-as";
 //     expect(e.toString()).toBe("abort: This should abort");
 //   }
 // });
+@json
 class Vec3 {
   x: f32 = 0.0;
   y: f32 = 0.0;
@@ -46,23 +48,23 @@ class Vec3 {
 }
 
 try {
-  JSON.parse<Vec3>('{"x": 1,"y":2,"z":3}');
+  JSON.parse<Vec3>('not-an-object');
 } catch (e) {
   console.log("Caught an Error: " + e.toString());
 } finally {
   console.log("Finally.");
 }
-function describe(description: string, routine: () => void): void {
-  routine();
-}
-describe("Should handle immediate abort call", (): void => {
-  try {
-    abort("This should abort");
-  } catch (e) {
-    console.log(e.toString());
-    // expect(e.toString()).toBe("abort: This should abort");
-  }
-});
+// function describe(description: string, routine: () => void): void {
+//   routine();
+// }
+// describe("Should handle immediate abort call", (): void => {
+//   try {
+//     abort("This should abort");
+//   } catch (e) {
+//     console.log(e.toString());
+//     // expect(e.toString()).toBe("abort: This should abort");
+//   }
+// });
 // namespace BAR {
 //   export function bar(): void {
 //     abort("Aborted from BAR.bar");
