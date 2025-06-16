@@ -25,11 +25,14 @@ export class CallRef extends BaseRef {
         this.generated = true;
         console.log(indent + "Is Statement: " + isRefStatement(this.node, this.ref) + "\n" + indent + toString(this.ref).split("\n").join("\n" + indent));
         const breaker = getBreaker(this.node, this.parentFn?.node);
-        if (this.node.expression.kind == 21) {
+        if (this.node.expression.kind == 21 && !this.node.expression.property.text.startsWith("__try_")) {
             this.node.expression.property.text = (this.calling.tries.length ? "" : "__try_") + this.node.expression.property.text;
         }
-        else {
+        else if (!this.node.expression.text.startsWith("__try_")) {
             this.node.expression.text = (this.calling.tries.length ? "" : "__try_") + this.node.expression.text;
+        }
+        else {
+            return;
         }
         const unrollCheck = Node.createIfStatement(Node.createBinaryExpression(73, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Failures", this.node.range), this.node.range), Node.createIntegerLiteralExpression(i64_zero, this.node.range), this.node.range), blockify(breaker), null, this.node.range);
         if (DEBUG > 0)

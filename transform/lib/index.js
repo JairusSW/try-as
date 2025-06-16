@@ -46,7 +46,7 @@ export default class Transformer extends Transform {
                 file = removeExtension(file);
                 const source = parser.sources.find((v) => v.normalizedPath.includes(file));
                 if (source) {
-                    fs.writeFileSync(path.join(process.cwd(), this.baseDir, removeExtension(file).replace("~lib/", "./node_modules/") + ".tmp.ts"), toString(source));
+                    fs.writeFileSync(path.join(process.cwd(), this.baseDir, file.replace("~lib/", "./node_modules/") + ".tmp.ts"), toString(source));
                 }
             }
             console.log("\n");

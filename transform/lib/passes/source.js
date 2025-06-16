@@ -74,7 +74,7 @@ export class SourceLinker extends Visitor {
             this.source.local.functions.push(fnRef);
         }
         else if (this.state == "link") {
-            if (node.range.source.sourceKind == 1 && node.flags & 2) {
+            if (node.flags & 2) {
                 const fnRef = this.source.local.functions.find((v) => v.name == node.name.text);
                 this.source.functions.push(fnRef);
                 const lastFn = this.lastFn;
@@ -217,7 +217,13 @@ export class SourceLinker extends Visitor {
             this.lastFn.tries.push(tryRef);
             const lastTry = this.lastTry;
             this.lastTry = tryRef;
-            super.visitTryStatement(node, ref);
+            const parentFn = this.parentFn;
+            this.parentFn = null;
+            this.visit(node.bodyStatements, node);
+            this.parentFn = parentFn;
+            this.visit(node.catchVariable, node);
+            this.visit(node.catchStatements, node);
+            this.visit(node.finallyStatements, node);
             this.lastTry = lastTry;
             return;
         }

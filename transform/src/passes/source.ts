@@ -84,7 +84,7 @@ export class SourceLinker extends Visitor {
       // console.log(indent + "Found function " + fnRef.name);
       this.source.local.functions.push(fnRef);
     } else if (this.state == "link") {
-      if (node.range.source.sourceKind == SourceKind.UserEntry && node.flags & CommonFlags.Export) {
+      if (node.flags & CommonFlags.Export) {
         const fnRef = this.source.local.functions.find((v) => v.name == node.name.text);
         this.source.functions.push(fnRef);
 
@@ -221,7 +221,15 @@ export class SourceLinker extends Visitor {
       this.lastFn.tries.push(tryRef);
       const lastTry = this.lastTry;
       this.lastTry = tryRef;
-      super.visitTryStatement(node, ref);
+
+      const parentFn = this.parentFn;
+      this.parentFn = null;
+      this.visit(node.bodyStatements, node);
+      this.parentFn = parentFn;
+      this.visit(node.catchVariable, node);
+      this.visit(node.catchStatements, node);
+      this.visit(node.finallyStatements, node);
+
       this.lastTry = lastTry;
       return;
     }

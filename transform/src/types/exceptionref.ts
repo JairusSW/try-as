@@ -1,4 +1,4 @@
-import { CallExpression, NewExpression, Node, NodeKind, ThrowStatement } from "assemblyscript/dist/assemblyscript.js";
+import { CallExpression, ExpressionStatement, NewExpression, Node, NodeKind, ThrowStatement } from "assemblyscript/dist/assemblyscript.js";
 import { FunctionRef } from "./functionref.js";
 import { getBreaker, getFnName, isRefStatement, replaceRef } from "../utils.js";
 import { toString } from "../lib/util.js";
@@ -35,10 +35,22 @@ export class ExceptionRef extends BaseRef {
       else replaceRef(this.node, newException, this.ref);
     } else if (this.node.kind == NodeKind.Throw) {
       const node = this.node as ThrowStatement;
-      if (node.value.kind != NodeKind.New || toString((node.value as NewExpression).typeName) != "Error") throw new Error("Unsupported Throw: " + toString(node));
-      const value = node.value as NewExpression;
-      const newException = Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range), null, value.args, node.range));
-
+      let newException: ExpressionStatement;
+      if (node.value.kind == NodeKind.New) {
+        const value = node.value as NewExpression;
+        newException = Node.createExpressionStatement(
+          Node.createCallExpression(
+            Node.createPropertyAccessExpression(
+              Node.createIdentifierExpression("__ErrorState", node.range),
+              Node.createIdentifierExpression("error", node.range), 
+              node.range
+            ), 
+            null, 
+            [value], 
+            node.range
+          )
+        );
+      }
       const breaker = getBreaker(node, this.parentFn?.node);
       if (DEBUG > 0) console.log(indent + "Added Exception: " + toString(newException));
       if (isRefStatement(node, this.ref)) replaceRef(this.node, [newException, breaker], this.ref);

@@ -1,5 +1,5 @@
 import { AbortState } from "./abort";
-import { ErrorState } from "./error";
+import { DISCRIMINATOR, ErrorState } from "./error";
 
 export enum ExceptionType {
   None,
@@ -16,15 +16,15 @@ export namespace ExceptionState {
 export class Exception {
   public type: ExceptionType;
   // Abort
-  public msg: string | null = AbortState.msg;
-  public fileName: string | null = AbortState.fileName;
-  public lineNumber: i32 = AbortState.lineNumber;
-  public columnNumber: i32 = AbortState.columnNumber;
+  public get msg(): string | null { return this.type == ExceptionType.Abort ? this.msg : null; };
+  public get fileName(): string | null { return this.type == ExceptionType.Abort ? this.fileName : null; };
+  public get lineNumber(): i32 { return this.type == ExceptionType.Abort ? this.lineNumber : -1; };
+  public get columnNumber(): i32 { return this.type == ExceptionType.Abort ? this.columnNumber : -1; };
 
   // Error
-  public message: string = ErrorState.message;
-  public name: string = ErrorState.name;
-  public stack: string | null = ErrorState.stack;
+  public get message(): string | null { return (this.type == ExceptionType.Error && this.is<Error>()) ? this.message : null; };
+  public get name(): string | null { return (this.type == ExceptionType.Error && this.is<Error>()) ? this.name : null; };
+  public get stack(): string | null { return (this.type == ExceptionType.Error && this.is<Error>()) ? this.stack : null; };
 
   constructor(type: ExceptionType) {
     this.type = type;
@@ -42,5 +42,16 @@ export class Exception {
       out = "Error: " + ErrorState.message;
     }
     return out;
+  }
+  // @ts-ignore: inline
+  @inline is<T>(): boolean {
+    if (this.type != ExceptionType.Error) return false;
+    return ErrorState.discriminator == DISCRIMINATOR<T>();
+  }
+  // @ts-ignore: inline
+  @inline as<T>(): T {
+    if (this.type != ExceptionType.Error) return changetype<T>(0);
+    if (ErrorState.discriminator != DISCRIMINATOR<T>()) return changetype<T>(0);
+    return load<T>(ErrorState.storage);
   }
 }

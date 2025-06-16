@@ -34,10 +34,11 @@ export class ExceptionRef extends BaseRef {
         }
         else if (this.node.kind == 45) {
             const node = this.node;
-            if (node.value.kind != 17 || toString(node.value.typeName) != "Error")
-                throw new Error("Unsupported Throw: " + toString(node));
-            const value = node.value;
-            const newException = Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range), null, value.args, node.range));
+            let newException;
+            if (node.value.kind == 17) {
+                const value = node.value;
+                newException = Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range), null, [value], node.range));
+            }
             const breaker = getBreaker(node, this.parentFn?.node);
             if (DEBUG > 0)
                 console.log(indent + "Added Exception: " + toString(newException));

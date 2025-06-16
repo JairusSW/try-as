@@ -31,11 +31,14 @@ export class CallRef extends BaseRef {
     console.log(indent + "Is Statement: " + isRefStatement(this.node, this.ref) + "\n" + indent +toString(this.ref).split("\n").join("\n" + indent));
     const breaker = getBreaker(this.node, this.parentFn?.node);
 
-    if (this.node.expression.kind == NodeKind.PropertyAccess) {
+    if (this.node.expression.kind == NodeKind.PropertyAccess && !(this.node.expression as PropertyAccessExpression).property.text.startsWith("__try_")) {
       (this.node.expression as PropertyAccessExpression).property.text = (this.calling.tries.length ? "" : "__try_") + (this.node.expression as PropertyAccessExpression).property.text;
-    } else {
+    } else if (!(this.node.expression as IdentifierExpression).text.startsWith("__try_")) {
       (this.node.expression as IdentifierExpression).text = (this.calling.tries.length ? "" : "__try_") + (this.node.expression as IdentifierExpression).text;
+    } else {
+      return;
     }
+    
     const unrollCheck = Node.createIfStatement(Node.createBinaryExpression(Token.GreaterThan, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Failures", this.node.range), this.node.range), Node.createIntegerLiteralExpression(i64_zero, this.node.range), this.node.range), blockify(breaker), null, this.node.range);
 
     if (DEBUG > 0) console.log(indent + "Replaced call: " + toString(this.node));
