@@ -1,5 +1,5 @@
-import { JSON } from "json-as/assembly/index";
-import { ErrorState } from "./types/error";
+// import { JSON } from "json-as/assembly/index";
+// import { ErrorState } from "./types/error";
 import { Exception } from "./types/exception";
 // import { JSON } from "./foo";
 // function parse<T>(s: string): T {
@@ -17,15 +17,25 @@ import { Exception } from "./types/exception";
 //   z: f32 = 0.0;
 // }
 
+class Foo {
+  foo(): void {
+    throw new MyError("throw from my error");
+  }
+}
 class MyError extends Error {}
+
+const foo = new Foo();
 try {
-  throw new MyError("throw from my error")
+  foo.foo();
 } catch (e) {
   const err = e as Exception;
-  if (err.is<MyError>()) {
-    console.log("Caught MyError: " + err.as<MyError>().message);
+
+  if (!err.is<MyError>()) {
+    console.log("Rethrowing error: " + err.toString());
+    err.rethrow();
+    // or
+    throw err;
   }
-  throw e
-} finally {
-  console.log("Finally.");
+
+  console.log("Got MyError, but handled it gracefully");
 }

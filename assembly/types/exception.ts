@@ -5,7 +5,7 @@ import { DISCRIMINATOR, ErrorState } from "./error";
 export enum ExceptionType {
   None,
   Abort,
-  Error,
+  Throw,
   Unreachable,
 }
 
@@ -23,9 +23,9 @@ export class Exception {
   public get columnNumber(): i32 { return this.type == ExceptionType.Abort ? this.columnNumber : -1; };
 
   // Error
-  public get message(): string | null { return (this.type == ExceptionType.Error && (ErrorState.isErrorType || ErrorState.hasMessage)) ? this.message : null; };
-  public get name(): string | null { return (this.type == ExceptionType.Error && ErrorState.isErrorType) ? this.name : null; };
-  public get stack(): string | null { return (this.type == ExceptionType.Error && ErrorState.isErrorType) ? this.stack : null; };
+  public get message(): string | null { return (this.type == ExceptionType.Throw && (ErrorState.isErrorType || ErrorState.hasMessage)) ? this.message : null; };
+  public get name(): string | null { return (this.type == ExceptionType.Throw && ErrorState.isErrorType) ? this.name : null; };
+  public get stack(): string | null { return (this.type == ExceptionType.Throw && ErrorState.isErrorType) ? this.stack : null; };
 
   constructor(type: ExceptionType) {
     this.type = type;
@@ -39,19 +39,19 @@ export class Exception {
       if (AbortState.lineNumber) out += ` in (${AbortState.lineNumber}:${AbortState.columnNumber})`;
     } else if (this.type == ExceptionType.Unreachable) {
       out = "unreachable";
-    } else if (this.type == ExceptionType.Error && ErrorState.hasMessage) {
+    } else if (this.type == ExceptionType.Throw && ErrorState.hasMessage) {
       out = "Error: " + ErrorState.message;
     }
     return out;
   }
   // @ts-ignore: inline
   @inline is<T>(): boolean {
-    if (this.type != ExceptionType.Error) return false;
+    if (this.type != ExceptionType.Throw) return false;
     return ErrorState.discriminator == DISCRIMINATOR<T>();
   }
   // @ts-ignore: inline
   @inline as<T>(): T {
-    if (this.type != ExceptionType.Error) return changetype<T>(0);
+    if (this.type != ExceptionType.Throw) return changetype<T>(0);
     if (ErrorState.discriminator != DISCRIMINATOR<T>()) return changetype<T>(0);
     return load<T>(ErrorState.storage);
   }
@@ -60,7 +60,7 @@ export class Exception {
       abort(this.msg, this.fileName, this.lineNumber, this.columnNumber);
     } else if (this.type == ExceptionType.Unreachable) {
       unreachable();
-    } else if (this.type == ExceptionType.Error) {
+    } else if (this.type == ExceptionType.Throw) {
       abort(ErrorState.hasMessage ? ErrorState.message : "", ErrorState.fileName, ErrorState.lineNumber, ErrorState.columnNumber);
     }
   }
@@ -69,9 +69,9 @@ export class Exception {
       AbortState.abort(this.msg, this.fileName, this.lineNumber, this.columnNumber);
     } else if (this.type == ExceptionType.Unreachable) {
       UnreachableState.unreachable();
-    } else if (this.type == ExceptionType.Error) {
+    } else if (this.type == ExceptionType.Throw) {
       ExceptionState.Failures++;
-      ExceptionState.Type = ExceptionType.Error;
+      ExceptionState.Type = ExceptionType.Throw;
     }
   }
 }

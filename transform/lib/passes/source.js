@@ -270,11 +270,6 @@ export class SourceLinker extends Visitor {
             node.ifFalse = blockify(node.ifFalse);
         return super.visitIfStatement(node, ref);
     }
-    visitReturnStatement(node, ref) {
-        this.lastRet = node;
-        super.visitReturnStatement(node, ref);
-        this.lastRet = null;
-    }
     gather() {
         if (this.state != "ready")
             return;
@@ -305,7 +300,6 @@ export class SourceLinker extends Visitor {
     addImports(node) {
         const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
         const pkgPath = path.join(Globals.baseCWD, "node_modules");
-        const isLibrary = fs.existsSync(path.join(pkgPath, "try-as"));
         let fromPath = node.range.source.normalizedPath;
         fromPath = fromPath.startsWith("~lib/") ? (fs.existsSync(path.join(pkgPath, fromPath.slice(5, fromPath.indexOf("/", 5)))) ? path.join(pkgPath, fromPath.slice(5)) : fromPath) : path.join(Globals.baseCWD, fromPath);
         let relDir = path.posix.join(...path.relative(path.dirname(fromPath), path.join(baseDir, "assembly", "types")).split(path.sep));
@@ -324,7 +318,6 @@ export class SourceLinker extends Visitor {
             const stmt = Node.createImportStatement(imps, Node.createStringLiteralExpression(relDir + "/" + file, node.range), node.range);
             node.range.source.statements.unshift(stmt);
         };
-        addImport("exception", ["Exception", "ExceptionState"]);
         addImport("abort", ["AbortState"]);
         addImport("unreachable", ["UnreachableState"]);
         addImport("error", ["ErrorState"]);
@@ -356,6 +349,29 @@ export class SourceLinker extends Visitor {
             if (!entryRef)
                 throw new Error("Could not find " + entrySource.internalPath + " in sources!");
             entryRef.generate();
+        }
+        for (const source of sources) {
+            const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
+            const pkgPath = path.join(Globals.baseCWD, "node_modules");
+            let fromPath = source.normalizedPath;
+            fromPath = fromPath.startsWith("~lib/") ? (fs.existsSync(path.join(pkgPath, fromPath.slice(5, fromPath.indexOf("/", 5)))) ? path.join(pkgPath, fromPath.slice(5)) : fromPath) : path.join(Globals.baseCWD, fromPath);
+            let relDir = path.posix.join(...path.relative(path.dirname(fromPath), path.join(baseDir, "assembly", "types")).split(path.sep));
+            if (relDir.includes("node_modules" + path.sep + "try-as")) {
+                relDir = "try-as" + relDir.slice(relDir.indexOf("node_modules" + path.sep + "try-as") + 19);
+            }
+            else if (!relDir.startsWith(".") && !relDir.startsWith("/") && !relDir.startsWith("try-as")) {
+                relDir = "./" + relDir;
+            }
+            const addImport = (file, names) => {
+                const imps = [];
+                for (const name of names) {
+                    const imp = Node.createImportDeclaration(Node.createIdentifierExpression(name, source.range), Node.createIdentifierExpression("__" + name, source.range), source.range);
+                    imps.push(imp);
+                }
+                const stmt = Node.createImportStatement(imps, Node.createStringLiteralExpression(relDir + "/" + file, source.range), source.range);
+                source.statements.unshift(stmt);
+            };
+            addImport("exception", ["Exception", "ExceptionState"]);
         }
     }
 }

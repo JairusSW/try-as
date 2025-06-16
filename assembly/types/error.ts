@@ -56,7 +56,7 @@ export namespace ErrorState {
   // @ts-ignore: inline
   @inline export function error<T>(error: T, fileName: string, lineNumber: f64, columnNumber: f64): void {
     ExceptionState.Failures++;
-    ExceptionState.Type = ExceptionType.Error;
+    ExceptionState.Type = ExceptionType.Throw;
 
     ErrorState.fileName = fileName;
     ErrorState.lineNumber = i32(lineNumber);

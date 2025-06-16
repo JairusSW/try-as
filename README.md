@@ -5,7 +5,7 @@
    ██    ██████    ████   █████ ███████ ███████ 
    ██    ██   ██    ██          ██   ██      ██ 
    ██    ██   ██    ██          ██   ██ ███████ </span>
-    AssemblyScript - v0.1.4
+    AssemblyScript - v0.1.5-preview.1
   </pre>
 </h5>
 
@@ -13,7 +13,7 @@
 
 - [About](#-about)
 - [Installation](#-installation)
-- [Usage](#-usage)
+- [Examples](#-examples)
 - [License](#-license)
 - [Contact](#-contact)
 
@@ -60,25 +60,71 @@ try {
 }
 ```
 
-For strong typing of the error object, import `Exception` from `try-as`
+## 🔍 Examples
+
+### ✅ Type-safe Error Handling
 
 ```js
 import { JSON } from "json-as";
+import { Exception, ExceptionType } from "try-as";
+
+try {
+  // something dangerous
+} catch (e) {
+  const err = e as Exception; // Notice we cast to Exception
+  if (err.type == ExceptionType.Throw) {
+    console.log("Throw: " + err.toString());
+  } else if (err.type == ExceptionType.Abort) {
+    console.log("Abort: " + err.toString());
+  } else if (err.type == ExceptionType.Unreachable) {
+    console.log("Unreachable: " + err.toString());
+  }
+}
+```
+
+### ⚠️ Working with Custom Errors
+
+```typescript
 import { Exception } from "try-as";
 
-function isJSONValid<T>(data: string): boolean {
-  try {
-    JSON.parse<T>(data);
-  } catch (e) {
-    const err = e as Exception; // Under the hood, `e` is already an `Exception`, so you can use all the methods without casting!
-    console.log("Badly formatted JSON!");
-    return false;
+class MyError extends Error {
+  constructor(message: string) {
+    super(message);
   }
-  console.log("JSON is valid!");
-  return true;
 }
 
-isJSONValid<i32[]>("definitely-not-an-array");
+try {
+  throw new MyError("This is my custom error!");
+} catch (e) {
+  const err = e as Exception;
+
+  if (err.is<MyError>()) {
+    console.log("Caught MyError: " + err.as<MyError>().message);
+  } else {
+    console.log("Unknown error type");
+  }
+}
+```
+
+### 🔁 Re-throwing Errors
+
+Sometimes, you want to catch a certain kind of error, handle it, and re-throw it if needed:
+
+```typescript
+try {
+  // something dangerous
+} catch (e) {
+  const err = e as Exception;
+
+  if (!err.is<MyError>()) {
+    console.log("Rethrowing error: " + err.toString());
+    err.rethrow();
+    // or
+    throw err;
+  }
+
+  console.log("Got MyError, but handled it gracefully");
+}
 ```
 
 ## 📃 License
