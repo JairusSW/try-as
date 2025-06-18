@@ -15,6 +15,8 @@ export namespace ExceptionState {
 }
 
 export class Exception {
+  // @ts-ignore
+  private __IS_EXCEPTION_TYPE: boolean = false;
   public type: ExceptionType;
   // Abort
   public get msg(): string | null { return this.type == ExceptionType.Abort ? this.msg : null; };
@@ -61,7 +63,7 @@ export class Exception {
     } else if (this.type == ExceptionType.Unreachable) {
       unreachable();
     } else if (this.type == ExceptionType.Throw) {
-      abort(ErrorState.hasMessage ? ErrorState.message : "", ErrorState.fileName, ErrorState.lineNumber, ErrorState.columnNumber);
+      abort(ErrorState.hasMessage ? ErrorState.message : null, ErrorState.fileName, ErrorState.lineNumber, ErrorState.columnNumber);
     }
   }
   private __try_rethrow(): void {

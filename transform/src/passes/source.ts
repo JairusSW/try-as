@@ -338,7 +338,6 @@ export class SourceLinker extends Visitor {
   }
 
   static link(sources: Source[]): void {
-    const throwReplacer = new ThrowReplacer();
     if (DEBUG > 0) console.log("\n========SOURCES========\n");
     for (const source of sources) {
       Globals.sources.set(source.internalPath, new SourceRef(source));

@@ -1,4 +1,4 @@
-import { Node, NodeKind,ThrowStatement, Token } from "assemblyscript/dist/assemblyscript.js";
+import { IdentifierExpression, Node, NodeKind,Source,ThrowStatement, Token } from "assemblyscript/dist/assemblyscript.js";
 
 import { Visitor } from "../lib/visitor.js";
 import { indent } from "../globals/indent.js";
@@ -10,61 +10,55 @@ const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" 
 
 export class ThrowReplacer extends Visitor {
   visitThrowStatement(node: ThrowStatement, ref: Node | Node[] | null = null): void {
-    if (node.value.kind != NodeKind.New && node.value.kind != NodeKind.Identifier && node.value.kind != NodeKind.PropertyAccess) return super.visitThrowStatement(node, ref);
+    if (node.value.kind != NodeKind.Identifier) return super.visitThrowStatement(node, ref);
     console.log(indent + "Found ThrowStatement " + toString(node));
 
-    const newThrow = Node.createExpressionStatement(
-      Node.createIfStatement(
-        Node.createBinaryExpression(
-          Token.Ampersand_Ampersand,
-          Node.createParenthesizedExpression(
-            Node.createBinaryExpression(
-              Token.Bar_Bar,
-              Node.createCallExpression(
-                Node.createIdentifierExpression("isManaged", node.range),
-                null,
-                [node.value],
-                node.range
-              ),
-              Node.createCallExpression(
-                Node.createIdentifierExpression("isReference", node.range),
-                null,
-                [node.value],
-                node.range
-              ),
-              node.range
-            ),
-            node.range
-          ),
-          Node.createInstanceOfExpression(
-            node.value,
-            Node.createNamedType(
-              Node.createSimpleTypeName("__Exception", node.range),
-              null,
-              false,
-              node.range
-            ),
-            node.range
-          ),
-          node.range
+    const value = node.value as IdentifierExpression;
+    const newThrow = Node.createIfStatement(
+      Node.createBinaryExpression(
+        Token.Ampersand_Ampersand,
+      Node.createCallExpression(
+        Node.createIdentifierExpression("isDefined", node.range),
+        null,
+        [
+          Node.createIdentifierExpression(value.text + ".__IS_EXCEPTION_TYPE", node.range)
+        ],
+        node.range
         ),
         Node.createCallExpression(
-          Node.createPropertyAccessExpression(
-            node.value,
-            Node.createIdentifierExpression("rethrow", node.range),
-            node.range
-          ),
+          Node.createIdentifierExpression("isDefined", node.range),
           null,
-          [],
+          [
+            Node.createIdentifierExpression(value.text + ".rethrow", node.range)
+          ],
           node.range
         ),
-        node, 
         node.range
-      )
+      ),
+      Node.createCallExpression(
+        Node.createPropertyAccessExpression(
+          node.value,
+          Node.createIdentifierExpression("rethrow", node.range),
+          node.range
+        ),
+        null,
+        [],
+        node.range
+      ),
+      Node.createThrowStatement(
+        node.value,
+        node.range
+      ),
+      node.range
     );
 
-    replaceRef(node, newThrow, ref);
+    replaceRef(node, [newThrow], ref);
     console.log(toString(newThrow))
-    super.visitThrowStatement(node, ref);
+    // super.visitThrowStatement(newThrow, ref);
+  }
+  static replace(sources: Source[]): void {
+    for (const source of sources) {
+      new ThrowReplacer().visit(source);
+    }
   }
 }

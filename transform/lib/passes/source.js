@@ -3,7 +3,6 @@ import { SourceRef } from "../types/sourceref.js";
 import { Visitor } from "../lib/visitor.js";
 import { indent } from "../globals/indent.js";
 import { FunctionRef } from "../types/functionref.js";
-import { ThrowReplacer } from "./replacer.js";
 import { blockify, getFnName } from "../utils.js";
 import { ExceptionRef } from "../types/exceptionref.js";
 import { CallRef } from "../types/callref.js";
@@ -324,7 +323,6 @@ export class SourceLinker extends Visitor {
         addImport("error", ["ErrorState"]);
     }
     static link(sources) {
-        const throwReplacer = new ThrowReplacer();
         if (DEBUG > 0)
             console.log("\n========SOURCES========\n");
         for (const source of sources) {

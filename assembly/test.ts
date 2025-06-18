@@ -30,10 +30,8 @@ try {
   throw new MyError("throw from my error");
 } catch (e) {
   const err = e as Exception;
-  if (err.is<MyError>()) {
-    console.log("Caught MyError: " + err.as<MyError>().message);
-  }
-  throw err
+  console.log("Caught " + err.toString());
+  throw e
 } finally {
   console.log("Finally.");
 }
