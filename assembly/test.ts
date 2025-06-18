@@ -26,16 +26,14 @@ class MyError extends Error {}
 
 const foo = new Foo();
 try {
-  foo.foo();
+  // foo.foo();
+  throw new MyError("throw from my error");
 } catch (e) {
   const err = e as Exception;
-
-  if (!err.is<MyError>()) {
-    console.log("Rethrowing error: " + err.toString());
-    err.rethrow();
-    // or
-    throw err;
+  if (err.is<MyError>()) {
+    console.log("Caught MyError: " + err.as<MyError>().message);
   }
-
-  console.log("Got MyError, but handled it gracefully");
+  throw err
+} finally {
+  console.log("Finally.");
 }

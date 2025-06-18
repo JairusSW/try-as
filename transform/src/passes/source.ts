@@ -3,6 +3,7 @@ import { SourceRef } from "../types/sourceref.js";
 import { Visitor } from "../lib/visitor.js";
 import { indent } from "../globals/indent.js";
 import { FunctionRef } from "../types/functionref.js";
+import { ThrowReplacer } from "./replacer.js";
 import { blockify, getFnName } from "../utils.js";
 import { ExceptionRef } from "../types/exceptionref.js";
 import { CallRef } from "../types/callref.js";
@@ -13,7 +14,7 @@ import { Globals } from "../globals/globals.js";
 import path from "path";
 import fs from "fs";
 import { toString } from "../lib/util.js";
-import { IfStatement, ReturnStatement } from "types:assemblyscript/src/ast";
+import { IfStatement } from "types:assemblyscript/src/ast";
 
 const rawValue = process.env["DEBUG"];
 const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
@@ -337,6 +338,7 @@ export class SourceLinker extends Visitor {
   }
 
   static link(sources: Source[]): void {
+    const throwReplacer = new ThrowReplacer();
     if (DEBUG > 0) console.log("\n========SOURCES========\n");
     for (const source of sources) {
       Globals.sources.set(source.internalPath, new SourceRef(source));
