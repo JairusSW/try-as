@@ -6,17 +6,25 @@ export namespace FOO {
   }
 }
 
-export function foo(): void {
+function foo(): void {
   abort("Aborted from foo");
+}
+
+class BAR {
+  static bar(): void {
+    abort("Aborted from BAR.bar");
+  }
 }
 
 try {
   FOO.foo();
+  // foo();
+  BAR.bar();
   // throw new MyError("throw from my error");
 } catch (e) {
   const err = e as Exception;
   console.log("Caught " + err.toString());
-  throw e
+  // throw e
 } finally {
   console.log("Finally.");
 }

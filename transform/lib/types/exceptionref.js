@@ -4,16 +4,18 @@ import { toString } from "../lib/util.js";
 import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
 const rawValue = process.env["DEBUG"];
-const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
+const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 export class ExceptionRef extends BaseRef {
     node;
     ref;
+    source;
     parent = null;
     generated = false;
-    constructor(node, ref, parent) {
+    constructor(node, ref, source, parent) {
         super();
         this.node = node;
         this.ref = ref;
+        this.source = source;
         this.parent = parent;
     }
     generate() {

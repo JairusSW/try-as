@@ -1,4 +1,4 @@
-import { CallExpression, ClassDeclaration, ExportStatement, FunctionDeclaration, ImportDeclaration, ImportStatement, NamespaceDeclaration, Node, Source, SourceKind, ThrowStatement, TryStatement } from "assemblyscript/dist/assemblyscript.js";
+import { CallExpression, ClassDeclaration, ExportStatement, FunctionDeclaration, ImportDeclaration, ImportStatement, NamespaceDeclaration, Node, NodeKind, Source, SourceKind, ThrowStatement, TryStatement } from "assemblyscript/dist/assemblyscript.js";
 import { SourceRef } from "../types/sourceref.js";
 import { Visitor } from "../lib/visitor.js";
 import { indent } from "../globals/indent.js";
@@ -13,13 +13,13 @@ import { Globals } from "../globals/globals.js";
 import path from "path";
 import fs from "fs";
 import { toString } from "../lib/util.js";
-import { IfStatement } from "types:assemblyscript/src/ast";
+import { IfStatement, MethodDeclaration } from "types:assemblyscript/src/ast";
 import { ClassRef } from "../types/classref.js";
 import { NamespaceRef } from "../types/namespaceref.js";
 import { MethodRef } from "../types/methodref.js";
 
 const rawValue = process.env["DEBUG"];
-const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
+const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 
 export class SourceLinker extends Visitor {
   public node: Source;
@@ -28,7 +28,7 @@ export class SourceLinker extends Visitor {
   public source: SourceRef;
 
   public path: string[] = [];
-  public lastFn: FunctionRef | null = null;
+  public lastFn: FunctionRef | MethodRef | null = null;
   public parentFn: FunctionRef | MethodRef | null = null;
   public parentSpace: NamespaceRef | ClassRef | null = null;
   public entryFn: FunctionRef | null = null;
@@ -57,10 +57,8 @@ export class SourceLinker extends Visitor {
   //   if (DEBUG > 0) console.log(indent + "Found ExportImportStatement " + toString(node));
   //   super.visitExportImportStatement(node, ref);
   // }
-  // visitExportDefaultStatement(node: ExportDefaultStatement, ref?: Node | Node[] | null): void {
-  //   console.log(indent + "Found ExportDefaultStatement " + toString(node));
-  //   super.visitExportDefaultStatement(node, ref);
-  // }
+  // visitExportDefaultStatement(node: ExportDefaultStatement, ref?: Node | Nod
+  public hasException: boolean = false;
   // visitFunctionExpression(node: FunctionExpression, ref?: Node | Node[] | null): void {
   //   console.log(indent + "Found FunctionExpression " + toString(node));
   //   super.visitFunctionExpression(node, ref);
@@ -79,16 +77,34 @@ export class SourceLinker extends Visitor {
     targetSourceRef.linker.gather();
     super.visitExportStatement(node, ref);
   }
+  visitMethodDeclaration(node: MethodDeclaration, ref?: Node | Node[] | null): void {
+    if (this.state != "gather" || !this.parentSpace) return super.visitMethodDeclaration(node, ref);
+    if (this.parentSpace instanceof NamespaceRef) return super.visitMethodDeclaration(node, ref);
+    if (node.name.kind == NodeKind.Constructor) return super.visitMethodDeclaration(node, ref);
 
+    const methRef = new MethodRef(node, ref, this.source, this.parentSpace);
+    // console.log(indent + "Found method " + methRef.name);
+    this.parentSpace.methods.push(methRef);
+    super.visitMethodDeclaration(node, ref);
+  }
   visitFunctionDeclaration(node: FunctionDeclaration, isDefault: boolean = false, ref: Node | Node[] | null = null): void {
     if (this.state == "gather") {
-      const fnRef = new FunctionRef(node, ref, this.parentSpace as NamespaceRef | null);
-      console.log(indent + "Found function " + fnRef.name);
-      this.source.local.functions.push(fnRef);
+      const fnRef = new FunctionRef(node, ref, this.source, this.parentSpace as NamespaceRef | null);
+      // console.log(indent + "Found function " + fnRef.qualifiedName);
+      if (this.parentSpace && this.parentSpace instanceof NamespaceRef) {
+        this.parentSpace.functions.push(fnRef);
+      } else {
+        this.source.local.functions.push(fnRef);
+      }
+
+      this.parentFn = fnRef;
+      super.visitFunctionDeclaration(node, isDefault, ref);
+      this.parentFn = null;
+      return;
     } else if (this.state == "link") {
       if (node.flags & CommonFlags.Export) {
         const fnRef = this.source.local.functions.find((v) => v.name == node.name.text);
-        this.source.functions.push(fnRef);
+        // this.source.functions.push(fnRef);
 
         const lastFn = this.lastFn;
         this.lastFn = fnRef;
@@ -105,20 +121,15 @@ export class SourceLinker extends Visitor {
   }
   linkFunctionRef(fnRef: FunctionRef): void {
     if (!fnRef) return;
-    ) return;
     indent.add();
     Globals.callStack.add(fnRef);
-    if (DEBUG > 0)
-      console.log(
-        indent +
-        "Stack [" +
-        Array.from(Globals.callStack.values())
-          .map((v) => v.name)
-          .join(", ") +
-        "] " + this.node.internalPath,
-      );
 
-    fnRef.state = "linked";
+    if (DEBUG > 0) {
+      const stackNames = Array.from(Globals.callStack.values()).map(fn => fn.name).join(", ");
+      console.log(`${indent}Stack [${stackNames}] ${this.node.internalPath}`);
+    }
+
+    fnRef.state = "done";
     const lastFn = this.lastFn;
     const parentFn = this.parentFn;
     this.lastFn = fnRef;
@@ -128,19 +139,32 @@ export class SourceLinker extends Visitor {
     this.lastFn = lastFn;
 
     if (Globals.foundException) {
+      for (const a of Globals.refStack) {
+        a.hasException = true;
+        Globals.refStack.delete(a);
+      }
       for (const fn of Globals.callStack.values()) {
+        if (fn.hasException) continue;
         fn.hasException = true;
-        if (fn.node.range.source.internalPath != this.source.node.internalPath) {
-          const alienSrc = Globals.sources.get(fn.node.range.source.internalPath);
-          if (!alienSrc.functions.some((v) => v == fn)) {
-            if (DEBUG > 0) console.log(indent + "Added function (fn): " + fn.name);
-            alienSrc.functions.push(fn);
+
+        if (fn.path.length) {
+          for (const parent of fnRef.path) {
+            if (parent.hasException) continue;
+            if (DEBUG > 0) console.log(indent + "Added namespace (parent): " + parent.qualifiedName);
+            parent.hasException = true;
+            this.source.namespaces.push(parent);
           }
         } else {
-          if (!this.source.functions.some((v) => v == fn)) {
-            if (DEBUG > 0) console.log(indent + "Added function (fn): " + fn.name);
-            this.source.functions.push(fn);
-          }
+          if (fn instanceof FunctionRef)
+            fn.source.functions.push(fn);
+          else if (!fn.parent.hasException)
+            fn.source.classes.push(fn.parent);
+        }
+
+        if (fn instanceof FunctionRef) {
+          if (DEBUG > 0) console.log(indent + (fn.path.length ? "  " : "") + "Added function: " + fn.qualifiedName);
+          else
+            if (DEBUG > 0) console.log(indent + (fn.path.length ? "  " : "") + "Added method: " + fn.qualifiedName);
         }
       }
       Globals.callStack.clear();
@@ -148,6 +172,63 @@ export class SourceLinker extends Visitor {
     } else {
       Globals.callStack.delete(fnRef);
     }
+
+    indent.rm();
+  }
+
+  linkMethodRef(methRef: MethodRef): void {
+    if (!methRef) return;
+    indent.add();
+    Globals.callStack.add(methRef);
+
+    if (DEBUG > 0) {
+      const stackNames = Array.from(Globals.callStack.values()).map(fn => fn.name).join(", ");
+      console.log(`${indent}Stack [${stackNames}] ${this.node.internalPath}`);
+    }
+
+    methRef.state = "done";
+    const lastFn = this.lastFn;
+    const parentFn = this.parentFn;
+    this.lastFn = methRef;
+    this.parentFn = methRef;
+    super.visitMethodDeclaration(methRef.node, methRef.ref);
+    this.parentFn = parentFn;
+    this.lastFn = lastFn;
+
+    if (Globals.foundException) {
+      for (const a of Globals.refStack) {
+        a.hasException = true;
+        Globals.refStack.delete(a);
+      }
+      for (const fn of Globals.callStack.values()) {
+        if (fn.hasException) continue;
+        fn.hasException = true;
+
+        if (fn.path.length) {
+          for (const parent of methRef.path) {
+            if (parent.hasException) continue;
+            if (DEBUG > 0) console.log(indent + "Added " + (fn instanceof MethodRef ? "class" : "namespace") + " (parent): " + parent.name);
+            parent.hasException = true;
+            if (parent instanceof ClassRef)
+              this.source.classes.push(parent);
+            else
+              this.source.namespaces.push(parent);
+          }
+        } else {
+          if (fn instanceof FunctionRef)
+            fn.source.functions.push(fn);
+          else if (!fn.parent.hasException)
+            fn.source.classes.push(fn.parent);
+        }
+
+        if (DEBUG > 0) console.log(indent + "  Added method: " + fn.qualifiedName);
+      }
+      Globals.callStack.clear();
+      Globals.foundException = false;
+    } else {
+      Globals.callStack.delete(methRef);
+    }
+
     indent.rm();
   }
 
@@ -159,7 +240,7 @@ export class SourceLinker extends Visitor {
     if (fnName == "unreachable" || fnName == "abort") {
       if (DEBUG > 0) console.log(indent + "Found exception " + toString(node));
       Globals.foundException = true;
-      const newException = new ExceptionRef(node, ref, this.parentFn);
+      const newException = new ExceptionRef(node, ref, this.source, this.parentFn);
       if (this.lastFn) this.lastFn.exceptions.push(newException);
       else Globals.lastTry.exceptions.push(newException);
       return super.visitCallExpression(node, ref);
@@ -171,30 +252,17 @@ export class SourceLinker extends Visitor {
     const callRef = new CallRef(node, ref, fnRef, this.parentFn);
     fnRef.callers.push(callRef);
 
-    if (Globals.foundException) {
-      for (const fn of Globals.callStack.values()) {
-        fn.hasException = true;
-        if (fn.node.range.source.internalPath != this.source.node.internalPath) {
-          const alienSrc = Globals.sources.get(fn.node.range.source.internalPath);
-          if (!alienSrc.functions.some((v) => v == fn)) {
-            if (DEBUG > 0) console.log(indent + "Added function (call): " + fn.name);
-            alienSrc.functions.push(fn);
-          }
-        } else {
-          if (!this.source.functions.some((v) => v == fn)) {
-            if (DEBUG > 0) console.log(indent + "Added function (call): " + fn.name);
-            this.source.functions.push(fn);
-          }
-        }
-      }
-      Globals.callStack.clear();
-      Globals.foundException = false;
-    }
+    console.log(indent + "Found call " + toString(node) + " (" + fnRef?.callers.length + ")");
 
     fnSrc.linker.link();
-    fnSrc.linker.linkFunctionRef(fnRef);
+    Globals.refStack.add(callRef);
+    if (fnRef instanceof FunctionRef)
+      fnSrc.linker.linkFunctionRef(fnRef);
+    else
+      fnSrc.linker.linkMethodRef(fnRef);
 
     super.visitCallExpression(node, ref);
+    Globals.refStack.delete(callRef);
 
     if (fnRef.hasException) this.lastFn?.exceptions.push(callRef);
   }
@@ -204,7 +272,7 @@ export class SourceLinker extends Visitor {
     if (!Globals.lastTry) return super.visitThrowStatement(node, ref);
     if (DEBUG > 0) console.log(indent + "Found exception " + toString(node));
     Globals.foundException = true;
-    const newException = new ExceptionRef(node, ref, this.parentFn);
+    const newException = new ExceptionRef(node, ref, this.source, this.parentFn);
     if (this.lastFn) this.lastFn.exceptions.push(newException);
     else Globals.lastTry.exceptions.push(newException);
     return super.visitThrowStatement(node, ref);
@@ -212,60 +280,77 @@ export class SourceLinker extends Visitor {
 
   visitTryStatement(node: TryStatement, ref: Node | Node[] | null = null): void {
     if (this.lastFn) {
-      const tryRef = new TryRef(node, ref);
+      if (DEBUG > 0 && this.state == "link") console.log(indent + "Entered Try");
+      const tryRef = new TryRef(node, ref, this.source);
       this.lastFn.tries.push(tryRef);
       const lastTry = Globals.lastTry;
       const parentFn = this.parentFn;
       Globals.lastTry = tryRef;
       this.parentFn = null;
+      Globals.refStack.add(tryRef);
       this.visit(node.bodyStatements, node);
+      Globals.refStack.delete(tryRef);
       this.parentFn = parentFn;
       Globals.lastTry = lastTry;
       this.visit(node.catchVariable, node);
       this.visit(node.catchStatements, node);
       this.visit(node.finallyStatements, node);
-
+      if (DEBUG > 0 && this.state == "link") console.log(indent + "Exited Try");
       return;
     }
 
     if (this.state != "link") return super.visitTryStatement(node, ref);
 
-    const tryRef = new TryRef(node, ref);
+    const tryRef = new TryRef(node, ref, this.source);
     (Globals.lastTry ? Globals.lastTry.tries : this.source.tries).push(tryRef);
 
+    if (DEBUG > 0) console.log(indent + "Entered Try");
     const lastTry = Globals.lastTry;
     const parentFn = this.parentFn;
     Globals.lastTry = tryRef;
     this.parentFn = null;
+    Globals.refStack.add(tryRef);
     this.visit(node.bodyStatements, node);
+    Globals.refStack.delete(tryRef);
     this.parentFn = parentFn;
     Globals.lastTry = lastTry;
     this.visit(node.catchVariable, node);
     this.visit(node.catchStatements, node);
     this.visit(node.finallyStatements, node);
+    if (DEBUG > 0) console.log(indent + "Exited Try");
 
     Globals.lastTry = lastTry;
   }
 
   visitNamespaceDeclaration(node: NamespaceDeclaration, isDefault: boolean = false, ref: Node | Node[] | null = null): void {
-    const namespaceRef = new NamespaceRef(node, ref, this.parentSpace as NamespaceRef | null);
-    const parent = this.parentSpace;
+    // if (this.state != "gather") return super.visitNamespaceDeclaration(node, isDefault, ref);
+    console.log(indent + "Found namespace " + node.name.text);
+    indent.add();
+    const namespaceRef = new NamespaceRef(node, ref, this.source, this.parentSpace as NamespaceRef | null);
+    this.source.local.namespaces.push(namespaceRef);
+    const parentSpace = this.parentSpace;
     this.parentSpace = namespaceRef;
     super.visitNamespaceDeclaration(node, isDefault, ref);
-    this.parentSpace = parent;
+    this.parentSpace = parentSpace;
+    indent.rm();
   }
   visitClassDeclaration(node: ClassDeclaration, isDefault: boolean = false, ref: Node | Node[] | null = null): void {
+    // if (this.state != "gather") return super.visitClassDeclaration(node, isDefault, ref);
     super.visit(node.name, node);
     this.visit(node.decorators, node);
     if (node.isGeneric ? node.typeParameters != null : node.typeParameters == null) {
-      const classRef = new ClassRef(node, ref, this.parentSpace as NamespaceRef | null);
+      console.log(indent + "Found class " + node.name.text);
+      indent.add();
+      const classRef = new ClassRef(node, ref, this.source, this.parentSpace as NamespaceRef | null);
+      this.source.local.classes.push(classRef);
       super.visit(node.typeParameters, node);
       super.visit(node.extendsType, node);
       super.visit(node.implementsTypes, node);
-      const parent = this.parentSpace;
+      const parentSpace = this.parentSpace;
       this.parentSpace = classRef;
       super.visit(node.members, node);
-      this.parentSpace = parent;
+      this.parentSpace = parentSpace;
+      indent.rm();
     } else {
       throw new Error("Expected type parameters to match class declaration, but found type mismatch instead!");
     }
@@ -280,16 +365,19 @@ export class SourceLinker extends Visitor {
 
   gather(): void {
     if (this.state != "ready") return;
+    Globals.refStack.add(this.source);
     indent.add();
     this.source.state = "linking";
     this.state = "gather";
     if (DEBUG > 0) console.log(indent + "Gathering " + this.node.internalPath);
     super.visit(this.node);
+    Globals.refStack.delete(this.source);
     indent.rm();
   }
 
   link(entry: boolean = false): void {
     if (this.state != "gather") return;
+    Globals.refStack.add(this.source);
     indent.add();
 
     this.state = "link";
@@ -299,6 +387,7 @@ export class SourceLinker extends Visitor {
     if (DEBUG > 0) console.log(indent + "Done linking " + (entry ? "(entry) " : "") + this.node.internalPath);
     this.state = "done";
     this.source.state = "done";
+    Globals.refStack.delete(this.source);
     indent.rm();
     this.addImports(this.node);
   }
@@ -354,6 +443,7 @@ export class SourceLinker extends Visitor {
       const entrySourceRef = Globals.sources.get(entrySource.internalPath)!;
       entrySourceRef.linker.gather();
       entrySourceRef.linker.link(true);
+      debugger;
     }
 
     for (const entrySource of entrySources) {

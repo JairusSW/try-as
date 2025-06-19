@@ -3,19 +3,23 @@ import { CallRef } from "./callref.js";
 import { addAfter, blockify, cloneNode, getBreaker, getName } from "../utils.js";
 import { ExceptionRef } from "./exceptionref.js";
 import { TryRef } from "./tryref.js";
+import { SourceLinker } from "../passes/source.js";
 import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
 import { Globals } from "../globals/globals.js";
 import { NamespaceRef } from "./namespaceref.js";
+import { SourceRef } from "./sourceref.js";
 
 const rawValue = process.env["DEBUG"];
-const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
+const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 
 export class FunctionRef extends BaseRef {
   public node: FunctionDeclaration;
   public ref: Node | Node[] | null;
+  public source: SourceRef;
 
   public name: string;
+  public qualifiedName: string;
   public path: NamespaceRef[];
   public parent: NamespaceRef | null;
 
@@ -24,29 +28,32 @@ export class FunctionRef extends BaseRef {
 
   public callers: CallRef[] = [];
 
-  public exported: boolean;
-  public hasException: boolean = false;
+  public baseFn: boolean = false;
+  public exported: boolean = false;
   private generatedImport: boolean = false;
 
   private cloneBody: Statement;
 
-  public state: "linked" | "unlinked" = "unlinked";
-  constructor(node: FunctionDeclaration, ref: Node | Node[] | null, parent: NamespaceRef | null) {
+  public state: "ready" | "done" = "ready";
+  constructor(node: FunctionDeclaration, ref: Node | Node[] | null, source: SourceRef, parent: NamespaceRef | null) {
     super();
     this.node = node;
     this.ref = ref;
+    this.source = source;
     this.parent = parent;
 
     this.path = this.parent ? [...this.parent.path, this.parent] : [];
-    this.name = getName(node.name, this.path);
-
+    this.name = node.name.text;
+    this.qualifiedName = getName(node.name, this.path);
     this.exported = Boolean(node.flags & CommonFlags.Export);
+
     this.cloneBody = cloneNode(node.body);
   }
-  isEntry(): boolean {
+  isEntryFn(): boolean {
     return this.node.flags & CommonFlags.Export && this.node.range.source.sourceKind == SourceKind.UserEntry;
   }
   generate(): void {
+    if (!this.hasException) return;
     if (this.node.name.text.startsWith("__try_")) return;
     if (DEBUG > 0) console.log(indent + "Generating function " + this.name);
     indent.add();
@@ -66,7 +73,7 @@ export class FunctionRef extends BaseRef {
         let callerDeclaration: ImportDeclaration | null = null;
 
         for (const imp of callerSrc.local.imports) {
-          const decl = imp.declarations.find((b) => caller.name === b.name.text);
+          const decl = imp.declarations.find((b) => caller.name == b.name.text);
           if (decl) {
             callerImport = imp;
             callerDeclaration = decl;
@@ -107,7 +114,7 @@ export class FunctionRef extends BaseRef {
       exception.generate();
       indent.rm();
     }
-    if (!this.isEntry() && !this.tries.length) {
+    if (!this.tries.length) {
       for (const caller of this.callers) {
         console.log(indent + "Generating callers");
         indent.add();

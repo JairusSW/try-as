@@ -5,20 +5,23 @@ import { toString } from "../lib/util.js";
 import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
 import { MethodRef } from "./methodref.js";
+import { SourceRef } from "./sourceref.js";
 
 const rawValue = process.env["DEBUG"];
-const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
+const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 
 export class ExceptionRef extends BaseRef {
   public node: CallExpression | ThrowStatement;
   public ref: Node | Node[] | null;
+  public source: SourceRef;
 
   public parent: FunctionRef | MethodRef | null = null;
   private generated: boolean = false;
-  constructor(node: CallExpression | ThrowStatement, ref: Node | Node[] | null, parent: FunctionRef | MethodRef | null) {
+  constructor(node: CallExpression | ThrowStatement, ref: Node | Node[] | null, source: SourceRef, parent: FunctionRef | MethodRef | null) {
     super();
     this.node = node;
     this.ref = ref;
+    this.source = source;
     this.parent = parent;
   }
   generate(): void {

@@ -6,21 +6,27 @@ import { SourceLinker } from "../passes/source.js";
 import { indent } from "../globals/indent.js";
 import { Globals } from "../globals/globals.js";
 import { NamespaceRef } from "./namespaceref.js";
+import { ClassRef } from "./classref.js";
+import { MethodRef } from "./methodref.js";
 
 const rawValue = process.env["DEBUG"];
-const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
+const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 
 export class SourceLocalRef {
+  public namespaces: NamespaceRef[] = [];
+  public classes: ClassRef[] = [];
   public functions: FunctionRef[] = [];
   public imports: ImportStatement[] = [];
   public exports: ExportStatement[] = [];
 }
+
 export class SourceRef extends BaseRef {
   public linker: SourceLinker;
   public node: Source;
   public tries: TryRef[] = [];
   public functions: FunctionRef[] = [];
   public namespaces: NamespaceRef[] = [];
+  public classes: ClassRef[] = [];
   public imports: ImportStatement[] = [];
   public state: "ready" | "linking" | "done" = "ready";
   public dependencies: Set<SourceRef> = new Set<SourceRef>();
@@ -33,71 +39,234 @@ export class SourceRef extends BaseRef {
     this.node = source;
     this.linker = new SourceLinker(this);
   }
-  /**
-   * Find a function by name in this source, or in external sources via imports.
-   * @param name The name of the function to find.
-   * @param indent The indentation to prefix log messages with.
-   * @param visitedPaths A set of paths that have already been searched.
-   * @returns The found FunctionRef or null.
-   */
-  findFn(name: string, visitedPaths = new Set<string>()): [FunctionRef | null, SourceRef | null] {
-    const currentPath = this.node.internalPath;
-    if (!currentPath || visitedPaths.has(currentPath)) return [null, null];
-    visitedPaths.add(currentPath);
-
-    let fnRef = this.functions.find((fn) => fn?.name === name);
-    if (fnRef) {
-      if (DEBUG > 0) indent + `Identified ${name}() as exception`;
-      return [fnRef, this];
+  findLocalNs(qualifiedName: string | null, namespaces: NamespaceRef[] = this.local.namespaces, path: string[] = qualifiedName?.split(".") || []): NamespaceRef | null {
+    if (!path.length) return null;
+    if (path.length == 1) {
+      for (const namespace of namespaces) {
+        if (namespace.name == path[0]) return namespace;
+      }
+      return null;
+    } else {
+      for (const namespace of namespaces) {
+        if (namespace.name != path[0]) continue;
+        const found = this.findLocalNs(null, namespace.namespaces, path.slice(1));
+        if (found) return found;
+      }
+      return null;
     }
+  }
+  findLocalFn(qualifiedName: string | null, functions: FunctionRef[] = this.local.functions, path: string[] = qualifiedName?.split(".") || []): FunctionRef | null {
+    if (!path.length) return null;
+    if (path.length == 1) {
+      for (const fn of functions) {
+        if (fn.name == path[0]) return fn;
+      }
+      return null;
+    } else {
+      const fnName = path.pop();
+      const ns = this.findLocalNs(null, this.local.namespaces, path);
+      if (!ns) return null;
 
-    fnRef = this.local.functions.find((fn) => fn.name === name);
-    if (fnRef) {
-      if (DEBUG > 0) console.log(indent + `Found ${name} locally`);
-      return [fnRef, this];
+      for (const fn of ns.functions) {
+        if (fn.name == fnName) return fn;
+      }
+      return null;
     }
+  }
 
-    const importMatch = this.local.imports.find((imp) => imp.declarations.some((decl) => name === decl.name.text || name.startsWith(decl.name.text + ".")));
+  findLocalClass(
+    qualifiedName: string | null,
+    namespaces: NamespaceRef[] = this.local.namespaces,
+    path: string[] = qualifiedName?.split(".") || []
+  ): ClassRef | null {
+    if (!path.length) return null;
 
-    if (importMatch) {
-      const basePath = importMatch.internalPath;
-      let externSrc = Globals.sources.get(basePath) || Globals.sources.get(basePath + "/index");
+    if (path.length === 1) {
+      for (const cls of this.local.classes) {
+        if (cls.name === path[0]) return cls;
+      }
+      return null;
+    } else {
+      const className = path.pop();
+      const ns = this.findLocalNs(null, namespaces, path);
+      if (!ns || !className) return null;
 
-      if (!externSrc) {
-        throw new Error("Could not find " + basePath + " in sources!");
+      for (const cls of ns.classes) {
+        if (cls.name === className) return cls;
       }
 
-      const result = externSrc.findFn(name, visitedPaths);
-      if (result) {
-        if (DEBUG > 0) console.log(indent + `Found ${name} externally`);
-        return result;
-      }
+      return null;
+    }
+  }
 
-      const exported = externSrc.local.exports.find((exp) => {
-        if (exp.members) {
-          return exp.members.some((member) => name === member.exportedName.text || name.startsWith(member.exportedName.text + "."));
-        } else {
-          return true;
+  findLocalMethod(
+    qualifiedName: string | null,
+    namespaces: NamespaceRef[] = this.local.namespaces,
+    path: string[] = qualifiedName?.split(".") || []
+  ): MethodRef | null {
+    if (!path.length) return null;
+
+    if (path.length === 2) {
+      const [className, methodName] = path;
+
+      for (const cls of this.local.classes) {
+        if (cls.name !== className) continue;
+        for (const method of cls.methods) {
+          if (method.name === methodName) return method;
         }
+      }
+
+      return null;
+    } else if (path.length > 2) {
+      const methodName = path.pop();
+      const classPath = path;
+      const cls = this.findLocalClass(null, namespaces, classPath);
+
+      if (cls && methodName) {
+        for (const method of cls.methods) {
+          if (method.name === methodName) return method;
+        }
+      }
+    }
+
+    return null;
+  }
+
+
+  findImportedFn(qualifiedName: string | null, visitedPaths = new Set<string>()): [FunctionRef | null, SourceRef | null] {
+    if (!qualifiedName) return [null, null];
+
+    for (const imp of this.local.imports) {
+      const matchesImport = imp.declarations.some(decl =>
+        qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + ".")
+      );
+
+      if (!matchesImport) continue;
+
+      const basePath = imp.internalPath;
+      if (visitedPaths.has(basePath)) continue;
+      visitedPaths.add(basePath);
+
+      const externSrc =
+        Globals.sources.get(basePath) || Globals.sources.get(basePath + "/index");
+      if (!externSrc) continue;
+
+      const fn = externSrc.findLocalFn(qualifiedName);
+      if (fn) return [fn, externSrc]
+    }
+
+    return [null, null]
+  }
+
+  findImportedNs(qualifiedName: string | null, visitedPaths = new Set<string>()): [NamespaceRef | null, SourceRef | null] {
+    if (!qualifiedName) return [null, null];
+
+    for (const imp of this.local.imports) {
+      const matchesImport = imp.declarations.some(decl =>
+        qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + ".")
+      );
+
+      if (!matchesImport) continue;
+
+      const basePath = imp.internalPath;
+      if (visitedPaths.has(basePath)) continue;
+      visitedPaths.add(basePath);
+
+      const externSrc =
+        Globals.sources.get(basePath) || Globals.sources.get(basePath + "/index");
+      if (!externSrc) continue;
+
+      const ns = externSrc.findLocalNs(qualifiedName);
+      if (ns) return [ns, externSrc];
+    }
+
+    return [null, null]
+  }
+
+  findImportedMethod(qualifiedName: string | null, visitedPaths = new Set<string>()): [MethodRef | null, SourceRef | null] {
+    if (!qualifiedName) return [null, null];
+
+    for (const imp of this.local.imports) {
+      const matches = imp.declarations.some(decl =>
+        qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + ".")
+      );
+
+      if (!matches) continue;
+
+      const basePath = imp.internalPath;
+      if (visitedPaths.has(basePath)) continue;
+      visitedPaths.add(basePath);
+
+      const externSrc = Globals.sources.get(basePath) || Globals.sources.get(basePath + "/index");
+      if (!externSrc) continue;
+
+      const method = externSrc.findLocalMethod(qualifiedName);
+      if (method) return [method, externSrc];
+
+      const exported = externSrc.local.exports.find(exp => {
+        if (exp.members) {
+          return exp.members.some(member =>
+            qualifiedName == member.exportedName.text || qualifiedName.startsWith(member.exportedName.text + ".")
+          );
+        }
+        return true;
       });
 
       if (exported) {
         const exportPath = exported.internalPath;
         const reexported = Globals.sources.get(exportPath) || Globals.sources.get(exportPath + "/index");
         if (reexported) {
-          const result = reexported.findFn(name, visitedPaths);
-          if (result) {
-            if (DEBUG > 0) console.log(indent + `Found ${name} exported externally`);
-            return result;
-          }
+          const method = reexported.findLocalMethod(qualifiedName);
+          if (method) return [method, reexported];
         }
       }
     }
 
-    return [null, null]
+    return [null, null];
   }
 
+
+  findFn(name: string | null, visitedPaths = new Set<string>()): [FunctionRef | MethodRef | null, SourceRef | null] {
+    if (!name) return [null, null];
+    console.log(indent + "Looking for " + name);
+
+    const currentPath = this.node.internalPath;
+    if (!currentPath || visitedPaths.has(currentPath)) return [null, null];
+    visitedPaths.add(currentPath);
+
+    let fnRef = this.findLocalFn(name);
+    if (fnRef) {
+      if (DEBUG > 0) console.log(indent + "Found function: " + fnRef.qualifiedName + " (local)");
+      return [fnRef, this];
+    }
+
+    const methodRef = this.findLocalMethod(name);
+    if (methodRef) {
+      if (DEBUG > 0) console.log(indent + "Found method: " + methodRef.qualifiedName + " (local)");
+      return [methodRef, this];
+    }
+
+    {
+      const [externFn, externSrc] = this.findImportedFn(name, visitedPaths);
+      if (externFn) {
+        if (DEBUG > 0) console.log(indent + "Found imported function: " + externFn.qualifiedName + " (imported)");
+        return [externFn, externSrc];
+      }
+    }
+    {
+      const [externMeth, externSrc] = this.findImportedMethod(name, visitedPaths);
+      if (externMeth) {
+        if (DEBUG > 0) console.log(indent + "Found imported method: " + externMeth.qualifiedName + " (imported)");
+        return [externMeth, externSrc];
+      }
+      console.log(indent + "Could not find " + name);
+    }
+    return [null, null];
+  }
+
+
   generate(): void {
+    // if (!this.hasException) return;
     if (this.generated) return;
     this.generated = true;
 
@@ -106,6 +275,9 @@ export class SourceRef extends BaseRef {
     }
     for (const fn of this.namespaces) {
       fn.generate();
+    }
+    for (const cls of this.classes) {
+      cls.generate();
     }
     for (const dependency of this.dependencies) {
       dependency.generate();

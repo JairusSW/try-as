@@ -4,19 +4,21 @@ import { toString } from "../lib/util.js";
 import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
 const rawValue = process.env["DEBUG"];
-const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
+const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 export class TryRef extends BaseRef {
     node;
     ref;
+    source;
     tries = [];
     exceptions = [];
     tryBlock;
     catchBlock = null;
     finallyBlock = null;
-    constructor(node, ref = null) {
+    constructor(node, ref, source) {
         super();
         this.node = node;
         this.ref = ref;
+        this.source = source;
     }
     generate() {
         for (const exception of this.exceptions) {

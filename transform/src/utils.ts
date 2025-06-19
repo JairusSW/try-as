@@ -1,4 +1,4 @@
-import { BlockStatement, BreakStatement, ExpressionStatement, FunctionDeclaration, IdentifierExpression, IfStatement, Node, NodeKind, PropertyAccessExpression, ReturnStatement, Statement, Token } from "assemblyscript/dist/assemblyscript.js";
+import { BlockStatement, BreakStatement, ExpressionStatement, FunctionDeclaration, IdentifierExpression, IfStatement, MethodDeclaration, Node, NodeKind, PropertyAccessExpression, ReturnStatement, Statement, Token } from "assemblyscript/dist/assemblyscript.js";
 import { toString } from "./lib/util.js";
 import path from "path";
 import { NamespaceRef } from "./types/namespaceref.js";
@@ -10,24 +10,24 @@ export function replaceRef(node: Node, replacement: Node | Node[], ref: Node | N
 
   if (Array.isArray(ref)) {
     for (let i = 0; i < ref.length; i++) {
-      if (stripExpr(ref[i]) === nodeExpr) {
+      if (stripExpr(ref[i]) == nodeExpr) {
         if (Array.isArray(replacement)) ref.splice(i, 1, ...replacement);
         else ref.splice(i, 1, replacement);
         return;
       }
     }
-  } else if (typeof ref === "object") {
+  } else if (typeof ref == "object") {
     for (const key of Object.keys(ref)) {
       const current = ref[key] as Node | Node[];
       if (Array.isArray(current)) {
         for (let i = 0; i < current.length; i++) {
-          if (stripExpr(current[i]) === nodeExpr) {
+          if (stripExpr(current[i]) == nodeExpr) {
             if (Array.isArray(replacement)) current.splice(i, 1, ...replacement);
             else current.splice(i, 1, replacement);
             return;
           }
         }
-      } else if (stripExpr(current) === nodeExpr) {
+      } else if (stripExpr(current) == nodeExpr) {
         ref[key] = replacement;
         return;
       }
@@ -41,18 +41,18 @@ export function addAfter(node: Node, additions: Node | Node[], ref: Node | Node[
 
   if (Array.isArray(ref)) {
     for (let i = 0; i < ref.length; i++) {
-      if (stripExpr(ref[i]) === targetExpr) {
+      if (stripExpr(ref[i]) == targetExpr) {
         if (Array.isArray(additions)) ref.splice(i + 1, 0, ...additions);
         else ref.splice(i + 1, 0, additions);
         return;
       }
     }
-  } else if (typeof ref === "object") {
+  } else if (typeof ref == "object") {
     for (const key of Object.keys(ref)) {
       const current = ref[key] as Node | Node[];
       if (Array.isArray(current)) {
         for (let i = 0; i < current.length; i++) {
-          if (stripExpr(current[i]) === targetExpr) {
+          if (stripExpr(current[i]) == targetExpr) {
             if (Array.isArray(additions)) current.splice(i + 1, 0, ...additions);
             else current.splice(i + 1, 0, additions);
             return;
@@ -70,23 +70,23 @@ export function replaceAfter(node: Node, replacement: Node | Node[], ref: Node |
   if (Array.isArray(ref)) {
     let found = false;
     for (let i = 0; i < ref.length; i++) {
-      if (found || stripExpr(ref[i]) === nodeExpr) {
+      if (found || stripExpr(ref[i]) == nodeExpr) {
         ref.splice(i, ref.length - i, ...(Array.isArray(replacement) ? replacement : [replacement]));
         return;
       }
     }
-  } else if (typeof ref === "object") {
+  } else if (typeof ref == "object") {
     for (const key of Object.keys(ref)) {
       const current = ref[key] as Node | Node[];
       if (Array.isArray(current)) {
         let found = false;
         for (let i = 0; i < current.length; i++) {
-          if (found || stripExpr(current[i]) === nodeExpr) {
+          if (found || stripExpr(current[i]) == nodeExpr) {
             current.splice(i, current.length - i, ...(Array.isArray(replacement) ? replacement : [replacement]));
             return;
           }
         }
-      } else if (stripExpr(current) === nodeExpr) {
+      } else if (stripExpr(current) == nodeExpr) {
         ref[key] = replacement;
         return;
       }
@@ -108,7 +108,7 @@ export function blockify(node: Node): BlockStatement {
 }
 
 export function cloneNode<T = Node | Node[] | null>(input: T, seen = new WeakMap(), path = ""): T {
-  if (input === null || typeof input !== "object") return input;
+  if (input == null || typeof input != "object") return input;
 
   if (Array.isArray(input)) {
     return input.map((item, index) => cloneNode(item, seen, `${path}[${index}]`)) as T;
@@ -126,7 +126,7 @@ export function cloneNode<T = Node | Node[] | null>(input: T, seen = new WeakMap
 
     if (newPath.endsWith(".source")) {
       clone[key] = value;
-    } else if (value && typeof value === "object") {
+    } else if (value && typeof value == "object") {
       clone[key] = cloneNode(value, seen, newPath);
     } else {
       clone[key] = value;
@@ -141,13 +141,13 @@ export function removeExtension(filePath: string): string {
   return path.join(parsed.dir, parsed.name);
 }
 
-export function getBreaker(node: Node, parent: FunctionDeclaration | null = null): ReturnStatement | BreakStatement | IfStatement {
+export function getBreaker(node: Node, parentFn: FunctionDeclaration | MethodDeclaration | null = null): ReturnStatement | BreakStatement | IfStatement {
   let breakStmt: ReturnStatement | BreakStatement | IfStatement = Node.createBreakStatement(null, node.range);
 
-  if (parent) {
-    const returnType = toString(parent.signature.returnType);
+  if (parentFn) {
+    const returnType = toString(parentFn.signature.returnType);
     if (returnType != "void" && returnType != "never") {
-      breakStmt = Node.createIfStatement(Node.createCallExpression(Node.createIdentifierExpression("isBoolean", node.range), [parent.signature.returnType], [], node.range), Node.createReturnStatement(Node.createFalseExpression(node.range), node.range), Node.createIfStatement(Node.createBinaryExpression(Token.Bar_Bar, Node.createCallExpression(Node.createIdentifierExpression("isInteger", node.range), [parent.signature.returnType], [], node.range), Node.createCallExpression(Node.createIdentifierExpression("isFloat", node.range), [parent.signature.returnType], [], node.range), node.range), Node.createReturnStatement(Node.createIntegerLiteralExpression(i64_zero, node.range), node.range), Node.createIfStatement(Node.createBinaryExpression(Token.Bar_Bar, Node.createCallExpression(Node.createIdentifierExpression("isManaged", node.range), [parent.signature.returnType], [], node.range), Node.createCallExpression(Node.createIdentifierExpression("isReference", node.range), [parent.signature.returnType], [], node.range), node.range), Node.createReturnStatement(Node.createCallExpression(Node.createIdentifierExpression("changetype", node.range), [parent.signature.returnType], [Node.createIntegerLiteralExpression(i64_zero, node.range)], node.range), node.range), Node.createReturnStatement(null, node.range), node.range), node.range), node.range);
+      breakStmt = Node.createIfStatement(Node.createCallExpression(Node.createIdentifierExpression("isBoolean", node.range), [parentFn.signature.returnType], [], node.range), Node.createReturnStatement(Node.createFalseExpression(node.range), node.range), Node.createIfStatement(Node.createBinaryExpression(Token.Bar_Bar, Node.createCallExpression(Node.createIdentifierExpression("isInteger", node.range), [parentFn.signature.returnType], [], node.range), Node.createCallExpression(Node.createIdentifierExpression("isFloat", node.range), [parentFn.signature.returnType], [], node.range), node.range), Node.createReturnStatement(Node.createIntegerLiteralExpression(i64_zero, node.range), node.range), Node.createIfStatement(Node.createBinaryExpression(Token.Bar_Bar, Node.createCallExpression(Node.createIdentifierExpression("isManaged", node.range), [parentFn.signature.returnType], [], node.range), Node.createCallExpression(Node.createIdentifierExpression("isReference", node.range), [parentFn.signature.returnType], [], node.range), node.range), Node.createReturnStatement(Node.createCallExpression(Node.createIdentifierExpression("changetype", node.range), [parentFn.signature.returnType], [Node.createIntegerLiteralExpression(i64_zero, node.range)], node.range), node.range), Node.createReturnStatement(null, node.range), node.range), node.range), node.range);
     } else {
       breakStmt = Node.createReturnStatement(null, node.range);
     }
@@ -199,16 +199,18 @@ export function isRefStatement(node: Node | null, ref: Node | Node[] | null): bo
 }
 
 export function getName(name: Node | string, path: (NamespaceRef | ClassRef)[] | null = null): string {
-  if (typeof name !== "string") {
-    if (name.kind === NodeKind.Identifier) {
+  if (!name) return "";
+
+  if (typeof name != "string") {
+    if (name.kind == NodeKind.Identifier) {
       name = (name as IdentifierExpression).text;
-    } else if (name.kind === NodeKind.PropertyAccess) {
+    } else if (name.kind == NodeKind.PropertyAccess) {
       const expr = name as PropertyAccessExpression;
       name = getName(expr.expression) + "." + expr.property.text;
     } else {
-      throw new Error("Could not determine name of " + toString(name));
+      return "";
     }
   }
 
-  return path?.length ? path.map(v => v?.name).join(".") + "." + name : name;
+  return path?.length ? path.map(v => v?.name).join(".") + (name ? "." + name : "") : name;
 }

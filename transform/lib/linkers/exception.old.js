@@ -464,7 +464,7 @@ export class ExceptionLinker extends Visitor {
       : node.range.source;
     ExceptionLinker.SN.fn = null;
     ExceptionLinker.SN.currentSource = source;
-    if (ExceptionLinker.SN.currentSource.internalPath !== source.internalPath) {
+    if (ExceptionLinker.SN.currentSource.internalPath != source.internalPath) {
       ExceptionLinker.SN.imports = new Set();
       ExceptionLinker.SN.exceptions = [];
       ExceptionLinker.SN.baseException = false;

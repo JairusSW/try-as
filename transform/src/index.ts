@@ -54,7 +54,7 @@ export default class Transformer extends Transform {
     ThrowReplacer.replace(sources);
 
     if (WRITE) {
-      console.log("\n========WRITING========\n");
+      console.log("\n======WRITING======\n");
       for (let file of WRITE.split(",")) {
         console.log("Writing " + file)
         file = removeExtension(file);

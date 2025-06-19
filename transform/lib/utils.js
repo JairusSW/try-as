@@ -7,7 +7,7 @@ export function replaceRef(node, replacement, ref) {
     const nodeExpr = stripExpr(node);
     if (Array.isArray(ref)) {
         for (let i = 0; i < ref.length; i++) {
-            if (stripExpr(ref[i]) === nodeExpr) {
+            if (stripExpr(ref[i]) == nodeExpr) {
                 if (Array.isArray(replacement))
                     ref.splice(i, 1, ...replacement);
                 else
@@ -16,12 +16,12 @@ export function replaceRef(node, replacement, ref) {
             }
         }
     }
-    else if (typeof ref === "object") {
+    else if (typeof ref == "object") {
         for (const key of Object.keys(ref)) {
             const current = ref[key];
             if (Array.isArray(current)) {
                 for (let i = 0; i < current.length; i++) {
-                    if (stripExpr(current[i]) === nodeExpr) {
+                    if (stripExpr(current[i]) == nodeExpr) {
                         if (Array.isArray(replacement))
                             current.splice(i, 1, ...replacement);
                         else
@@ -30,7 +30,7 @@ export function replaceRef(node, replacement, ref) {
                     }
                 }
             }
-            else if (stripExpr(current) === nodeExpr) {
+            else if (stripExpr(current) == nodeExpr) {
                 ref[key] = replacement;
                 return;
             }
@@ -43,7 +43,7 @@ export function addAfter(node, additions, ref) {
     const targetExpr = stripExpr(node);
     if (Array.isArray(ref)) {
         for (let i = 0; i < ref.length; i++) {
-            if (stripExpr(ref[i]) === targetExpr) {
+            if (stripExpr(ref[i]) == targetExpr) {
                 if (Array.isArray(additions))
                     ref.splice(i + 1, 0, ...additions);
                 else
@@ -52,12 +52,12 @@ export function addAfter(node, additions, ref) {
             }
         }
     }
-    else if (typeof ref === "object") {
+    else if (typeof ref == "object") {
         for (const key of Object.keys(ref)) {
             const current = ref[key];
             if (Array.isArray(current)) {
                 for (let i = 0; i < current.length; i++) {
-                    if (stripExpr(current[i]) === targetExpr) {
+                    if (stripExpr(current[i]) == targetExpr) {
                         if (Array.isArray(additions))
                             current.splice(i + 1, 0, ...additions);
                         else
@@ -76,25 +76,25 @@ export function replaceAfter(node, replacement, ref, Reference) {
     if (Array.isArray(ref)) {
         let found = false;
         for (let i = 0; i < ref.length; i++) {
-            if (found || stripExpr(ref[i]) === nodeExpr) {
+            if (found || stripExpr(ref[i]) == nodeExpr) {
                 ref.splice(i, ref.length - i, ...(Array.isArray(replacement) ? replacement : [replacement]));
                 return;
             }
         }
     }
-    else if (typeof ref === "object") {
+    else if (typeof ref == "object") {
         for (const key of Object.keys(ref)) {
             const current = ref[key];
             if (Array.isArray(current)) {
                 let found = false;
                 for (let i = 0; i < current.length; i++) {
-                    if (found || stripExpr(current[i]) === nodeExpr) {
+                    if (found || stripExpr(current[i]) == nodeExpr) {
                         current.splice(i, current.length - i, ...(Array.isArray(replacement) ? replacement : [replacement]));
                         return;
                     }
                 }
             }
-            else if (stripExpr(current) === nodeExpr) {
+            else if (stripExpr(current) == nodeExpr) {
                 ref[key] = replacement;
                 return;
             }
@@ -115,7 +115,7 @@ export function blockify(node) {
     return block;
 }
 export function cloneNode(input, seen = new WeakMap(), path = "") {
-    if (input === null || typeof input !== "object")
+    if (input == null || typeof input != "object")
         return input;
     if (Array.isArray(input)) {
         return input.map((item, index) => cloneNode(item, seen, `${path}[${index}]`));
@@ -131,7 +131,7 @@ export function cloneNode(input, seen = new WeakMap(), path = "") {
         if (newPath.endsWith(".source")) {
             clone[key] = value;
         }
-        else if (value && typeof value === "object") {
+        else if (value && typeof value == "object") {
             clone[key] = cloneNode(value, seen, newPath);
         }
         else {
@@ -144,12 +144,12 @@ export function removeExtension(filePath) {
     const parsed = path.parse(filePath);
     return path.join(parsed.dir, parsed.name);
 }
-export function getBreaker(node, parent = null) {
+export function getBreaker(node, parentFn = null) {
     let breakStmt = Node.createBreakStatement(null, node.range);
-    if (parent) {
-        const returnType = toString(parent.signature.returnType);
+    if (parentFn) {
+        const returnType = toString(parentFn.signature.returnType);
         if (returnType != "void" && returnType != "never") {
-            breakStmt = Node.createIfStatement(Node.createCallExpression(Node.createIdentifierExpression("isBoolean", node.range), [parent.signature.returnType], [], node.range), Node.createReturnStatement(Node.createFalseExpression(node.range), node.range), Node.createIfStatement(Node.createBinaryExpression(98, Node.createCallExpression(Node.createIdentifierExpression("isInteger", node.range), [parent.signature.returnType], [], node.range), Node.createCallExpression(Node.createIdentifierExpression("isFloat", node.range), [parent.signature.returnType], [], node.range), node.range), Node.createReturnStatement(Node.createIntegerLiteralExpression(i64_zero, node.range), node.range), Node.createIfStatement(Node.createBinaryExpression(98, Node.createCallExpression(Node.createIdentifierExpression("isManaged", node.range), [parent.signature.returnType], [], node.range), Node.createCallExpression(Node.createIdentifierExpression("isReference", node.range), [parent.signature.returnType], [], node.range), node.range), Node.createReturnStatement(Node.createCallExpression(Node.createIdentifierExpression("changetype", node.range), [parent.signature.returnType], [Node.createIntegerLiteralExpression(i64_zero, node.range)], node.range), node.range), Node.createReturnStatement(null, node.range), node.range), node.range), node.range);
+            breakStmt = Node.createIfStatement(Node.createCallExpression(Node.createIdentifierExpression("isBoolean", node.range), [parentFn.signature.returnType], [], node.range), Node.createReturnStatement(Node.createFalseExpression(node.range), node.range), Node.createIfStatement(Node.createBinaryExpression(98, Node.createCallExpression(Node.createIdentifierExpression("isInteger", node.range), [parentFn.signature.returnType], [], node.range), Node.createCallExpression(Node.createIdentifierExpression("isFloat", node.range), [parentFn.signature.returnType], [], node.range), node.range), Node.createReturnStatement(Node.createIntegerLiteralExpression(i64_zero, node.range), node.range), Node.createIfStatement(Node.createBinaryExpression(98, Node.createCallExpression(Node.createIdentifierExpression("isManaged", node.range), [parentFn.signature.returnType], [], node.range), Node.createCallExpression(Node.createIdentifierExpression("isReference", node.range), [parentFn.signature.returnType], [], node.range), node.range), Node.createReturnStatement(Node.createCallExpression(Node.createIdentifierExpression("changetype", node.range), [parentFn.signature.returnType], [Node.createIntegerLiteralExpression(i64_zero, node.range)], node.range), node.range), Node.createReturnStatement(null, node.range), node.range), node.range), node.range);
         }
         else {
             breakStmt = Node.createReturnStatement(null, node.range);
@@ -234,18 +234,20 @@ export function isRefStatement(node, ref) {
     return false;
 }
 export function getName(name, path = null) {
-    if (typeof name !== "string") {
-        if (name.kind === 6) {
+    if (!name)
+        return "";
+    if (typeof name != "string") {
+        if (name.kind == 6) {
             name = name.text;
         }
-        else if (name.kind === 21) {
+        else if (name.kind == 21) {
             const expr = name;
             name = getName(expr.expression) + "." + expr.property.text;
         }
         else {
-            throw new Error("Could not determine name of " + toString(name));
+            return "";
         }
     }
-    return path?.length ? path.map(v => v?.name).join(".") + "." + name : name;
+    return path?.length ? path.map(v => v?.name).join(".") + (name ? "." + name : "") : name;
 }
 //# sourceMappingURL=utils.js.map

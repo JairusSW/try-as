@@ -620,7 +620,7 @@ export class ASTBuilder extends Visitor {
         var indexSignature = node.indexSignature;
         var members = node.members;
         var numMembers = members.length;
-        if (indexSignature !== null || numMembers) {
+        if (indexSignature != null || numMembers) {
             sb.push(" {\n");
             let indentLevel = ++this.indentLevel;
             if (indexSignature) {

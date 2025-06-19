@@ -165,7 +165,7 @@ export class Linker extends Visitor {
     this.path.push(node.name.text);
     super.visitNamespaceDeclaration(node, isDefault, ref);
     const index = this.path.lastIndexOf(node.name.text);
-    if (index !== -1) {
+    if (index != -1) {
       this.path.splice(index, 1);
     }
   }
@@ -181,7 +181,7 @@ export class Linker extends Visitor {
       this.path.push(node.name.text);
       this.visit(node.members, node);
       const index = this.path.lastIndexOf(node.name.text);
-      if (index !== -1) {
+      if (index != -1) {
         this.path.splice(index, 1);
       }
     } else {

@@ -4,35 +4,41 @@ import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
 import { Globals } from "../globals/globals.js";
 const rawValue = process.env["DEBUG"];
-const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
+const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 export class FunctionRef extends BaseRef {
     node;
     ref;
+    source;
     name;
+    qualifiedName;
     path;
     parent;
     tries = [];
     exceptions = [];
     callers = [];
-    exported;
-    hasException = false;
+    baseFn = false;
+    exported = false;
     generatedImport = false;
     cloneBody;
-    state = "unlinked";
-    constructor(node, ref, parent) {
+    state = "ready";
+    constructor(node, ref, source, parent) {
         super();
         this.node = node;
         this.ref = ref;
+        this.source = source;
         this.parent = parent;
         this.path = this.parent ? [...this.parent.path, this.parent] : [];
-        this.name = getName(node.name, this.path);
+        this.name = node.name.text;
+        this.qualifiedName = getName(node.name, this.path);
         this.exported = Boolean(node.flags & 2);
         this.cloneBody = cloneNode(node.body);
     }
-    isEntry() {
+    isEntryFn() {
         return this.node.flags & 2 && this.node.range.source.sourceKind == 1;
     }
     generate() {
+        if (!this.hasException)
+            return;
         if (this.node.name.text.startsWith("__try_"))
             return;
         if (DEBUG > 0)
@@ -55,7 +61,7 @@ export class FunctionRef extends BaseRef {
                 let callerImport = null;
                 let callerDeclaration = null;
                 for (const imp of callerSrc.local.imports) {
-                    const decl = imp.declarations.find((b) => caller.name === b.name.text);
+                    const decl = imp.declarations.find((b) => caller.name == b.name.text);
                     if (decl) {
                         callerImport = imp;
                         callerDeclaration = decl;
@@ -85,7 +91,7 @@ export class FunctionRef extends BaseRef {
             exception.generate();
             indent.rm();
         }
-        if (!this.isEntry() && !this.tries.length) {
+        if (!this.tries.length) {
             for (const caller of this.callers) {
                 console.log(indent + "Generating callers");
                 indent.add();

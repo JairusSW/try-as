@@ -5,13 +5,15 @@ import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
 import { CallRef } from "./callref.js";
 import { ExceptionRef } from "./exceptionref.js";
+import { SourceRef } from "./sourceref.js";
 
 const rawValue = process.env["DEBUG"];
-const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
+const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 
 export class TryRef extends BaseRef {
   public node: TryStatement;
   public ref: Node | Node[] | null;
+  public source: SourceRef;
 
   public tries: TryRef[] = [];
   public exceptions: (CallRef | ExceptionRef)[] = [];
@@ -19,12 +21,14 @@ export class TryRef extends BaseRef {
   public tryBlock: DoStatement;
   public catchBlock: IfStatement | null = null;
   public finallyBlock: BlockStatement | DoStatement | null = null;
-  constructor(node: TryStatement, ref: Node | Node[] | null = null) {
+  constructor(node: TryStatement, ref: Node | Node[] | null, source: SourceRef) {
     super();
     this.node = node;
     this.ref = ref;
+    this.source = source;
   }
   generate(): void {
+    // if (!this.hasException) return;
     for (const exception of this.exceptions) {
       exception.generate();
     }

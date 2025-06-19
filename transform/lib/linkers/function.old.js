@@ -119,7 +119,7 @@ export class FunctionLinker extends Visitor {
   visitCallExpression(node, ref) {
     const fnName = getFnName(node.expression);
     if (!fnName) return super.visitCallExpression(node, ref);
-    if (fnName === "abort" || fnName === "unreachable") {
+    if (fnName == "abort" || fnName == "unreachable") {
       Globals.foundException = true;
     }
     super.visitCallExpression(node, ref);
@@ -218,9 +218,9 @@ export class FunctionLinker extends Visitor {
   }
   static rmFunction(fnName) {
     const index = FunctionLinker.SN.sD.fns.findIndex(
-      (fn) => getFnName(fn.node.name) === fnName,
+      (fn) => getFnName(fn.node.name) == fnName,
     );
-    if (index !== -1) {
+    if (index != -1) {
       FunctionLinker.SN.sD.fns.splice(index, 1);
     }
   }

@@ -6,7 +6,7 @@ import { replaceRef } from "../utils.js";
 import { toString } from "../lib/util.js";
 
 const rawValue = process.env["DEBUG"];
-const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
+const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 
 export class ThrowReplacer extends Visitor {
   visitThrowStatement(node: ThrowStatement, ref: Node | Node[] | null = null): void {
