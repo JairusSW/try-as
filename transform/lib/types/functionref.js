@@ -1,5 +1,5 @@
 import { Node } from "assemblyscript/dist/assemblyscript.js";
-import { addAfter, blockify, cloneNode, getBreaker, getFnName } from "../utils.js";
+import { addAfter, blockify, cloneNode, getBreaker, getName } from "../utils.js";
 import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
 import { Globals } from "../globals/globals.js";
@@ -10,20 +10,22 @@ export class FunctionRef extends BaseRef {
     ref;
     name;
     path;
+    parent;
     tries = [];
     exceptions = [];
     callers = [];
-    exported = false;
+    exported;
     hasException = false;
     generatedImport = false;
     cloneBody;
-    state = "ready";
-    constructor(node, ref, path = []) {
+    state = "unlinked";
+    constructor(node, ref, parent) {
         super();
         this.node = node;
         this.ref = ref;
-        this.path = path;
-        this.name = getFnName(node.name, path);
+        this.parent = parent;
+        this.path = this.parent ? [...this.parent.path, this.parent] : [];
+        this.name = getName(node.name, this.path);
         this.exported = Boolean(node.flags & 2);
         this.cloneBody = cloneNode(node.body);
     }

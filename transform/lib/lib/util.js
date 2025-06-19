@@ -42,6 +42,8 @@ export function isStdlib(s) {
     return isStdlibRegex.test(source.internalPath);
 }
 export function toString(node) {
+    if (typeof node == "string")
+        return node;
     if (!node)
         return "null";
     if (Array.isArray(node))

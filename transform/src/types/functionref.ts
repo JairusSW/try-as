@@ -1,12 +1,12 @@
 import { BlockStatement, CommonFlags, FunctionDeclaration, ImportDeclaration, ImportStatement, Node, NodeKind, SourceKind, Statement, Token } from "assemblyscript/dist/assemblyscript.js";
 import { CallRef } from "./callref.js";
-import { addAfter, blockify, cloneNode, getBreaker, getFnName } from "../utils.js";
+import { addAfter, blockify, cloneNode, getBreaker, getName } from "../utils.js";
 import { ExceptionRef } from "./exceptionref.js";
 import { TryRef } from "./tryref.js";
-import { SourceLinker } from "../passes/source.js";
 import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
 import { Globals } from "../globals/globals.js";
+import { NamespaceRef } from "./namespaceref.js";
 
 const rawValue = process.env["DEBUG"];
 const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
@@ -16,28 +16,31 @@ export class FunctionRef extends BaseRef {
   public ref: Node | Node[] | null;
 
   public name: string;
-  public path: string[];
+  public path: NamespaceRef[];
+  public parent: NamespaceRef | null;
 
   public tries: TryRef[] = [];
   public exceptions: (CallRef | ExceptionRef)[] = [];
 
   public callers: CallRef[] = [];
 
-  public exported: boolean = false;
+  public exported: boolean;
   public hasException: boolean = false;
   private generatedImport: boolean = false;
 
   private cloneBody: Statement;
 
-  public state: "ready" | "done" = "ready";
-  constructor(node: FunctionDeclaration, ref: Node | Node[] | null, path: string[] = []) {
+  public state: "linked" | "unlinked" = "unlinked";
+  constructor(node: FunctionDeclaration, ref: Node | Node[] | null, parent: NamespaceRef | null) {
     super();
     this.node = node;
     this.ref = ref;
-    this.path = path;
-    this.name = getFnName(node.name, path);
-    this.exported = Boolean(node.flags & CommonFlags.Export);
+    this.parent = parent;
 
+    this.path = this.parent ? [...this.parent.path, this.parent] : [];
+    this.name = getName(node.name, this.path);
+
+    this.exported = Boolean(node.flags & CommonFlags.Export);
     this.cloneBody = cloneNode(node.body);
   }
   isEntry(): boolean {

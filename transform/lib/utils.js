@@ -114,22 +114,6 @@ export function blockify(node) {
     let block = node.kind == 30 ? node : Node.createBlockStatement([node], node.range);
     return block;
 }
-export function getFnName(expr, path = null) {
-    const _path = path && path.length ? path.join(".") + "." : "";
-    if (typeof expr == "string") {
-        return _path + expr;
-    }
-    else if (expr.kind === 6) {
-        return _path + expr.text;
-    }
-    else if (expr.kind === 21) {
-        const prop = expr;
-        const left = getFnName(prop.expression, path);
-        const right = prop.property.text;
-        return left ? left + "." + right : right;
-    }
-    return null;
-}
 export function cloneNode(input, seen = new WeakMap(), path = "") {
     if (input === null || typeof input !== "object")
         return input;
@@ -248,5 +232,20 @@ export function isRefStatement(node, ref) {
     if (ref.kind == 61)
         return true;
     return false;
+}
+export function getName(name, path = null) {
+    if (typeof name !== "string") {
+        if (name.kind === 6) {
+            name = name.text;
+        }
+        else if (name.kind === 21) {
+            const expr = name;
+            name = getName(expr.expression) + "." + expr.property.text;
+        }
+        else {
+            throw new Error("Could not determine name of " + toString(name));
+        }
+    }
+    return path?.length ? path.map(v => v?.name).join(".") + "." + name : name;
 }
 //# sourceMappingURL=utils.js.map

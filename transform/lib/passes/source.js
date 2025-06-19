@@ -3,7 +3,7 @@ import { SourceRef } from "../types/sourceref.js";
 import { Visitor } from "../lib/visitor.js";
 import { indent } from "../globals/indent.js";
 import { FunctionRef } from "../types/functionref.js";
-import { blockify, getFnName } from "../utils.js";
+import { blockify, getName } from "../utils.js";
 import { ExceptionRef } from "../types/exceptionref.js";
 import { CallRef } from "../types/callref.js";
 import { TryRef } from "../types/tryref.js";
@@ -12,6 +12,8 @@ import { Globals } from "../globals/globals.js";
 import path from "path";
 import fs from "fs";
 import { toString } from "../lib/util.js";
+import { ClassRef } from "../types/classref.js";
+import { NamespaceRef } from "../types/namespaceref.js";
 const rawValue = process.env["DEBUG"];
 const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 export class SourceLinker extends Visitor {
@@ -22,6 +24,7 @@ export class SourceLinker extends Visitor {
     path = [];
     lastFn = null;
     parentFn = null;
+    parentSpace = null;
     entryFn = null;
     constructor(sourceRef) {
         super();
@@ -68,7 +71,8 @@ export class SourceLinker extends Visitor {
     }
     visitFunctionDeclaration(node, isDefault = false, ref = null) {
         if (this.state == "gather") {
-            const fnRef = new FunctionRef(node, ref, this.path.slice());
+            const fnRef = new FunctionRef(node, ref, this.parentSpace);
+            console.log(indent + "Found function " + fnRef.name);
             this.source.local.functions.push(fnRef);
         }
         else if (this.state == "link") {
@@ -91,8 +95,7 @@ export class SourceLinker extends Visitor {
     linkFunctionRef(fnRef) {
         if (!fnRef)
             return;
-        if (this.source.functions.some((v) => v.name == fnRef.name))
-            return;
+        return;
         indent.add();
         Globals.callStack.add(fnRef);
         if (DEBUG > 0)
@@ -102,11 +105,7 @@ export class SourceLinker extends Visitor {
                     .map((v) => v.name)
                     .join(", ") +
                 "] " + this.node.internalPath);
-        if (fnRef.state != "ready") {
-            indent.rm();
-            return;
-        }
-        fnRef.state = "done";
+        fnRef.state = "linked";
         const lastFn = this.lastFn;
         const parentFn = this.parentFn;
         this.lastFn = fnRef;
@@ -146,13 +145,12 @@ export class SourceLinker extends Visitor {
             return super.visitCallExpression(node, ref);
         if (!Globals.lastTry)
             return super.visitCallExpression(node, ref);
-        const fnName = getFnName(node.expression);
+        const fnName = getName(node.expression);
         if (fnName == "unreachable" || fnName == "abort") {
             if (DEBUG > 0)
                 console.log(indent + "Found exception " + toString(node));
             Globals.foundException = true;
-            const newException = new ExceptionRef(node, ref);
-            newException.parentFn = this.parentFn;
+            const newException = new ExceptionRef(node, ref, this.parentFn);
             if (this.lastFn)
                 this.lastFn.exceptions.push(newException);
             else
@@ -162,9 +160,8 @@ export class SourceLinker extends Visitor {
         let [fnRef, fnSrc] = this.source.findFn(fnName);
         if (!fnRef || !fnSrc)
             return super.visitCallExpression(node, ref);
-        const callRef = new CallRef(node, ref, fnRef);
+        const callRef = new CallRef(node, ref, fnRef, this.parentFn);
         fnRef.callers.push(callRef);
-        callRef.parentFn = this.parentFn;
         if (Globals.foundException) {
             for (const fn of Globals.callStack.values()) {
                 fn.hasException = true;
@@ -201,8 +198,7 @@ export class SourceLinker extends Visitor {
         if (DEBUG > 0)
             console.log(indent + "Found exception " + toString(node));
         Globals.foundException = true;
-        const newException = new ExceptionRef(node, ref);
-        newException.parentFn = this.parentFn;
+        const newException = new ExceptionRef(node, ref, this.parentFn);
         if (this.lastFn)
             this.lastFn.exceptions.push(newException);
         else
@@ -242,20 +238,24 @@ export class SourceLinker extends Visitor {
         Globals.lastTry = lastTry;
     }
     visitNamespaceDeclaration(node, isDefault = false, ref = null) {
-        this.path.push(node.name.text);
+        const namespaceRef = new NamespaceRef(node, ref, this.parentSpace);
+        const parent = this.parentSpace;
+        this.parentSpace = namespaceRef;
         super.visitNamespaceDeclaration(node, isDefault, ref);
-        this.path.pop();
+        this.parentSpace = parent;
     }
     visitClassDeclaration(node, isDefault = false, ref = null) {
         super.visit(node.name, node);
         this.visit(node.decorators, node);
         if (node.isGeneric ? node.typeParameters != null : node.typeParameters == null) {
+            const classRef = new ClassRef(node, ref, this.parentSpace);
             super.visit(node.typeParameters, node);
             super.visit(node.extendsType, node);
             super.visit(node.implementsTypes, node);
-            this.path.push(node.name.text);
+            const parent = this.parentSpace;
+            this.parentSpace = classRef;
             super.visit(node.members, node);
-            this.path.pop();
+            this.parentSpace = parent;
         }
         else {
             throw new Error("Expected type parameters to match class declaration, but found type mismatch instead!");

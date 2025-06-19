@@ -52,6 +52,7 @@ export function isStdlib(s: Source | { range: Range }): boolean {
 }
 
 export function toString(node: Node | Node[] | null): string {
+  if (typeof node == "string") return node;
   if (!node) return "null";
   if (Array.isArray(node)) return node.map((v) => toString(v)).join("\n");
   return ASTBuilder.build(node);

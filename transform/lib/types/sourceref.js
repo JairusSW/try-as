@@ -14,6 +14,7 @@ export class SourceRef extends BaseRef {
     node;
     tries = [];
     functions = [];
+    namespaces = [];
     imports = [];
     state = "ready";
     dependencies = new Set();
@@ -29,7 +30,7 @@ export class SourceRef extends BaseRef {
         if (!currentPath || visitedPaths.has(currentPath))
             return [null, null];
         visitedPaths.add(currentPath);
-        let fnRef = this.functions.find((fn) => fn.name === name);
+        let fnRef = this.functions.find((fn) => fn?.name === name);
         if (fnRef) {
             if (DEBUG > 0)
                 indent + `Identified ${name}() as exception`;
@@ -82,6 +83,9 @@ export class SourceRef extends BaseRef {
             return;
         this.generated = true;
         for (const fn of this.functions) {
+            fn.generate();
+        }
+        for (const fn of this.namespaces) {
             fn.generate();
         }
         for (const dependency of this.dependencies) {

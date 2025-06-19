@@ -1,6 +1,8 @@
 import { BlockStatement, BreakStatement, ExpressionStatement, FunctionDeclaration, IdentifierExpression, IfStatement, Node, NodeKind, PropertyAccessExpression, ReturnStatement, Statement, Token } from "assemblyscript/dist/assemblyscript.js";
 import { toString } from "./lib/util.js";
 import path from "path";
+import { NamespaceRef } from "./types/namespaceref.js";
+import { ClassRef } from "./types/classref.js";
 
 export function replaceRef(node: Node, replacement: Node | Node[], ref: Node | Node[] | null): void {
   if (!node || !ref) return;
@@ -105,21 +107,6 @@ export function blockify(node: Node): BlockStatement {
   return block as BlockStatement;
 }
 
-export function getFnName(expr: Node | string, path: string[] | null = null): string | null {
-  const _path = path && path.length ? path.join(".") + "." : "";
-  if (typeof expr == "string") {
-    return _path + expr;
-  } else if (expr.kind === NodeKind.Identifier) {
-    return _path + (expr as IdentifierExpression).text;
-  } else if (expr.kind === NodeKind.PropertyAccess) {
-    const prop = expr as PropertyAccessExpression;
-    const left = getFnName(prop.expression, path);
-    const right = prop.property.text;
-    return left ? left + "." + right : right;
-  }
-  return null;
-}
-
 export function cloneNode<T = Node | Node[] | null>(input: T, seen = new WeakMap(), path = ""): T {
   if (input === null || typeof input !== "object") return input;
 
@@ -209,4 +196,19 @@ export function isRefStatement(node: Node | null, ref: Node | Node[] | null): bo
   if (ref.kind == NodeKind.TypeDeclaration) return true;
   if (ref.kind == NodeKind.VariableDeclaration) return true;
   return false;
+}
+
+export function getName(name: Node | string, path: (NamespaceRef | ClassRef)[] | null = null): string {
+  if (typeof name !== "string") {
+    if (name.kind === NodeKind.Identifier) {
+      name = (name as IdentifierExpression).text;
+    } else if (name.kind === NodeKind.PropertyAccess) {
+      const expr = name as PropertyAccessExpression;
+      name = getName(expr.expression) + "." + expr.property.text;
+    } else {
+      throw new Error("Could not determine name of " + toString(name));
+    }
+  }
+
+  return path?.length ? path.map(v => v?.name).join(".") + "." + name : name;
 }

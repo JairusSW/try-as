@@ -1,5 +1,5 @@
 import { Node } from "assemblyscript/dist/assemblyscript.js";
-import { addAfter, blockify, getBreaker, getFnName, isRefStatement } from "../utils.js";
+import { addAfter, blockify, getBreaker, getName, isRefStatement } from "../utils.js";
 import { indent } from "../globals/indent.js";
 import { toString } from "../lib/util.js";
 import { BaseRef } from "./baseref.js";
@@ -10,21 +10,21 @@ export class CallRef extends BaseRef {
     ref;
     calling;
     name;
-    parentFn = null;
+    parent;
     generated = false;
-    constructor(node, ref, calling) {
+    constructor(node, ref, calling, parent) {
         super();
         this.node = node;
         this.ref = ref;
         this.calling = calling;
-        this.name = getFnName(node.expression);
+        this.name = getName(node.expression);
     }
     generate() {
         if (this.generated)
             return;
         this.generated = true;
         console.log(indent + "Is Statement: " + isRefStatement(this.node, this.ref) + "\n" + indent + toString(this.ref).split("\n").join("\n" + indent));
-        const breaker = getBreaker(this.node, this.parentFn?.node);
+        const breaker = getBreaker(this.node, this.parent?.node);
         if (this.node.expression.kind == 21 && !this.node.expression.property.text.startsWith("__try_")) {
             this.node.expression.property.text = (this.calling.tries.length ? "" : "__try_") + this.node.expression.property.text;
         }

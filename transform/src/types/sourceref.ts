@@ -5,6 +5,7 @@ import { BaseRef } from "./baseref.js";
 import { SourceLinker } from "../passes/source.js";
 import { indent } from "../globals/indent.js";
 import { Globals } from "../globals/globals.js";
+import { NamespaceRef } from "./namespaceref.js";
 
 const rawValue = process.env["DEBUG"];
 const DEBUG = rawValue === "true" ? 1 : rawValue === "false" || rawValue === "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
@@ -19,6 +20,7 @@ export class SourceRef extends BaseRef {
   public node: Source;
   public tries: TryRef[] = [];
   public functions: FunctionRef[] = [];
+  public namespaces: NamespaceRef[] = [];
   public imports: ImportStatement[] = [];
   public state: "ready" | "linking" | "done" = "ready";
   public dependencies: Set<SourceRef> = new Set<SourceRef>();
@@ -43,7 +45,7 @@ export class SourceRef extends BaseRef {
     if (!currentPath || visitedPaths.has(currentPath)) return [null, null];
     visitedPaths.add(currentPath);
 
-    let fnRef = this.functions.find((fn) => fn.name === name);
+    let fnRef = this.functions.find((fn) => fn?.name === name);
     if (fnRef) {
       if (DEBUG > 0) indent + `Identified ${name}() as exception`;
       return [fnRef, this];
@@ -100,6 +102,9 @@ export class SourceRef extends BaseRef {
     this.generated = true;
 
     for (const fn of this.functions) {
+      fn.generate();
+    }
+    for (const fn of this.namespaces) {
       fn.generate();
     }
     for (const dependency of this.dependencies) {
