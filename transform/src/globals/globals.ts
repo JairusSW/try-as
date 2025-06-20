@@ -11,6 +11,7 @@ class _Globals {
   public refStack: Set<BaseRef> = new Set();
   public foundException: boolean = false;
   public lastTry: TryRef | null = null;
+  public methods: MethodRef[] = [];
 }
 
 export const Globals = new _Globals();

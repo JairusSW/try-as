@@ -24,7 +24,7 @@ const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0
 export class SourceLinker extends Visitor {
   public node: Source;
   public name: string;
-  public state: "ready" | "gather" | "stack" | "link" | "done" = "ready";
+  public state: "ready" | "gather" | "link" | "postprocess" | "done" = "ready";
   public source: SourceRef;
 
   public path: string[] = [];
@@ -81,9 +81,9 @@ export class SourceLinker extends Visitor {
     if (this.state != "gather" || !this.parentSpace) return super.visitMethodDeclaration(node, ref);
     if (this.parentSpace instanceof NamespaceRef) return super.visitMethodDeclaration(node, ref);
     if (node.name.kind == NodeKind.Constructor) return super.visitMethodDeclaration(node, ref);
-
     const methRef = new MethodRef(node, ref, this.source, this.parentSpace);
-    // console.log(indent + "Found method " + methRef.name);
+    Globals.methods.push(methRef);
+    console.log(indent + "Found method " + methRef.name);
     this.parentSpace.methods.push(methRef);
     super.visitMethodDeclaration(node, ref);
   }
@@ -233,8 +233,8 @@ export class SourceLinker extends Visitor {
   }
 
   visitCallExpression(node: CallExpression, ref: Node | Node[] | null = null): void {
-    if (this.state != "link" && this.state != "done") return super.visitCallExpression(node, ref);
-    if (!Globals.lastTry) return super.visitCallExpression(node, ref);
+    if (this.state != "link" && this.state != "done" && this.state != "postprocess") return super.visitCallExpression(node, ref);
+    if (this.state != "postprocess" && !Globals.lastTry) return super.visitCallExpression(node, ref);
 
     const fnName = getName(node.expression);
     if (fnName == "unreachable" || fnName == "abort") {
@@ -242,7 +242,7 @@ export class SourceLinker extends Visitor {
       Globals.foundException = true;
       const newException = new ExceptionRef(node, ref, this.source, this.parentFn);
       if (this.lastFn) this.lastFn.exceptions.push(newException);
-      else Globals.lastTry.exceptions.push(newException);
+      else Globals.lastTry?.exceptions.push(newException);
       return super.visitCallExpression(node, ref);
     }
 
@@ -268,8 +268,8 @@ export class SourceLinker extends Visitor {
   }
 
   visitThrowStatement(node: ThrowStatement, ref: Node | Node[] | null = null): void {
-    if (this.state != "link" && this.state != "done") return super.visitThrowStatement(node, ref);
-    if (!Globals.lastTry) return super.visitThrowStatement(node, ref);
+    if (this.state != "link" && this.state != "done" && this.state != "postprocess") return super.visitThrowStatement(node, ref);
+    if (this.state != "postprocess" && !Globals.lastTry) return super.visitThrowStatement(node, ref);
     if (DEBUG > 0) console.log(indent + "Found exception " + toString(node));
     Globals.foundException = true;
     const newException = new ExceptionRef(node, ref, this.source, this.parentFn);
@@ -356,6 +356,19 @@ export class SourceLinker extends Visitor {
     }
   }
 
+  linkClassRef(classRef: ClassRef): void {
+    console.log("linking class " + classRef.name);
+    Globals.refStack.add(classRef);
+    const parentSpace = this.parentSpace;
+    this.parentSpace = classRef;
+    for (const method of classRef.methods) {
+      this.linkMethodRef(method);
+    }
+    this.parentSpace = parentSpace;
+    Globals.refStack.delete(classRef);
+    return;
+  }
+
   visitIfStatement(node: IfStatement, ref?: Node | Node[] | null): void {
     if (this.state != "gather") return super.visitIfStatement(node, ref);
     if (node.ifTrue) node.ifTrue = blockify(node.ifTrue);
@@ -385,14 +398,21 @@ export class SourceLinker extends Visitor {
     if (entry) super.visit(this.node);
 
     if (DEBUG > 0) console.log(indent + "Done linking " + (entry ? "(entry) " : "") + this.node.internalPath);
+    if (DEBUG > 0) console.log(indent + "Postprocessing " + (entry ? "(entry) " : "") + this.node.internalPath);
+    this.state = "postprocess";
+    for (const classRef of this.source.local.classes) {
+      this.linkClassRef(classRef)
+    }
+    if (DEBUG > 0) console.log(indent + "Done postprocessing " + (entry ? "(entry) " : "") + this.node.internalPath);
+
     this.state = "done";
     this.source.state = "done";
     Globals.refStack.delete(this.source);
     indent.rm();
-    this.addImports(this.node);
+    // this.addImports(this.node);
   }
 
-  addImports(node: Source): void {
+  static addImports(node: Source): void {
     const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
     // console.log("Base Dir: " + baseDir);
     const pkgPath = path.join(Globals.baseCWD, "node_modules");
@@ -424,6 +444,7 @@ export class SourceLinker extends Visitor {
     addImport("abort", ["AbortState"]);
     addImport("unreachable", ["UnreachableState"]);
     addImport("error", ["ErrorState"]);
+    addImport("exception", ["Exception", "ExceptionState"]);
   }
 
   static link(sources: Source[]): void {
@@ -469,20 +490,7 @@ export class SourceLinker extends Visitor {
         relDir = "./" + relDir;
       }
 
-      const addImport = (file: string, names: string[]) => {
-        const imps: ImportDeclaration[] = [];
-
-        for (const name of names) {
-          const imp = Node.createImportDeclaration(Node.createIdentifierExpression(name, source.range), Node.createIdentifierExpression("__" + name, source.range), source.range);
-
-          imps.push(imp);
-        }
-
-        const stmt = Node.createImportStatement(imps, Node.createStringLiteralExpression(relDir + "/" + file, source.range), source.range);
-        source.statements.unshift(stmt);
-      };
-
-      addImport("exception", ["Exception", "ExceptionState"]);
+      this.addImports(source);
     }
   }
 }

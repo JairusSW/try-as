@@ -79,6 +79,8 @@ export class SourceLinker extends Visitor {
         if (node.name.kind == 26)
             return super.visitMethodDeclaration(node, ref);
         const methRef = new MethodRef(node, ref, this.source, this.parentSpace);
+        Globals.methods.push(methRef);
+        console.log(indent + "Found method " + methRef.name);
         this.parentSpace.methods.push(methRef);
         super.visitMethodDeclaration(node, ref);
     }
@@ -226,9 +228,9 @@ export class SourceLinker extends Visitor {
         indent.rm();
     }
     visitCallExpression(node, ref = null) {
-        if (this.state != "link" && this.state != "done")
+        if (this.state != "link" && this.state != "done" && this.state != "postprocess")
             return super.visitCallExpression(node, ref);
-        if (!Globals.lastTry)
+        if (this.state != "postprocess" && !Globals.lastTry)
             return super.visitCallExpression(node, ref);
         const fnName = getName(node.expression);
         if (fnName == "unreachable" || fnName == "abort") {
@@ -239,7 +241,7 @@ export class SourceLinker extends Visitor {
             if (this.lastFn)
                 this.lastFn.exceptions.push(newException);
             else
-                Globals.lastTry.exceptions.push(newException);
+                Globals.lastTry?.exceptions.push(newException);
             return super.visitCallExpression(node, ref);
         }
         let [fnRef, fnSrc] = this.source.findFn(fnName);
@@ -260,9 +262,9 @@ export class SourceLinker extends Visitor {
             this.lastFn?.exceptions.push(callRef);
     }
     visitThrowStatement(node, ref = null) {
-        if (this.state != "link" && this.state != "done")
+        if (this.state != "link" && this.state != "done" && this.state != "postprocess")
             return super.visitThrowStatement(node, ref);
-        if (!Globals.lastTry)
+        if (this.state != "postprocess" && !Globals.lastTry)
             return super.visitThrowStatement(node, ref);
         if (DEBUG > 0)
             console.log(indent + "Found exception " + toString(node));
@@ -350,6 +352,18 @@ export class SourceLinker extends Visitor {
             throw new Error("Expected type parameters to match class declaration, but found type mismatch instead!");
         }
     }
+    linkClassRef(classRef) {
+        console.log("linking class " + classRef.name);
+        Globals.refStack.add(classRef);
+        const parentSpace = this.parentSpace;
+        this.parentSpace = classRef;
+        for (const method of classRef.methods) {
+            this.linkMethodRef(method);
+        }
+        this.parentSpace = parentSpace;
+        Globals.refStack.delete(classRef);
+        return;
+    }
     visitIfStatement(node, ref) {
         if (this.state != "gather")
             return super.visitIfStatement(node, ref);
@@ -384,13 +398,20 @@ export class SourceLinker extends Visitor {
             super.visit(this.node);
         if (DEBUG > 0)
             console.log(indent + "Done linking " + (entry ? "(entry) " : "") + this.node.internalPath);
+        if (DEBUG > 0)
+            console.log(indent + "Postprocessing " + (entry ? "(entry) " : "") + this.node.internalPath);
+        this.state = "postprocess";
+        for (const classRef of this.source.local.classes) {
+            this.linkClassRef(classRef);
+        }
+        if (DEBUG > 0)
+            console.log(indent + "Done postprocessing " + (entry ? "(entry) " : "") + this.node.internalPath);
         this.state = "done";
         this.source.state = "done";
         Globals.refStack.delete(this.source);
         indent.rm();
-        this.addImports(this.node);
     }
-    addImports(node) {
+    static addImports(node) {
         const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
         const pkgPath = path.join(Globals.baseCWD, "node_modules");
         let fromPath = node.range.source.normalizedPath;
@@ -414,6 +435,7 @@ export class SourceLinker extends Visitor {
         addImport("abort", ["AbortState"]);
         addImport("unreachable", ["UnreachableState"]);
         addImport("error", ["ErrorState"]);
+        addImport("exception", ["Exception", "ExceptionState"]);
     }
     static link(sources) {
         if (DEBUG > 0)
@@ -456,16 +478,7 @@ export class SourceLinker extends Visitor {
             else if (!relDir.startsWith(".") && !relDir.startsWith("/") && !relDir.startsWith("try-as")) {
                 relDir = "./" + relDir;
             }
-            const addImport = (file, names) => {
-                const imps = [];
-                for (const name of names) {
-                    const imp = Node.createImportDeclaration(Node.createIdentifierExpression(name, source.range), Node.createIdentifierExpression("__" + name, source.range), source.range);
-                    imps.push(imp);
-                }
-                const stmt = Node.createImportStatement(imps, Node.createStringLiteralExpression(relDir + "/" + file, source.range), source.range);
-                source.statements.unshift(stmt);
-            };
-            addImport("exception", ["Exception", "ExceptionState"]);
+            this.addImports(source);
         }
     }
 }

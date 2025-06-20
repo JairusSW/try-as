@@ -5,6 +5,7 @@ class _Globals {
     refStack = new Set();
     foundException = false;
     lastTry = null;
+    methods = [];
 }
 export const Globals = new _Globals();
 //# sourceMappingURL=globals.js.map

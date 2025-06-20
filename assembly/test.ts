@@ -11,6 +11,9 @@ function foo(): void {
 }
 
 class BAR {
+  bar(): void {
+    abort("Aborted from BAR.prototype.bar");
+  }
   static bar(): void {
     abort("Aborted from BAR.bar");
   }
@@ -18,9 +21,10 @@ class BAR {
 
 try {
   FOO.foo();
-  // foo();
+  foo();
   BAR.bar();
-  // throw new MyError("throw from my error");
+  new BAR().bar();
+  throw new Error("throw from my error");
 } catch (e) {
   const err = e as Exception;
   console.log("Caught " + err.toString());
