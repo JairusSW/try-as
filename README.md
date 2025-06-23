@@ -42,6 +42,8 @@ Alternatively, add it to your `asconfig.json`
 }
 ```
 
+**NOTE: Make sure to load `try-as/transform` last!**
+
 If you'd like to see the code that the transform generates, run the build step with `DEBUG=true`
 
 ## 🪄 Usage

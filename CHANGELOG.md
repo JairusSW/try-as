@@ -1,7 +1,8 @@
 # Change Log
 
-## 2025-06-23 - 0.2.0-preview.2
+## 2025-06-23 - 0.2.0
 
+- feat: first feature-complete version of try-as
 - feat: support try statements within exported entry functions
 - fix: manage some side effects of global variables
 
