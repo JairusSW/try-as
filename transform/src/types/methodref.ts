@@ -57,18 +57,7 @@ export class MethodRef extends BaseRef {
     //   this.node.range
     // );
 
-    const replacementMethod = Node.createMethodDeclaration(
-      Node.createIdentifierExpression(
-        this.node.name.text,
-        this.node.name.range
-      ),
-      this.node.decorators,
-      this.node.flags,
-      this.node.typeParameters,
-      this.node.signature,
-      this.cloneBody,
-      this.node.range
-    );
+    const replacementMethod = Node.createMethodDeclaration(Node.createIdentifierExpression(this.node.name.text, this.node.name.range), this.node.decorators, this.node.flags, this.node.typeParameters, this.node.signature, this.cloneBody, this.node.range);
 
     if (!this.tries.length) this.node.name = Node.createIdentifierExpression("__try_" + this.node.name.text, this.node.name.range);
 

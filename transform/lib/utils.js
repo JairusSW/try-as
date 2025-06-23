@@ -163,7 +163,7 @@ export function isRefStatement(node, ref) {
     if (!ref)
         return false;
     if (Array.isArray(ref)) {
-        if (ref.some(r => !isRefStatement(null, r)))
+        if (ref.some((r) => !isRefStatement(null, r)))
             return false;
         return true;
     }
@@ -248,6 +248,6 @@ export function getName(name, path = null) {
             return "";
         }
     }
-    return path?.length ? path.map(v => v?.name).join(".") + (name ? "." + name : "") : name;
+    return path?.length ? path.map((v) => v?.name).join(".") + (name ? "." + name : "") : name;
 }
 //# sourceMappingURL=utils.js.map

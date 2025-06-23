@@ -74,11 +74,7 @@ export class SourceRef extends BaseRef {
     }
   }
 
-  findLocalClass(
-    qualifiedName: string | null,
-    namespaces: NamespaceRef[] = this.local.namespaces,
-    path: string[] = qualifiedName?.split(".") || []
-  ): ClassRef | null {
+  findLocalClass(qualifiedName: string | null, namespaces: NamespaceRef[] = this.local.namespaces, path: string[] = qualifiedName?.split(".") || []): ClassRef | null {
     if (!path.length) return null;
 
     if (path.length === 1) {
@@ -99,11 +95,7 @@ export class SourceRef extends BaseRef {
     }
   }
 
-  findLocalMethod(
-    qualifiedName: string | null,
-    namespaces: NamespaceRef[] = this.local.namespaces,
-    path: string[] = qualifiedName?.split(".") || []
-  ): MethodRef | null {
+  findLocalMethod(qualifiedName: string | null, namespaces: NamespaceRef[] = this.local.namespaces, path: string[] = qualifiedName?.split(".") || []): MethodRef | null {
     if (!path.length) return null;
 
     if (path.length === 2) {
@@ -132,14 +124,11 @@ export class SourceRef extends BaseRef {
     return null;
   }
 
-
   findImportedFn(qualifiedName: string | null, visitedPaths = new Set<string>()): [FunctionRef | null, SourceRef | null] {
     if (!qualifiedName) return [null, null];
 
     for (const imp of this.local.imports) {
-      const matchesImport = imp.declarations.some(decl =>
-        qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + ".")
-      );
+      const matchesImport = imp.declarations.some((decl) => qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + "."));
 
       if (!matchesImport) continue;
 
@@ -147,24 +136,21 @@ export class SourceRef extends BaseRef {
       if (visitedPaths.has(basePath)) continue;
       visitedPaths.add(basePath);
 
-      const externSrc =
-        Globals.sources.get(basePath) || Globals.sources.get(basePath + "/index");
+      const externSrc = Globals.sources.get(basePath) || Globals.sources.get(basePath + "/index");
       if (!externSrc) continue;
 
       const fn = externSrc.findLocalFn(qualifiedName);
-      if (fn) return [fn, externSrc]
+      if (fn) return [fn, externSrc];
     }
 
-    return [null, null]
+    return [null, null];
   }
 
   findImportedNs(qualifiedName: string | null, visitedPaths = new Set<string>()): [NamespaceRef | null, SourceRef | null] {
     if (!qualifiedName) return [null, null];
 
     for (const imp of this.local.imports) {
-      const matchesImport = imp.declarations.some(decl =>
-        qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + ".")
-      );
+      const matchesImport = imp.declarations.some((decl) => qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + "."));
 
       if (!matchesImport) continue;
 
@@ -172,24 +158,21 @@ export class SourceRef extends BaseRef {
       if (visitedPaths.has(basePath)) continue;
       visitedPaths.add(basePath);
 
-      const externSrc =
-        Globals.sources.get(basePath) || Globals.sources.get(basePath + "/index");
+      const externSrc = Globals.sources.get(basePath) || Globals.sources.get(basePath + "/index");
       if (!externSrc) continue;
 
       const ns = externSrc.findLocalNs(qualifiedName);
       if (ns) return [ns, externSrc];
     }
 
-    return [null, null]
+    return [null, null];
   }
 
   findImportedMethod(qualifiedName: string | null, visitedPaths = new Set<string>()): [MethodRef | null, SourceRef | null] {
     if (!qualifiedName) return [null, null];
 
     for (const imp of this.local.imports) {
-      const matches = imp.declarations.some(decl =>
-        qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + ".")
-      );
+      const matches = imp.declarations.some((decl) => qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + "."));
 
       if (!matches) continue;
 
@@ -203,11 +186,9 @@ export class SourceRef extends BaseRef {
       const method = externSrc.findLocalMethod(qualifiedName);
       if (method) return [method, externSrc];
 
-      const exported = externSrc.local.exports.find(exp => {
+      const exported = externSrc.local.exports.find((exp) => {
         if (exp.members) {
-          return exp.members.some(member =>
-            qualifiedName == member.exportedName.text || qualifiedName.startsWith(member.exportedName.text + ".")
-          );
+          return exp.members.some((member) => qualifiedName == member.exportedName.text || qualifiedName.startsWith(member.exportedName.text + "."));
         }
         return true;
       });
@@ -224,7 +205,6 @@ export class SourceRef extends BaseRef {
 
     return [null, null];
   }
-
 
   findFn(name: string | null, visitedPaths = new Set<string>()): [FunctionRef | MethodRef | null, SourceRef | null] {
     if (!name) return [null, null];
@@ -247,10 +227,9 @@ export class SourceRef extends BaseRef {
         return [externFn, externSrc];
       }
     }
-    
+
     return [null, null];
   }
-
 
   generate(): void {
     // if (!this.hasException) return;

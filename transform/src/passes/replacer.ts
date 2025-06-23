@@ -17,44 +17,16 @@ export class ThrowReplacer extends Visitor {
     if (node.expression.kind != NodeKind.PropertyAccess) return super.visitCallExpression(node, ref);
     const [call, name] = toString(node.expression).split(".");
     if (!name) return super.visitCallExpression(node, ref);
-    const methRef = Globals.methods.find(x => x.hasException && x.name == name && node.args.length == x.node.signature.parameters.length);
+    const methRef = Globals.methods.find((x) => x.hasException && x.name == name && node.args.length == x.node.signature.parameters.length);
     if (!methRef) return super.visitCallExpression(node, ref);
 
     super.visitCallExpression(node, ref);
 
-    const newName = Node.createPropertyAccessExpression(
-      (node.expression as PropertyAccessExpression).expression,
-      cloneNode((node.expression as PropertyAccessExpression).property),
-      node.range
-    );
+    const newName = Node.createPropertyAccessExpression((node.expression as PropertyAccessExpression).expression, cloneNode((node.expression as PropertyAccessExpression).property), node.range);
 
     newName.property.text = "__try_" + newName.property.text;
 
-    let newCall = Node.createParenthesizedExpression(
-      Node.createTernaryExpression(
-        Node.createCallExpression(
-          Node.createIdentifierExpression("isDefined", node.range),
-          null,
-          [
-            newName
-          ],
-          node.range
-        ),
-        Node.createCallExpression(
-          Node.createPropertyAccessExpression(
-            Node.createIdentifierExpression(call, node.range),
-            Node.createIdentifierExpression("__try_" + name, node.range),
-            node.range
-          ),
-          null,
-          node.args,
-          node.range
-        ),
-        cloneNode(node),
-        node.range
-      ),
-      node.range
-    )
+    let newCall = Node.createParenthesizedExpression(Node.createTernaryExpression(Node.createCallExpression(Node.createIdentifierExpression("isDefined", node.range), null, [newName], node.range), Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression(call, node.range), Node.createIdentifierExpression("__try_" + name, node.range), node.range), null, node.args, node.range), cloneNode(node), node.range), node.range);
 
     // console.log("New Call: " + toString(newCall));
     replaceRef(node, newCall, ref);
@@ -69,43 +41,7 @@ export class ThrowReplacer extends Visitor {
     // console.log(indent + "Found ThrowStatement " + toString(node));
 
     const value = node.value as IdentifierExpression;
-    const newThrow = Node.createIfStatement(
-      Node.createBinaryExpression(
-        Token.Ampersand_Ampersand,
-        Node.createCallExpression(
-          Node.createIdentifierExpression("isDefined", node.range),
-          null,
-          [
-            Node.createIdentifierExpression(value.text + ".__IS_EXCEPTION_TYPE", node.range)
-          ],
-          node.range
-        ),
-        Node.createCallExpression(
-          Node.createIdentifierExpression("isDefined", node.range),
-          null,
-          [
-            Node.createIdentifierExpression(value.text + ".rethrow", node.range)
-          ],
-          node.range
-        ),
-        node.range
-      ),
-      Node.createCallExpression(
-        Node.createPropertyAccessExpression(
-          node.value,
-          Node.createIdentifierExpression("rethrow", node.range),
-          node.range
-        ),
-        null,
-        [],
-        node.range
-      ),
-      Node.createThrowStatement(
-        node.value,
-        node.range
-      ),
-      node.range
-    );
+    const newThrow = Node.createIfStatement(Node.createBinaryExpression(Token.Ampersand_Ampersand, Node.createCallExpression(Node.createIdentifierExpression("isDefined", node.range), null, [Node.createIdentifierExpression(value.text + ".__IS_EXCEPTION_TYPE", node.range)], node.range), Node.createCallExpression(Node.createIdentifierExpression("isDefined", node.range), null, [Node.createIdentifierExpression(value.text + ".rethrow", node.range)], node.range), node.range), Node.createCallExpression(Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("rethrow", node.range), node.range), null, [], node.range), Node.createThrowStatement(node.value, node.range), node.range);
 
     replaceRef(node, [newThrow], ref);
     // console.log(toString(newThrow))

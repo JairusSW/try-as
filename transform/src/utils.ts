@@ -160,7 +160,7 @@ export function isRefStatement(node: Node | null, ref: Node | Node[] | null): bo
   if (node) return isRefStatement(null, node) || isRefStatement(null, ref);
   if (!ref) return false;
   if (Array.isArray(ref)) {
-    if (ref.some(r => !isRefStatement(null, r))) return false;
+    if (ref.some((r) => !isRefStatement(null, r))) return false;
     return true;
   }
   if (ref.kind == NodeKind.Source) return true;
@@ -212,5 +212,5 @@ export function getName(name: Node | string, path: (NamespaceRef | ClassRef)[] |
     }
   }
 
-  return path?.length ? path.map(v => v?.name).join(".") + (name ? "." + name : "") : name;
+  return path?.length ? path.map((v) => v?.name).join(".") + (name ? "." + name : "") : name;
 }

@@ -115,12 +115,12 @@ export class FunctionRef extends BaseRef {
       indent.rm();
     }
     // if (!this.tries.length) {
-      for (const caller of this.callers) {
-        if (DEBUG > 0) console.log(indent + "Generating callers");
-        indent.add();
-        caller.generate();
-        indent.rm();
-      }
+    for (const caller of this.callers) {
+      if (DEBUG > 0) console.log(indent + "Generating callers");
+      indent.add();
+      caller.generate();
+      indent.rm();
+    }
     // }
     for (const tryRef of this.tries) {
       console.log(indent + "Generating tries");

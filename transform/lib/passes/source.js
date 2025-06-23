@@ -121,7 +121,9 @@ export class SourceLinker extends Visitor {
         indent.add();
         Globals.callStack.add(fnRef);
         if (DEBUG > 0) {
-            const stackNames = Array.from(Globals.callStack.values()).map(fn => fn.name).join(", ");
+            const stackNames = Array.from(Globals.callStack.values())
+                .map((fn) => fn.name)
+                .join(", ");
             if (DEBUG > 0)
                 console.log(`${indent}Stack [${stackNames}] ${this.node.internalPath}`);
         }
@@ -143,7 +145,9 @@ export class SourceLinker extends Visitor {
         indent.add();
         Globals.callStack.add(methRef);
         if (DEBUG > 0) {
-            const stackNames = Array.from(Globals.callStack.values()).map(fn => fn.name).join(", ");
+            const stackNames = Array.from(Globals.callStack.values())
+                .map((fn) => fn.name)
+                .join(", ");
             if (DEBUG > 0)
                 console.log(`${indent}Stack [${stackNames}] ${this.node.internalPath}`);
         }

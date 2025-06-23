@@ -1,4 +1,3 @@
-
 // class MyError extends Error {}
 // try {
 //   throw new MyError("throw from my error")
@@ -11,4 +10,4 @@
 //   console.log("Finally.");
 // }
 
-console.log(new Error("message").toString())
+console.log(new Error("message").toString());

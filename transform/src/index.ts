@@ -56,14 +56,14 @@ export default class Transformer extends Transform {
     if (WRITE) {
       console.log("\n======WRITING======\n");
       for (let file of WRITE.split(",")) {
-        console.log("Writing " + file)
+        console.log("Writing " + file);
         file = removeExtension(file);
         const source = parser.sources.find((v) => v.normalizedPath.includes(file));
         if (source) {
-          fs.writeFileSync(path.join(process.cwd(), this.baseDir, file.replace("~lib/","./node_modules/") + ".tmp.ts"), toString(source));
+          fs.writeFileSync(path.join(process.cwd(), this.baseDir, file.replace("~lib/", "./node_modules/") + ".tmp.ts"), toString(source));
         }
       }
-      console.log("\n")
+      console.log("\n");
     }
   }
 }

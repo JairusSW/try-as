@@ -20,6 +20,7 @@ class BAR {
   }
 }
 
+
 @json
 class Vec3 {
   x: i32;
@@ -29,7 +30,7 @@ class Vec3 {
 
 let b1 = new BAR();
 try {
-  JSON.parse<Vec3>("lol")
+  JSON.parse<Vec3>("lol");
   // FOO.foo();
   // foo();
   // BAR.bar();

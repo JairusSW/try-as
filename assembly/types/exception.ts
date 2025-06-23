@@ -19,15 +19,29 @@ export class Exception {
   private __IS_EXCEPTION_TYPE: boolean = false;
   public type: ExceptionType;
   // Abort
-  public get msg(): string | null { return this.type == ExceptionType.Abort ? this.msg : null; };
-  public get fileName(): string | null { return this.type == ExceptionType.Abort ? this.fileName : null; };
-  public get lineNumber(): i32 { return this.type == ExceptionType.Abort ? this.lineNumber : -1; };
-  public get columnNumber(): i32 { return this.type == ExceptionType.Abort ? this.columnNumber : -1; };
+  public get msg(): string | null {
+    return this.type == ExceptionType.Abort ? this.msg : null;
+  }
+  public get fileName(): string | null {
+    return this.type == ExceptionType.Abort ? this.fileName : null;
+  }
+  public get lineNumber(): i32 {
+    return this.type == ExceptionType.Abort ? this.lineNumber : -1;
+  }
+  public get columnNumber(): i32 {
+    return this.type == ExceptionType.Abort ? this.columnNumber : -1;
+  }
 
   // Error
-  public get message(): string | null { return (this.type == ExceptionType.Throw && (ErrorState.isErrorType || ErrorState.hasMessage)) ? this.message : null; };
-  public get name(): string | null { return (this.type == ExceptionType.Throw && ErrorState.isErrorType) ? this.name : null; };
-  public get stack(): string | null { return (this.type == ExceptionType.Throw && ErrorState.isErrorType) ? this.stack : null; };
+  public get message(): string | null {
+    return this.type == ExceptionType.Throw && (ErrorState.isErrorType || ErrorState.hasMessage) ? this.message : null;
+  }
+  public get name(): string | null {
+    return this.type == ExceptionType.Throw && ErrorState.isErrorType ? this.name : null;
+  }
+  public get stack(): string | null {
+    return this.type == ExceptionType.Throw && ErrorState.isErrorType ? this.stack : null;
+  }
 
   constructor(type: ExceptionType) {
     this.type = type;

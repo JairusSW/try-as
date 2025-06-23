@@ -3,11 +3,18 @@ import { Exception, ExceptionState, ExceptionType } from "./exception";
 // Taken from https://github.com/MaxGraey/as-variant/blob/main/assembly/index.ts
 const enum Discriminator {
   Bool,
-  I8, I16, I32, I64,
-  U8, U16, U32, U64,
-  F32, F64,
+  I8,
+  I16,
+  I32,
+  I64,
+  U8,
+  U16,
+  U32,
+  U64,
+  F32,
+  F64,
   UnmanagedRef,
-  ManagedRef
+  ManagedRef,
 }
 
 // @ts-ignore: decorator
