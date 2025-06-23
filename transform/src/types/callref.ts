@@ -37,9 +37,9 @@ export class CallRef extends BaseRef {
     const breaker = getBreaker(this.node, this.parent?.node);
 
     if (this.node.expression.kind == NodeKind.PropertyAccess && !(this.node.expression as PropertyAccessExpression).property.text.startsWith("__try_")) {
-      (this.node.expression as PropertyAccessExpression).property.text = (this.calling.tries.length ? "__try_" : "__try_") + (this.node.expression as PropertyAccessExpression).property.text;
+      (this.node.expression as PropertyAccessExpression).property.text = (this.calling.tries.length ? "" : "__try_") + (this.node.expression as PropertyAccessExpression).property.text;
     } else if (!(this.node.expression as IdentifierExpression).text.startsWith("__try_")) {
-      (this.node.expression as IdentifierExpression).text = (this.calling.tries.length ? "__try_" : "__try_") + (this.node.expression as IdentifierExpression).text;
+      (this.node.expression as IdentifierExpression).text = (this.calling.tries.length ? "" : "__try_") + (this.node.expression as IdentifierExpression).text;
     } else {
       return;
     }

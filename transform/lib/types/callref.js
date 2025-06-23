@@ -29,10 +29,10 @@ export class CallRef extends BaseRef {
         this.generated = true;
         const breaker = getBreaker(this.node, this.parent?.node);
         if (this.node.expression.kind == 21 && !this.node.expression.property.text.startsWith("__try_")) {
-            this.node.expression.property.text = (this.calling.tries.length ? "__try_" : "__try_") + this.node.expression.property.text;
+            this.node.expression.property.text = (this.calling.tries.length ? "" : "__try_") + this.node.expression.property.text;
         }
         else if (!this.node.expression.text.startsWith("__try_")) {
-            this.node.expression.text = (this.calling.tries.length ? "__try_" : "__try_") + this.node.expression.text;
+            this.node.expression.text = (this.calling.tries.length ? "" : "__try_") + this.node.expression.text;
         }
         else {
             return;

@@ -52,17 +52,7 @@ export class SourceLinker extends Visitor {
     targetSourceRef.linker.gather();
     super.visitImportStatement(node, ref);
   }
-
-  // visitExportImportStatement(node: ExportImportStatement, ref?: Node | Node[] | null): void {
-  //   if (DEBUG > 0) console.log(indent + "Found ExportImportStatement " + toString(node));
-  //   super.visitExportImportStatement(node, ref);
-  // }
-  // visitExportDefaultStatement(node: ExportDefaultStatement, ref?: Node | Nod
   public hasException: boolean = false;
-  // visitFunctionExpression(node: FunctionExpression, ref?: Node | Node[] | null): void {
-  //   console.log(indent + "Found FunctionExpression " + toString(node));
-  //   super.visitFunctionExpression(node, ref);
-  // }
   visitExportStatement(node: ExportStatement, ref: Node | Node[] | null = null): void {
     if (this.state != "gather" || !node.internalPath) return super.visitExportStatement(node, ref);
     if (node.internalPath.startsWith("~lib/rt") || node.internalPath.startsWith("~lib/performance") || node.internalPath.startsWith("~lib/wasi_") || node.internalPath.startsWith("~lib/shared/")) return super.visitExportStatement(node, ref);
