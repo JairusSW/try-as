@@ -123,7 +123,7 @@ export class FunctionRef extends BaseRef {
     }
     // }
     for (const tryRef of this.tries) {
-      console.log(indent + "Generating tries");
+      if (DEBUG > 0) console.log(indent + "Generating tries");
       indent.add();
       tryRef.generate();
       indent.rm();
