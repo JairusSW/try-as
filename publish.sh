@@ -50,29 +50,4 @@ echo -e "\n🚀 Publishing $PACKAGE_NAME@$VERSION with tag '$TAG'...\n"
 npm publish --tag "$TAG"
 echo -e "\n✅ Published successfully."
 
-echo -e "\n🧹 Cleaning up old dist-tags..."
-npm dist-tag rm "$PACKAGE_NAME" alpha 2>/dev/null || true
-npm dist-tag rm "$PACKAGE_NAME" beta 2>/dev/null || true
-
-echo ""
-read -r -p "❓ Do you want to deprecate all alpha/beta versions? [Y/n] " DEPRECATE_RESP
-DEPRECATE_RESP=${DEPRECATE_RESP,,}
-
-if [[ "$DEPRECATE_RESP" =~ ^(n|no)$ ]]; then
-    echo -e "\n❌ Skipping deprecation."
-else
-    echo -e "\n📦 Deprecating alpha/beta versions...\n"
-
-    VERSIONS=$(npm show "$PACKAGE_NAME" versions --json | jq -r '.[]')
-
-    for VER in $VERSIONS; do
-        if [[ "$VER" == *"alpha"* || "$VER" == *"beta"* ]]; then
-            echo "⚠️ Deprecating $PACKAGE_NAME@$VER..."
-            npm deprecate "$PACKAGE_NAME@$VER" "Deprecated: use latest or preview release."
-        fi
-    done
-
-    echo -e "\n✅ Deprecation complete."
-fi
-
 echo -e "\n🎉 Done."
