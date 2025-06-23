@@ -22,6 +22,10 @@ export class ASTBuilder extends Visitor {
             this.visitNodeAndTerminate(statements[i]);
         }
     }
+    visitThisExpression(node, ref) {
+        this.sb.push("this");
+        super.visitThisExpression(node, ref);
+    }
     visitTypeNode(node) {
         switch (node.kind) {
             case 1: {

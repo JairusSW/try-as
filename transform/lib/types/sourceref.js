@@ -199,7 +199,6 @@ export class SourceRef extends BaseRef {
     findFn(name, visitedPaths = new Set()) {
         if (!name)
             return [null, null];
-        console.log(indent + "Looking for " + name);
         const currentPath = this.node.internalPath;
         if (!currentPath || visitedPaths.has(currentPath))
             return [null, null];
@@ -210,28 +209,13 @@ export class SourceRef extends BaseRef {
                 console.log(indent + "Found function: " + fnRef.qualifiedName + " (local)");
             return [fnRef, this];
         }
-        const methodRef = this.findLocalMethod(name);
-        if (methodRef) {
-            if (DEBUG > 0)
-                console.log(indent + "Found method: " + methodRef.qualifiedName + " (local)");
-            return [methodRef, this];
-        }
         {
             const [externFn, externSrc] = this.findImportedFn(name, visitedPaths);
             if (externFn) {
                 if (DEBUG > 0)
-                    console.log(indent + "Found imported function: " + externFn.qualifiedName + " (imported)");
+                    console.log(indent + "Found imported function: " + externFn.qualifiedName + " (imported/" + externFn.hasException + ")");
                 return [externFn, externSrc];
             }
-        }
-        {
-            const [externMeth, externSrc] = this.findImportedMethod(name, visitedPaths);
-            if (externMeth) {
-                if (DEBUG > 0)
-                    console.log(indent + "Found imported method: " + externMeth.qualifiedName + " (imported)");
-                return [externMeth, externSrc];
-            }
-            console.log(indent + "Could not find " + name);
         }
         return [null, null];
     }

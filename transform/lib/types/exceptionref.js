@@ -9,14 +9,17 @@ export class ExceptionRef extends BaseRef {
     node;
     ref;
     source;
+    name;
     parent = null;
     generated = false;
+    hasException = true;
     constructor(node, ref, source, parent) {
         super();
         this.node = node;
         this.ref = ref;
         this.source = source;
         this.parent = parent;
+        this.name = node.kind == 9 ? "abort" : "throw";
     }
     generate() {
         if (this.generated)

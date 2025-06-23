@@ -15,14 +15,18 @@ export class ExceptionRef extends BaseRef {
   public ref: Node | Node[] | null;
   public source: SourceRef;
 
+  public name: string;
   public parent: FunctionRef | MethodRef | null = null;
   private generated: boolean = false;
+
+  public hasException: boolean = true;
   constructor(node: CallExpression | ThrowStatement, ref: Node | Node[] | null, source: SourceRef, parent: FunctionRef | MethodRef | null) {
     super();
     this.node = node;
     this.ref = ref;
     this.source = source;
     this.parent = parent;
+    this.name = node.kind == NodeKind.Call ? "abort" : "throw";
   }
   generate(): void {
     if (this.generated) return;

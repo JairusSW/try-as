@@ -3,6 +3,7 @@
 
 import { CommonFlags, TypeNode, Node, NodeKind, Source, NamedTypeNode, FunctionTypeNode, TypeParameterNode, IdentifierExpression, CallExpression, ClassExpression, ElementAccessExpression, FunctionExpression, InstanceOfExpression, LiteralExpression, NewExpression, ParenthesizedExpression, PropertyAccessExpression, TernaryExpression, UnaryPostfixExpression, UnaryPrefixExpression, BlockStatement, BreakStatement, ContinueStatement, DoStatement, EmptyStatement, ExportStatement, ExportDefaultStatement, ExportImportStatement, ExpressionStatement, ForStatement, IfStatement, ImportStatement, ReturnStatement, SwitchStatement, ThrowStatement, TryStatement, VariableStatement, WhileStatement, ClassDeclaration, EnumDeclaration, EnumValueDeclaration, FieldDeclaration, FunctionDeclaration, ImportDeclaration, InterfaceDeclaration, MethodDeclaration, NamespaceDeclaration, TypeDeclaration, VariableDeclaration, DecoratorNode, ExportMember, ParameterNode, SwitchCase, TypeName, ArrayLiteralExpression, Expression, ObjectLiteralExpression, AssertionKind, LiteralKind, FloatLiteralExpression, StringLiteralExpression, RegexpLiteralExpression, UnaryExpression, ArrowKind, ParameterKind, DeclarationStatement, AssertionExpression, BinaryExpression, CommaExpression, IntegerLiteralExpression, isTypeOmitted, operatorTokenToString, ForOfStatement, IndexSignatureNode, TemplateLiteralExpression, util, FalseExpression, NullExpression, TrueExpression } from "assemblyscript/dist/assemblyscript.js";
 import { Visitor } from "./visitor.js";
+import { ThisExpression } from "types:assemblyscript/src/ast";
 
 function assert<T>(isTruish: T, message: string = "assertion error"): T {
   if (!isTruish) throw new Error(message);
@@ -31,6 +32,10 @@ export class ASTBuilder extends Visitor {
     }
   }
 
+  visitThisExpression(node: ThisExpression, ref?: Node | Node[] | null): void {
+    this.sb.push("this");
+    super.visitThisExpression(node, ref);
+  }
   // types
 
   visitTypeNode(node: TypeNode): void {

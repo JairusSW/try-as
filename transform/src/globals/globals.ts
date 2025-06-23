@@ -12,6 +12,8 @@ class _Globals {
   public foundException: boolean = false;
   public lastTry: TryRef | null = null;
   public methods: MethodRef[] = [];
+  public lastFn: FunctionRef | MethodRef | null = null;
+  public parentFn: FunctionRef | MethodRef | null = null;
 }
 
 export const Globals = new _Globals();

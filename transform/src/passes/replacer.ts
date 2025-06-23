@@ -1,9 +1,10 @@
 import { ExpressionStatement, IdentifierExpression, Node, NodeKind, ParenthesizedExpression, PropertyAccessExpression, Source, TernaryExpression, ThrowStatement, Token } from "assemblyscript/dist/assemblyscript.js";
 
 import { Visitor } from "../lib/visitor.js";
+import { RangeTransform } from "../lib/range.js";
 import { indent } from "../globals/indent.js";
-import { isRefStatement, replaceRef } from "../utils.js";
-import { toString } from "../lib/util.js";
+import { cloneNode, isRefStatement, replaceRef } from "../utils.js";
+import { SimpleParser, toString } from "../lib/util.js";
 import { CallExpression } from "types:assemblyscript/src/ast";
 import { Globals } from "../globals/globals.js";
 
@@ -11,24 +12,31 @@ const rawValue = process.env["DEBUG"];
 const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 
 export class ThrowReplacer extends Visitor {
+  public source!: Source;
   visitCallExpression(node: CallExpression, ref?: Node | Node[] | null): void {
+    if (node.expression.kind != NodeKind.PropertyAccess) return super.visitCallExpression(node, ref);
     const [call, name] = toString(node.expression).split(".");
     if (!name) return super.visitCallExpression(node, ref);
     const methRef = Globals.methods.find(x => x.hasException && x.name == name && node.args.length == x.node.signature.parameters.length);
     if (!methRef) return super.visitCallExpression(node, ref);
-    const isStmt = isRefStatement(node, ref);
 
     super.visitCallExpression(node, ref);
 
-    console.log("Found CallExpression " + call + " " + name);
+    const newName = Node.createPropertyAccessExpression(
+      (node.expression as PropertyAccessExpression).expression,
+      cloneNode((node.expression as PropertyAccessExpression).property),
+      node.range
+    );
 
-    let newCall: ExpressionStatement | ParenthesizedExpression = Node.createParenthesizedExpression(
+    newName.property.text = "__try_" + newName.property.text;
+
+    let newCall = Node.createParenthesizedExpression(
       Node.createTernaryExpression(
         Node.createCallExpression(
           Node.createIdentifierExpression("isDefined", node.range),
           null,
           [
-            Node.createIdentifierExpression(call + ".__try_" + name, node.range)
+            newName
           ],
           node.range
         ),
@@ -42,20 +50,18 @@ export class ThrowReplacer extends Visitor {
           node.args,
           node.range
         ),
-        Node.createCallExpression(
-          node.expression,
-          node.typeArguments,
-          node.args,
-          node.range
-        ),
+        cloneNode(node),
         node.range
       ),
       node.range
-    );
+    )
 
-    if (isStmt) newCall = Node.createExpressionStatement(newCall);
-    console.log("New Call: " + toString(newCall));
+    // console.log("New Call: " + toString(newCall));
     replaceRef(node, newCall, ref);
+  }
+  visitExpressionStatement(node: ExpressionStatement, ref?: Node | Node[] | null): void {
+    if (node.expression.kind != NodeKind.Call) return super.visitExpressionStatement(node, ref);
+    return this.visitCallExpression(node.expression as CallExpression, node);
   }
   visitThrowStatement(node: ThrowStatement, ref: Node | Node[] | null = null): void {
     if (node.value.kind != NodeKind.Identifier) return super.visitThrowStatement(node, ref);
@@ -105,8 +111,10 @@ export class ThrowReplacer extends Visitor {
     console.log(toString(newThrow))
   }
   static replace(sources: Source[]): void {
+    const replacer = new ThrowReplacer();
     for (const source of sources) {
-      new ThrowReplacer().visit(source);
+      replacer.source = source;
+      replacer.visit(source);
     }
   }
 }

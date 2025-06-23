@@ -25,7 +25,7 @@ export class ClassRef extends BaseRef {
     generate() {
         if (!this.hasException)
             return;
-        console.log(indent + "Generating tries");
+        console.log(indent + "Generating methods");
         indent.add();
         for (const method of this.methods) {
             method.generate();

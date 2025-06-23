@@ -55,7 +55,7 @@ export class FunctionRef extends BaseRef {
   generate(): void {
     if (!this.hasException) return;
     if (this.node.name.text.startsWith("__try_")) return;
-    if (DEBUG > 0) console.log(indent + "Generating function " + this.name);
+    if (DEBUG > 0) console.log(indent + "Generating function " + this.qualifiedName);
     indent.add();
     if (this.exported && !this.generatedImport) {
       this.generatedImport = true;

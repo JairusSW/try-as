@@ -6,6 +6,8 @@ class _Globals {
     foundException = false;
     lastTry = null;
     methods = [];
+    lastFn = null;
+    parentFn = null;
 }
 export const Globals = new _Globals();
 //# sourceMappingURL=globals.js.map

@@ -25,6 +25,7 @@ export class CallRef extends BaseRef {
     this.node = node;
     this.ref = ref;
     this.calling = calling;
+    this.parent = parent;
 
     this.name = getName(node.expression);
   }
@@ -33,13 +34,12 @@ export class CallRef extends BaseRef {
     if (this.generated) return;
     this.generated = true;
 
-    console.log(indent + "Is Statement: " + isRefStatement(this.node, this.ref) + "\n" + indent + toString(this.ref).split("\n").join("\n" + indent));
     const breaker = getBreaker(this.node, this.parent?.node);
 
     if (this.node.expression.kind == NodeKind.PropertyAccess && !(this.node.expression as PropertyAccessExpression).property.text.startsWith("__try_")) {
-      (this.node.expression as PropertyAccessExpression).property.text = (this.calling.tries.length ? "" : "__try_") + (this.node.expression as PropertyAccessExpression).property.text;
+      (this.node.expression as PropertyAccessExpression).property.text = (this.calling.tries.length ? "__try_" : "__try_") + (this.node.expression as PropertyAccessExpression).property.text;
     } else if (!(this.node.expression as IdentifierExpression).text.startsWith("__try_")) {
-      (this.node.expression as IdentifierExpression).text = (this.calling.tries.length ? "" : "__try_") + (this.node.expression as IdentifierExpression).text;
+      (this.node.expression as IdentifierExpression).text = (this.calling.tries.length ? "__try_" : "__try_") + (this.node.expression as IdentifierExpression).text;
     } else {
       return;
     }
