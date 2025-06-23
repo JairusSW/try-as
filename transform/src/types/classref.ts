@@ -7,6 +7,9 @@ import { getName } from "../utils.js";
 import { SourceRef } from "./sourceref.js";
 import { indent } from "../globals/indent.js";
 
+const rawValue = process.env["DEBUG"];
+const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
+
 export class ClassRef extends BaseRef {
   public node: ClassDeclaration;
   public ref: Node | Node[] | null;
@@ -35,7 +38,7 @@ export class ClassRef extends BaseRef {
   generate(): void {
     if (!this.hasException) return;
 
-    console.log(indent + "Generating methods");
+    if (DEBUG > 0) console.log(indent + "Generating methods");
     indent.add();
     for (const method of this.methods) {
       method.generate();

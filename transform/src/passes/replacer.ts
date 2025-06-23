@@ -66,7 +66,7 @@ export class ThrowReplacer extends Visitor {
   visitThrowStatement(node: ThrowStatement, ref: Node | Node[] | null = null): void {
     if (node.value.kind != NodeKind.Identifier) return super.visitThrowStatement(node, ref);
     super.visitThrowStatement(node, ref);
-    console.log(indent + "Found ThrowStatement " + toString(node));
+    // console.log(indent + "Found ThrowStatement " + toString(node));
 
     const value = node.value as IdentifierExpression;
     const newThrow = Node.createIfStatement(
@@ -108,7 +108,7 @@ export class ThrowReplacer extends Visitor {
     );
 
     replaceRef(node, [newThrow], ref);
-    console.log(toString(newThrow))
+    // console.log(toString(newThrow))
   }
   static replace(sources: Source[]): void {
     const replacer = new ThrowReplacer();

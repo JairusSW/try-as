@@ -46,21 +46,22 @@ export class MethodRef extends BaseRef {
         }
         this.node.body.statements.unshift(unrollCheck);
         for (const exception of this.exceptions) {
-            console.log(indent + "Generating exceptions");
+            if (DEBUG > 0)
+                console.log(indent + "Generating exceptions");
             indent.add();
             exception.generate();
             indent.rm();
         }
-        if (!this.tries.length) {
-            for (const caller of this.callers) {
+        for (const caller of this.callers) {
+            if (DEBUG > 0)
                 console.log(indent + "Generating callers");
-                indent.add();
-                caller.generate();
-                indent.rm();
-            }
+            indent.add();
+            caller.generate();
+            indent.rm();
         }
         for (const tryRef of this.tries) {
-            console.log(indent + "Generating tries");
+            if (DEBUG > 0)
+                console.log(indent + "Generating tries");
             indent.add();
             tryRef.generate();
             indent.rm();

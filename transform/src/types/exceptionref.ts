@@ -29,11 +29,12 @@ export class ExceptionRef extends BaseRef {
     this.name = node.kind == NodeKind.Call ? "abort" : "throw";
   }
   generate(): void {
+    if (!this.hasException) return;
     if (this.generated) return;
     this.generated = true;
     if (this.node.kind == NodeKind.Call) {
       const node = this.node as CallExpression;
-      console.log(indent + "Is Statement: " + isRefStatement(node, this.ref));
+      // console.log(indent + "Is Statement: " + isRefStatement(node, this.ref));
       const fnName = getName(node.expression);
       const newException = fnName == "abort" ? Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__AbortState", node.range), Node.createIdentifierExpression("abort", node.range), node.range), null, node.args, node.range)) : Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__UnreachableState", node.range), Node.createIdentifierExpression("unreachable", node.range), node.range), null, node.args, node.range));
 

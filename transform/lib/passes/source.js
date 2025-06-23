@@ -79,7 +79,8 @@ export class SourceLinker extends Visitor {
             return super.visitMethodDeclaration(node, ref);
         const methRef = new MethodRef(node, ref, this.source, this.parentSpace);
         Globals.methods.push(methRef);
-        console.log(indent + "Found method " + methRef.name);
+        if (DEBUG > 0)
+            console.log(indent + "Found method " + methRef.name);
         this.parentSpace.methods.push(methRef);
         super.visitMethodDeclaration(node, ref);
     }
@@ -121,7 +122,8 @@ export class SourceLinker extends Visitor {
         Globals.callStack.add(fnRef);
         if (DEBUG > 0) {
             const stackNames = Array.from(Globals.callStack.values()).map(fn => fn.name).join(", ");
-            console.log(`${indent}Stack [${stackNames}] ${this.node.internalPath}`);
+            if (DEBUG > 0)
+                console.log(`${indent}Stack [${stackNames}] ${this.node.internalPath}`);
         }
         fnRef.state = "done";
         const lastFn = Globals.lastFn;
@@ -142,7 +144,8 @@ export class SourceLinker extends Visitor {
         Globals.callStack.add(methRef);
         if (DEBUG > 0) {
             const stackNames = Array.from(Globals.callStack.values()).map(fn => fn.name).join(", ");
-            console.log(`${indent}Stack [${stackNames}] ${this.node.internalPath}`);
+            if (DEBUG > 0)
+                console.log(`${indent}Stack [${stackNames}] ${this.node.internalPath}`);
         }
         methRef.state = "done";
         const lastFn = Globals.lastFn;
@@ -185,7 +188,8 @@ export class SourceLinker extends Visitor {
         const callRef = new CallRef(node, ref, fnRef, Globals.parentFn);
         Globals.refStack.add(callRef);
         fnRef?.callers.push(callRef);
-        console.log(indent + "Found call " + toString(node) + " (" + fnRef?.name + "/" + fnRef?.hasException + ")");
+        if (DEBUG > 0)
+            console.log(indent + "Found call " + toString(node) + " (" + fnRef?.name + "/" + fnRef?.hasException + ")");
         if (fnRef.hasException) {
             callRef.hasException = true;
             if (Globals.parentFn)
@@ -205,7 +209,8 @@ export class SourceLinker extends Visitor {
             fnSrc.linker.linkMethodRef(fnRef);
         super.visitCallExpression(node, ref);
         if (fnRef.hasException || callRef.hasException) {
-            console.log("Adding call to " + fnRef.qualifiedName);
+            if (DEBUG > 0)
+                console.log("Adding call to " + fnRef.qualifiedName);
             callRef.hasException = true;
             if (Globals.parentFn)
                 Globals.parentFn.exceptions.push(callRef);
@@ -280,7 +285,8 @@ export class SourceLinker extends Visitor {
     visitNamespaceDeclaration(node, isDefault = false, ref = null) {
         if (this.state != "gather")
             return super.visitNamespaceDeclaration(node, isDefault, ref);
-        console.log(indent + "Found namespace " + node.name.text);
+        if (DEBUG > 0)
+            console.log(indent + "Found namespace " + node.name.text);
         indent.add();
         const namespaceRef = new NamespaceRef(node, ref, this.source, this.parentSpace);
         this.source.local.namespaces.push(namespaceRef);
@@ -296,7 +302,8 @@ export class SourceLinker extends Visitor {
         super.visit(node.name, node);
         this.visit(node.decorators, node);
         if (node.isGeneric ? node.typeParameters != null : node.typeParameters == null) {
-            console.log(indent + "Found class " + node.name.text);
+            if (DEBUG > 0)
+                console.log(indent + "Found class " + node.name.text);
             indent.add();
             const classRef = new ClassRef(node, ref, this.source, this.parentSpace);
             this.source.local.classes.push(classRef);
@@ -316,7 +323,6 @@ export class SourceLinker extends Visitor {
         }
     }
     linkClassRef(classRef) {
-        console.log("linking class " + classRef.name);
         Globals.refStack.add(classRef);
         const parentSpace = this.parentSpace;
         this.parentSpace = classRef;

@@ -1,6 +1,5 @@
 import { Node } from "assemblyscript/dist/assemblyscript.js";
 import { Visitor } from "../lib/visitor.js";
-import { indent } from "../globals/indent.js";
 import { cloneNode, replaceRef } from "../utils.js";
 import { toString } from "../lib/util.js";
 import { Globals } from "../globals/globals.js";
@@ -34,7 +33,6 @@ export class ThrowReplacer extends Visitor {
         if (node.value.kind != 6)
             return super.visitThrowStatement(node, ref);
         super.visitThrowStatement(node, ref);
-        console.log(indent + "Found ThrowStatement " + toString(node));
         const value = node.value;
         const newThrow = Node.createIfStatement(Node.createBinaryExpression(97, Node.createCallExpression(Node.createIdentifierExpression("isDefined", node.range), null, [
             Node.createIdentifierExpression(value.text + ".__IS_EXCEPTION_TYPE", node.range)
@@ -42,7 +40,6 @@ export class ThrowReplacer extends Visitor {
             Node.createIdentifierExpression(value.text + ".rethrow", node.range)
         ], node.range), node.range), Node.createCallExpression(Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("rethrow", node.range), node.range), null, [], node.range), Node.createThrowStatement(node.value, node.range), node.range);
         replaceRef(node, [newThrow], ref);
-        console.log(toString(newThrow));
     }
     static replace(sources) {
         const replacer = new ThrowReplacer();
