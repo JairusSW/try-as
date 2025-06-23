@@ -93,9 +93,12 @@ export class SourceLinker extends Visitor {
           Globals.refStack.add(fnRef!);
 
           this.entryFns.push(fnRef);
-          this.entryFn = fnRef;
+          Globals.lastFn = fnRef;
+          Globals.parentFn = fnRef;
           super.visitFunctionDeclaration(fnRef.node, false, fnRef.ref);
-          this.entryFn = null;
+          Globals.lastFn = null;
+          Globals.parentFn = null;
+          Globals.refStack.delete(fnRef!);
           return;
         }
       }
@@ -201,8 +204,9 @@ export class SourceLinker extends Visitor {
       else if (Globals.lastTry) Globals.lastTry.exceptions.push(callRef);
       else throw new Error("No parent function");
       this.smashStack();
-      return super.visitCallExpression(node, ref);
     }
+
+    if (fnRef.hasException || fnRef.visited) return super.visitCallExpression(node, ref);
 
     // if (fnRef.hasException) return super.visitCallExpression(node, ref);
 
@@ -240,23 +244,24 @@ export class SourceLinker extends Visitor {
   }
 
   visitTryStatement(node: TryStatement, ref: Node | Node[] | null = null): void {
-    if (this.entryFn) {
-      const tryRef = new TryRef(node, ref, this.source);
-      this.entryFn.tries.push(tryRef);
-      const lastFn = Globals.lastFn;
-      const parentFn = Globals.parentFn;
-      Globals.lastFn = this.entryFn;
-      Globals.parentFn = null;
-      Globals.refStack.add(tryRef);
-      this.visit(node.bodyStatements, node);
-      Globals.refStack.delete(tryRef);
-      Globals.parentFn = parentFn;
-      Globals.lastFn = lastFn;
-      this.visit(node.catchVariable, node);
-      this.visit(node.catchStatements, node);
-      this.visit(node.finallyStatements, node);
-      return;
-    } else if (Globals.lastFn) {
+    // if (this.entryFn) {
+    //   const tryRef = new TryRef(node, ref, this.source);
+    //   this.entryFn.tries.push(tryRef);
+    //   const lastFn = Globals.lastFn;
+    //   const parentFn = Globals.parentFn;
+    //   Globals.lastFn = this.entryFn;
+    //   Globals.parentFn = null;
+    //   Globals.refStack.add(tryRef);
+    //   this.visit(node.bodyStatements, node);
+    //   Globals.refStack.delete(tryRef);
+    //   Globals.parentFn = parentFn;
+    //   Globals.lastFn = lastFn;
+    //   this.visit(node.catchVariable, node);
+    //   this.visit(node.catchStatements, node);
+    //   this.visit(node.finallyStatements, node);
+    //   return;
+    // } else 
+    if (Globals.lastFn) {
       if (DEBUG > 0 && this.state == "link") console.log(indent + "Entered Try");
       const tryRef = new TryRef(node, ref, this.source);
       Globals.lastFn.tries.push(tryRef);
