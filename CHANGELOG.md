@@ -1,5 +1,27 @@
 # Change Log
 
+## 2025-06-23 - 0.2.0
+
+- feat: attain full parity and complete implementation
+- feat: add support for rethrowing Exceptions while saving state
+- feat: add support for inferring types and scope flow for class types and their corrosponding methods
+
+Example:
+```js
+function foo<T>(): void {
+  if (idof<T>() == idof<...>) {
+    const fakeInstance = changetype<nonnull<T>>(0);
+    fakeInstance.methodThatThrows();
+    // ^ Here the types need to be tracked and resolved with 100% certainty
+    //   Even if the variable is reassigned, stored in memory, ect, it works in my testing
+  } else {
+    throw new Error("Id's of type T and " + nameof<...>() + " did not match!");
+  }
+}
+```
+
+- feat: add optimizations to limit the amount of calls the transform must do
+
 ## 2025-06-14 - 0.1.3
 
 - merge: preview branch with master
