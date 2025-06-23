@@ -263,9 +263,7 @@ export class SourceLinker extends Visitor {
             this.visit(node.finallyStatements, node);
             return;
         }
-        if (this.state != "link")
-            return super.visitTryStatement(node, ref);
-        if (Globals.lastFn) {
+        else if (Globals.lastFn) {
             if (DEBUG > 0 && this.state == "link")
                 console.log(indent + "Entered Try");
             const tryRef = new TryRef(node, ref, this.source);
@@ -286,6 +284,8 @@ export class SourceLinker extends Visitor {
                 console.log(indent + "Exited Try");
             return;
         }
+        if (this.state != "link")
+            return super.visitTryStatement(node, ref);
         const tryRef = new TryRef(node, ref, this.source);
         (Globals.lastTry ? Globals.lastTry.tries : this.source.tries).push(tryRef);
         if (DEBUG > 0)
