@@ -13,7 +13,7 @@ const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0
 
 export class ThrowReplacer extends Visitor {
   public source!: Source;
-  visitCallExpression(node: CallExpression, ref?: Node | Node[] | null): void {
+  visitCallExpression(node: CallExpression, ref: Node | Node[] | null = null): void {
     if (node.expression.kind != NodeKind.PropertyAccess) return super.visitCallExpression(node, ref);
     const [call, name] = toString(node.expression).split(".");
     if (!name) return super.visitCallExpression(node, ref);
@@ -31,7 +31,7 @@ export class ThrowReplacer extends Visitor {
     // console.log("New Call: " + toString(newCall));
     replaceRef(node, newCall, ref);
   }
-  visitExpressionStatement(node: ExpressionStatement, ref?: Node | Node[] | null): void {
+  visitExpressionStatement(node: ExpressionStatement, ref: Node | Node[] | null = null): void {
     if (node.expression.kind != NodeKind.Call) return super.visitExpressionStatement(node, ref);
     return this.visitCallExpression(node.expression as CallExpression, node);
   }

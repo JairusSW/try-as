@@ -125,7 +125,7 @@ export class SourceRef extends BaseRef {
         if (!qualifiedName)
             return [null, null];
         for (const imp of this.local.imports) {
-            const matchesImport = imp.declarations.some((decl) => qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + "."));
+            const matchesImport = imp.declarations?.some((decl) => qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + "."));
             if (!matchesImport)
                 continue;
             const basePath = imp.internalPath;
@@ -145,7 +145,7 @@ export class SourceRef extends BaseRef {
         if (!qualifiedName)
             return [null, null];
         for (const imp of this.local.imports) {
-            const matchesImport = imp.declarations.some((decl) => qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + "."));
+            const matchesImport = imp.declarations?.some((decl) => qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + "."));
             if (!matchesImport)
                 continue;
             const basePath = imp.internalPath;
@@ -165,7 +165,7 @@ export class SourceRef extends BaseRef {
         if (!qualifiedName)
             return [null, null];
         for (const imp of this.local.imports) {
-            const matches = imp.declarations.some((decl) => qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + "."));
+            const matches = imp.declarations?.some((decl) => qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + "."));
             if (!matches)
                 continue;
             const basePath = imp.internalPath;
@@ -182,9 +182,9 @@ export class SourceRef extends BaseRef {
                 if (exp.members) {
                     return exp.members.some((member) => qualifiedName == member.exportedName.text || qualifiedName.startsWith(member.exportedName.text + "."));
                 }
-                return true;
+                return false;
             });
-            if (exported) {
+            if (exported && exported.internalPath) {
                 const exportPath = exported.internalPath;
                 const reexported = Globals.sources.get(exportPath) || Globals.sources.get(exportPath + "/index");
                 if (reexported) {

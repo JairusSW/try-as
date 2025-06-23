@@ -34,7 +34,7 @@ export class FunctionRef extends BaseRef {
         this.cloneBody = cloneNode(node.body);
     }
     isEntryFn() {
-        return this.node.flags & 2 && this.node.range.source.sourceKind == 1;
+        return Boolean(this.node.flags & 2 && this.node.range.source.sourceKind == 1);
     }
     generate() {
         if (!this.hasException)
@@ -61,7 +61,7 @@ export class FunctionRef extends BaseRef {
                 let callerImport = null;
                 let callerDeclaration = null;
                 for (const imp of callerSrc.local.imports) {
-                    const decl = imp.declarations.find((b) => caller.name == b.name.text);
+                    const decl = imp.declarations?.find((b) => caller.name == b.name.text);
                     if (decl) {
                         callerImport = imp;
                         callerDeclaration = decl;
@@ -70,7 +70,7 @@ export class FunctionRef extends BaseRef {
                 }
                 if (callerImport && callerDeclaration && !this.tries.length) {
                     const newCallerImport = Node.createImportDeclaration(Node.createIdentifierExpression("__try_" + callerDeclaration.foreignName.text, caller.node.range.source.range), Node.createIdentifierExpression("__try_" + caller.name, caller.node.range.source.range), caller.node.range.source.range);
-                    callerImport.declarations.push(newCallerImport);
+                    callerImport.declarations?.push(newCallerImport);
                     if (DEBUG > 0)
                         indent + "Added import " + newCallerImport.foreignName.text;
                 }
@@ -81,7 +81,7 @@ export class FunctionRef extends BaseRef {
         const replacementFunction = Node.createFunctionDeclaration(Node.createIdentifierExpression(this.node.name.text, this.node.name.range), this.node.decorators, this.node.flags, this.node.typeParameters, this.node.signature, this.cloneBody, this.node.arrowKind, this.node.range);
         if (!this.tries.length)
             this.node.name = Node.createIdentifierExpression("__try_" + this.node.name.text, this.node.name.range);
-        if (this.node.body.kind != 30) {
+        if (this.node.body && this.node.body.kind != 30) {
             this.node.body = blockify(this.node.body);
         }
         this.node.body.statements.unshift(unrollCheck);

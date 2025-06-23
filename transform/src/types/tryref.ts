@@ -18,7 +18,7 @@ export class TryRef extends BaseRef {
   public tries: TryRef[] = [];
   public exceptions: (CallRef | ExceptionRef)[] = [];
 
-  public tryBlock: DoStatement;
+  public tryBlock: DoStatement | null = null;
   public catchBlock: IfStatement | null = null;
   public finallyBlock: BlockStatement | DoStatement | null = null;
   constructor(node: TryStatement, ref: Node | Node[] | null, source: SourceRef) {
@@ -53,7 +53,7 @@ export class TryRef extends BaseRef {
     if (this.node.catchStatements?.length) {
       const catchRange = new Range(this.node.catchStatements[0].range.start, this.node.catchStatements[this.node.catchStatements.length - 1].range.end);
 
-      const catchVar = Node.createVariableStatement(null, [Node.createVariableDeclaration(this.node.catchVariable, null, CommonFlags.Let, null, Node.createNewExpression(Node.createSimpleTypeName("__Exception", this.node.range), null, [Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Type", this.node.range), this.node.range)], this.node.range), this.node.range)], this.node.range);
+      const catchVar = Node.createVariableStatement(null, [Node.createVariableDeclaration(this.node.catchVariable!, null, CommonFlags.Let, null, Node.createNewExpression(Node.createSimpleTypeName("__Exception", this.node.range), null, [Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Type", this.node.range), this.node.range)], this.node.range), this.node.range)], this.node.range);
 
       const stateReset = Node.createExpressionStatement(Node.createUnaryPostfixExpression(Token.Minus_Minus, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Failures", this.node.range), this.node.range), this.node.range));
 

@@ -41,7 +41,7 @@ export class MethodRef extends BaseRef {
         const replacementMethod = Node.createMethodDeclaration(Node.createIdentifierExpression(this.node.name.text, this.node.name.range), this.node.decorators, this.node.flags, this.node.typeParameters, this.node.signature, this.cloneBody, this.node.range);
         if (!this.tries.length)
             this.node.name = Node.createIdentifierExpression("__try_" + this.node.name.text, this.node.name.range);
-        if (this.node.body.kind != 30) {
+        if (this.node.body && this.node.body.kind != 30) {
             this.node.body = blockify(this.node.body);
         }
         this.node.body.statements.unshift(unrollCheck);

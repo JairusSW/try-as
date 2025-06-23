@@ -40,7 +40,7 @@ export class MethodRef extends BaseRef {
     this.name = node.name.text;
     this.qualifiedName = getName(node.name, this.path);
 
-    this.cloneBody = cloneNode(node.body);
+    this.cloneBody = cloneNode(node.body)!;
   }
 
   generate(): void {
@@ -61,7 +61,7 @@ export class MethodRef extends BaseRef {
 
     if (!this.tries.length) this.node.name = Node.createIdentifierExpression("__try_" + this.node.name.text, this.node.name.range);
 
-    if (this.node.body.kind != NodeKind.Block) {
+    if (this.node.body && this.node.body.kind != NodeKind.Block) {
       this.node.body = blockify(this.node.body);
     }
 

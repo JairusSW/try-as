@@ -13,11 +13,12 @@ export class CallRef extends BaseRef {
     name;
     parent;
     generated = false;
-    constructor(node, ref, calling, parent) {
+    constructor(node, ref, calling, source, parent) {
         super();
         this.node = node;
         this.ref = ref;
         this.calling = calling;
+        this.source = source;
         this.parent = parent;
         this.name = getName(node.expression);
     }

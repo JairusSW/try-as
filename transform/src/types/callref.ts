@@ -20,11 +20,12 @@ export class CallRef extends BaseRef {
   public parent: FunctionRef | MethodRef | null;
 
   private generated: boolean = false;
-  constructor(node: CallExpression, ref: Node | Node[] | null, calling: FunctionRef | MethodRef, parent: FunctionRef | MethodRef | null) {
+  constructor(node: CallExpression, ref: Node | Node[] | null, calling: FunctionRef | MethodRef, source: SourceRef, parent: FunctionRef | MethodRef | null) {
     super();
     this.node = node;
     this.ref = ref;
     this.calling = calling;
+    this.source = source;
     this.parent = parent;
 
     this.name = getName(node.expression);

@@ -11,7 +11,7 @@ export class TryRef extends BaseRef {
     source;
     tries = [];
     exceptions = [];
-    tryBlock;
+    tryBlock = null;
     catchBlock = null;
     finallyBlock = null;
     constructor(node, ref, source) {

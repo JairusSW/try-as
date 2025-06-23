@@ -7,7 +7,7 @@ const rawValue = process.env["DEBUG"];
 const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 export class ThrowReplacer extends Visitor {
     source;
-    visitCallExpression(node, ref) {
+    visitCallExpression(node, ref = null) {
         if (node.expression.kind != 21)
             return super.visitCallExpression(node, ref);
         const [call, name] = toString(node.expression).split(".");
@@ -22,7 +22,7 @@ export class ThrowReplacer extends Visitor {
         let newCall = Node.createParenthesizedExpression(Node.createTernaryExpression(Node.createCallExpression(Node.createIdentifierExpression("isDefined", node.range), null, [newName], node.range), Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression(call, node.range), Node.createIdentifierExpression("__try_" + name, node.range), node.range), null, node.args, node.range), cloneNode(node), node.range), node.range);
         replaceRef(node, newCall, ref);
     }
-    visitExpressionStatement(node, ref) {
+    visitExpressionStatement(node, ref = null) {
         if (node.expression.kind != 9)
             return super.visitExpressionStatement(node, ref);
         return this.visitCallExpression(node.expression, node);

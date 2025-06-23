@@ -23,7 +23,6 @@ const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0
 
 export class SourceLinker extends Visitor {
   public node: Source;
-  public name: string;
   public state: "ready" | "gather" | "link" | "postprocess" | "done" = "ready";
   public source: SourceRef;
 
@@ -67,7 +66,7 @@ export class SourceLinker extends Visitor {
     targetSourceRef.linker.gather();
     super.visitExportStatement(node, ref);
   }
-  visitMethodDeclaration(node: MethodDeclaration, ref?: Node | Node[] | null): void {
+  visitMethodDeclaration(node: MethodDeclaration, ref: Node | Node[] | null = null): void {
     if (this.state != "gather" || !this.parentSpace) return super.visitMethodDeclaration(node, ref);
     if (this.parentSpace instanceof NamespaceRef) return super.visitMethodDeclaration(node, ref);
     if (node.name.kind == NodeKind.Constructor) return super.visitMethodDeclaration(node, ref);
@@ -93,7 +92,7 @@ export class SourceLinker extends Visitor {
       return;
     } else if (this.state == "link") {
       if (node.flags & CommonFlags.Export) {
-        const fnRef = this.source.local.functions.find((v) => v.name == node.name.text);
+        const fnRef = this.source.local.functions.find((v) => v.name == node.name.text) ?? null;
         // this.source.functions.push(fnRef);
         // Globals.refStack.add(fnRef);
         const lastFn = Globals.lastFn;
@@ -106,7 +105,7 @@ export class SourceLinker extends Visitor {
         return;
       }
     }
-    const parentFn = this.source.local.functions.find((v) => v.name == node.name.text);
+    const parentFn = this.source.local.functions.find((v) => v.name == node.name.text) ?? null;
     Globals.parentFn = parentFn;
     // Globals.refStack.add(parentFn);
     super.visitFunctionDeclaration(node, isDefault, ref);
@@ -190,7 +189,7 @@ export class SourceLinker extends Visitor {
 
     let [fnRef, fnSrc] = this.source.findFn(fnName);
     if (!fnRef || !fnSrc) return super.visitCallExpression(node, ref);
-    const callRef = new CallRef(node, ref, fnRef, Globals.parentFn);
+    const callRef = new CallRef(node, ref, fnRef, this.source, Globals.parentFn);
     Globals.refStack.add(callRef);
     fnRef?.callers.push(callRef);
 
@@ -232,7 +231,8 @@ export class SourceLinker extends Visitor {
     Globals.foundException = true;
     const newException = new ExceptionRef(node, ref, this.source, Globals.parentFn);
     if (Globals.parentFn) Globals.parentFn.exceptions.push(newException);
-    else Globals.lastTry.exceptions.push(newException);
+    else if (Globals.lastTry) Globals.lastTry.exceptions.push(newException);
+    else throw new Error("No parent function");
 
     this.smashStack();
 
@@ -333,7 +333,7 @@ export class SourceLinker extends Visitor {
     return;
   }
 
-  visitIfStatement(node: IfStatement, ref?: Node | Node[] | null): void {
+  visitIfStatement(node: IfStatement, ref: Node | Node[] | null = null): void {
     if (this.state != "gather") return super.visitIfStatement(node, ref);
     if (node.ifTrue && node.ifTrue.kind != NodeKind.Block) node.ifTrue = blockify(node.ifTrue);
     if (node.ifFalse && node.ifFalse.kind != NodeKind.Block) node.ifFalse = blockify(node.ifFalse);

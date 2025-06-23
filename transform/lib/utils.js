@@ -69,7 +69,7 @@ export function addAfter(node, additions, ref) {
         }
     }
 }
-export function replaceAfter(node, replacement, ref, Reference) {
+export function replaceAfter(node, replacement, ref) {
     if (!node || !ref)
         return;
     const nodeExpr = stripExpr(node);
@@ -109,8 +109,6 @@ export function stripExpr(node) {
     return node;
 }
 export function blockify(node) {
-    if (!node)
-        return null;
     let block = node.kind == 30 ? node : Node.createBlockStatement([node], node.range);
     return block;
 }

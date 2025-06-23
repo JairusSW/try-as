@@ -19,7 +19,6 @@ const rawValue = process.env["DEBUG"];
 const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 export class SourceLinker extends Visitor {
     node;
-    name;
     state = "ready";
     source;
     path = [];
@@ -70,7 +69,7 @@ export class SourceLinker extends Visitor {
         targetSourceRef.linker.gather();
         super.visitExportStatement(node, ref);
     }
-    visitMethodDeclaration(node, ref) {
+    visitMethodDeclaration(node, ref = null) {
         if (this.state != "gather" || !this.parentSpace)
             return super.visitMethodDeclaration(node, ref);
         if (this.parentSpace instanceof NamespaceRef)
@@ -100,7 +99,7 @@ export class SourceLinker extends Visitor {
         }
         else if (this.state == "link") {
             if (node.flags & 2) {
-                const fnRef = this.source.local.functions.find((v) => v.name == node.name.text);
+                const fnRef = this.source.local.functions.find((v) => v.name == node.name.text) ?? null;
                 const lastFn = Globals.lastFn;
                 Globals.lastFn = fnRef;
                 Globals.parentFn = fnRef;
@@ -110,7 +109,7 @@ export class SourceLinker extends Visitor {
                 return;
             }
         }
-        const parentFn = this.source.local.functions.find((v) => v.name == node.name.text);
+        const parentFn = this.source.local.functions.find((v) => v.name == node.name.text) ?? null;
         Globals.parentFn = parentFn;
         super.visitFunctionDeclaration(node, isDefault, ref);
         Globals.parentFn = null;
@@ -189,7 +188,7 @@ export class SourceLinker extends Visitor {
         let [fnRef, fnSrc] = this.source.findFn(fnName);
         if (!fnRef || !fnSrc)
             return super.visitCallExpression(node, ref);
-        const callRef = new CallRef(node, ref, fnRef, Globals.parentFn);
+        const callRef = new CallRef(node, ref, fnRef, this.source, Globals.parentFn);
         Globals.refStack.add(callRef);
         fnRef?.callers.push(callRef);
         if (DEBUG > 0)
@@ -237,8 +236,10 @@ export class SourceLinker extends Visitor {
         const newException = new ExceptionRef(node, ref, this.source, Globals.parentFn);
         if (Globals.parentFn)
             Globals.parentFn.exceptions.push(newException);
-        else
+        else if (Globals.lastTry)
             Globals.lastTry.exceptions.push(newException);
+        else
+            throw new Error("No parent function");
         this.smashStack();
         return super.visitThrowStatement(node, ref);
     }
@@ -339,7 +340,7 @@ export class SourceLinker extends Visitor {
         Globals.refStack.delete(classRef);
         return;
     }
-    visitIfStatement(node, ref) {
+    visitIfStatement(node, ref = null) {
         if (this.state != "gather")
             return super.visitIfStatement(node, ref);
         if (node.ifTrue && node.ifTrue.kind != 30)

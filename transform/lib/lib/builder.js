@@ -22,7 +22,7 @@ export class ASTBuilder extends Visitor {
             this.visitNodeAndTerminate(statements[i]);
         }
     }
-    visitThisExpression(node, ref) {
+    visitThisExpression(node, ref = null) {
         this.sb.push("this");
         super.visitThisExpression(node, ref);
     }

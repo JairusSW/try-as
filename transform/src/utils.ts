@@ -18,6 +18,7 @@ export function replaceRef(node: Node, replacement: Node | Node[], ref: Node | N
     }
   } else if (typeof ref == "object") {
     for (const key of Object.keys(ref)) {
+      // @ts-ignore
       const current = ref[key] as Node | Node[];
       if (Array.isArray(current)) {
         for (let i = 0; i < current.length; i++) {
@@ -28,6 +29,7 @@ export function replaceRef(node: Node, replacement: Node | Node[], ref: Node | N
           }
         }
       } else if (stripExpr(current) == nodeExpr) {
+        // @ts-ignore
         ref[key] = replacement;
         return;
       }
@@ -49,6 +51,7 @@ export function addAfter(node: Node, additions: Node | Node[], ref: Node | Node[
     }
   } else if (typeof ref == "object") {
     for (const key of Object.keys(ref)) {
+      // @ts-ignore
       const current = ref[key] as Node | Node[];
       if (Array.isArray(current)) {
         for (let i = 0; i < current.length; i++) {
@@ -63,7 +66,7 @@ export function addAfter(node: Node, additions: Node | Node[], ref: Node | Node[
   }
 }
 
-export function replaceAfter(node: Node, replacement: Node | Node[], ref: Node | Node[] | null, Reference): void {
+export function replaceAfter(node: Node, replacement: Node | Node[], ref: Node | Node[] | null): void {
   if (!node || !ref) return;
   const nodeExpr = stripExpr(node);
 
@@ -77,6 +80,7 @@ export function replaceAfter(node: Node, replacement: Node | Node[], ref: Node |
     }
   } else if (typeof ref == "object") {
     for (const key of Object.keys(ref)) {
+      // @ts-ignore
       const current = ref[key] as Node | Node[];
       if (Array.isArray(current)) {
         let found = false;
@@ -87,6 +91,7 @@ export function replaceAfter(node: Node, replacement: Node | Node[], ref: Node |
           }
         }
       } else if (stripExpr(current) == nodeExpr) {
+        // @ts-ignore
         ref[key] = replacement;
         return;
       }
@@ -96,12 +101,12 @@ export function replaceAfter(node: Node, replacement: Node | Node[], ref: Node |
 
 export function stripExpr(node: Node): Node {
   if (!node) return node;
+  // @ts-ignore
   if (node.kind == NodeKind.Expression) return node["expression"];
   return node;
 }
 
 export function blockify(node: Node): BlockStatement {
-  if (!node) return null;
   let block = node.kind == NodeKind.Block ? node : Node.createBlockStatement([node], node.range);
 
   return block as BlockStatement;
@@ -121,6 +126,7 @@ export function cloneNode<T = Node | Node[] | null>(input: T, seen = new WeakMap
   seen.set(input, clone);
 
   for (const key of Reflect.ownKeys(input)) {
+    // @ts-ignore
     const value = input[key];
     const newPath = path ? `${path}.${String(key)}` : String(key);
 

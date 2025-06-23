@@ -32,7 +32,7 @@ export class ASTBuilder extends Visitor {
     }
   }
 
-  visitThisExpression(node: ThisExpression, ref?: Node | Node[] | null): void {
+  visitThisExpression(node: ThisExpression, ref: Node | Node[] | null = null): void {
     this.sb.push("this");
     super.visitThisExpression(node, ref);
   }

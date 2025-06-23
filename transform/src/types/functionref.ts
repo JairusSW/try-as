@@ -47,10 +47,10 @@ export class FunctionRef extends BaseRef {
     this.qualifiedName = getName(node.name, this.path);
     this.exported = Boolean(node.flags & CommonFlags.Export);
 
-    this.cloneBody = cloneNode(node.body);
+    this.cloneBody = cloneNode(node.body)!;
   }
   isEntryFn(): boolean {
-    return this.node.flags & CommonFlags.Export && this.node.range.source.sourceKind == SourceKind.UserEntry;
+    return Boolean(this.node.flags & CommonFlags.Export && this.node.range.source.sourceKind == SourceKind.UserEntry);
   }
   generate(): void {
     if (!this.hasException) return;
@@ -73,7 +73,7 @@ export class FunctionRef extends BaseRef {
         let callerDeclaration: ImportDeclaration | null = null;
 
         for (const imp of callerSrc.local.imports) {
-          const decl = imp.declarations.find((b) => caller.name == b.name.text);
+          const decl = imp.declarations?.find((b) => caller.name == b.name.text);
           if (decl) {
             callerImport = imp;
             callerDeclaration = decl;
@@ -84,7 +84,7 @@ export class FunctionRef extends BaseRef {
         if (callerImport && callerDeclaration && !this.tries.length) {
           const newCallerImport = Node.createImportDeclaration(Node.createIdentifierExpression("__try_" + callerDeclaration.foreignName.text, caller.node.range.source.range), Node.createIdentifierExpression("__try_" + caller.name, caller.node.range.source.range), caller.node.range.source.range);
 
-          callerImport.declarations.push(newCallerImport);
+          callerImport.declarations?.push(newCallerImport);
           if (DEBUG > 0) indent + "Added import " + newCallerImport.foreignName.text;
         }
       }
@@ -102,7 +102,7 @@ export class FunctionRef extends BaseRef {
 
     if (!this.tries.length) this.node.name = Node.createIdentifierExpression("__try_" + this.node.name.text, this.node.name.range);
 
-    if (this.node.body.kind != NodeKind.Block) {
+    if (this.node.body && this.node.body.kind != NodeKind.Block) {
       this.node.body = blockify(this.node.body);
     }
 

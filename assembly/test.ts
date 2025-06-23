@@ -1,4 +1,4 @@
-import { JSON } from "json-as/assembly/index";
+import { JSON } from "json-as";
 import { Exception } from "./types/exception";
 
 export namespace FOO {
