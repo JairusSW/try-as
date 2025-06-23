@@ -88,7 +88,6 @@ export class SourceLinker extends Visitor {
       if (this.source.node.sourceKind == SourceKind.UserEntry && node.is(CommonFlags.Export)) {
         const fnRef = this.source.local.functions.find((v) => v.node == node) ?? null;
         if (fnRef && !fnRef.parent) {
-
           console.log(indent + "Found entry function " + fnRef.qualifiedName);
           this.source.functions.push(fnRef!);
           Globals.refStack.add(fnRef!);
