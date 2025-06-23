@@ -1,6 +1,11 @@
 # Change Log
 
-## 2025-06-23 - 0.2.0
+## 2025-06-23 - 0.2.0-preview.2
+
+- feat: support try statements within exported entry functions
+- fix: manage some side effects of global variables
+
+## 2025-06-23 - 0.2.0-preview.1
 
 - feat: attain full parity and complete implementation
 - feat: add support for rethrowing Exceptions while saving state
