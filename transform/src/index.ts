@@ -1,13 +1,14 @@
-import { Parser } from "assemblyscript/dist/assemblyscript.js";
+import { FunctionDeclaration, Parser } from "assemblyscript/dist/assemblyscript.js";
 import { Transform } from "assemblyscript/dist/transform.js";
 import { SourceLinker } from "./passes/source.js";
 import { Globals } from "./globals/globals.js";
 import { removeExtension } from "./utils.js";
-import { toString } from "./lib/util.js";
+import { SimpleParser, toString } from "./lib/util.js";
 import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
 import { ThrowReplacer } from "./passes/replacer.js";
+import { CommonFlags } from "types:assemblyscript/src/common";
 
 let WRITE = process.env["WRITE"];
 export default class Transformer extends Transform {

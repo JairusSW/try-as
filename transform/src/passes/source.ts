@@ -1,4 +1,4 @@
-import { CallExpression, ClassDeclaration, ExportStatement, FunctionDeclaration, ImportDeclaration, ImportStatement, NamespaceDeclaration, Node, NodeKind, Source, SourceKind, ThrowStatement, TryStatement } from "assemblyscript/dist/assemblyscript.js";
+import { CallExpression, ClassDeclaration, CommonFlags, ExportStatement, FunctionDeclaration, IfStatement, ImportDeclaration, ImportStatement, MethodDeclaration, NamespaceDeclaration, Node, NodeKind, Source, SourceKind, ThrowStatement, TryStatement } from "assemblyscript/dist/assemblyscript.js";
 import { SourceRef } from "../types/sourceref.js";
 import { Visitor } from "../lib/visitor.js";
 import { indent } from "../globals/indent.js";
@@ -6,14 +6,12 @@ import { FunctionRef } from "../types/functionref.js";
 import { blockify, getName } from "../utils.js";
 import { ExceptionRef } from "../types/exceptionref.js";
 import { CallRef } from "../types/callref.js";
-import { CommonFlags } from "types:assemblyscript/src/common";
 import { TryRef } from "../types/tryref.js";
 import { fileURLToPath } from "url";
 import { Globals } from "../globals/globals.js";
 import path from "path";
 import fs from "fs";
 import { toString } from "../lib/util.js";
-import { IfStatement, MethodDeclaration } from "types:assemblyscript/src/ast";
 import { ClassRef } from "../types/classref.js";
 import { NamespaceRef } from "../types/namespaceref.js";
 import { MethodRef } from "../types/methodref.js";
@@ -28,6 +26,7 @@ export class SourceLinker extends Visitor {
 
   public path: string[] = [];
   public parentSpace: NamespaceRef | ClassRef | null = null;
+  public entryFns: FunctionRef[] = [];
   public entryFn: FunctionRef | null = null;
 
   public visitedFns: Set<FunctionRef | MethodRef> = new Set();
@@ -86,24 +85,26 @@ export class SourceLinker extends Visitor {
         this.source.local.functions.push(fnRef);
       }
 
+      if (this.source.node.sourceKind == SourceKind.UserEntry && node.is(CommonFlags.Export)) {
+        const fnRef = this.source.local.functions.find((v) => v.node == node) ?? null;
+        if (fnRef && !fnRef.parent) {
+
+          console.log(indent + "Found entry function " + fnRef.qualifiedName);
+          this.source.functions.push(fnRef!);
+          Globals.refStack.add(fnRef!);
+
+          this.entryFns.push(fnRef);
+          this.entryFn = fnRef;
+          super.visitFunctionDeclaration(fnRef.node, false, fnRef.ref);
+          this.entryFn = null;
+          return;
+        }
+      }
+
       Globals.parentFn = fnRef;
       super.visitFunctionDeclaration(node, isDefault, ref);
       Globals.parentFn = null;
       return;
-    } else if (this.state == "link") {
-      if (node.flags & CommonFlags.Export) {
-        const fnRef = this.source.local.functions.find((v) => v.name == node.name.text) ?? null;
-        // this.source.functions.push(fnRef);
-        // Globals.refStack.add(fnRef);
-        const lastFn = Globals.lastFn;
-        Globals.lastFn = fnRef;
-        Globals.parentFn = fnRef;
-        super.visitFunctionDeclaration(node, isDefault, ref);
-        Globals.parentFn = null;
-        Globals.lastFn = lastFn;
-        // Globals.refStack.delete(fnRef);
-        return;
-      }
     }
     const parentFn = this.source.local.functions.find((v) => v.name == node.name.text) ?? null;
     Globals.parentFn = parentFn;
@@ -168,7 +169,7 @@ export class SourceLinker extends Visitor {
 
   visitCallExpression(node: CallExpression, ref: Node | Node[] | null = null): void {
     if (this.state == "gather") return super.visitCallExpression(node, ref);
-    if (this.state != "postprocess" && !Globals.lastTry) return super.visitCallExpression(node, ref);
+    if (this.state != "postprocess" && !Globals.lastFn && !Globals.lastTry) return super.visitCallExpression(node, ref);
 
     const fnName = getName(node.expression);
     if (fnName == "inline.always" || fnName == "unchecked") return super.visitCallExpression(node, ref);
@@ -240,6 +241,26 @@ export class SourceLinker extends Visitor {
   }
 
   visitTryStatement(node: TryStatement, ref: Node | Node[] | null = null): void {
+    if (this.entryFn) {
+      const tryRef = new TryRef(node, ref, this.source);
+      this.entryFn.tries.push(tryRef);
+      const lastFn = Globals.lastFn;
+      const parentFn = Globals.parentFn;
+      Globals.lastFn = this.entryFn;
+      Globals.parentFn = null;
+      Globals.refStack.add(tryRef);
+      this.visit(node.bodyStatements, node);
+      Globals.refStack.delete(tryRef);
+      Globals.parentFn = parentFn;
+      Globals.lastFn = lastFn;
+      this.visit(node.catchVariable, node);
+      this.visit(node.catchStatements, node);
+      this.visit(node.finallyStatements, node);
+      return;
+    }
+
+    if (this.state != "link") return super.visitTryStatement(node, ref);
+
     if (Globals.lastFn) {
       if (DEBUG > 0 && this.state == "link") console.log(indent + "Entered Try");
       const tryRef = new TryRef(node, ref, this.source);
@@ -259,8 +280,6 @@ export class SourceLinker extends Visitor {
       if (DEBUG > 0 && this.state == "link") console.log(indent + "Exited Try");
       return;
     }
-
-    if (this.state != "link") return super.visitTryStatement(node, ref);
 
     const tryRef = new TryRef(node, ref, this.source);
     (Globals.lastTry ? Globals.lastTry.tries : this.source.tries).push(tryRef);

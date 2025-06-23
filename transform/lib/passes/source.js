@@ -23,6 +23,7 @@ export class SourceLinker extends Visitor {
     source;
     path = [];
     parentSpace = null;
+    entryFns = [];
     entryFn = null;
     visitedFns = new Set();
     constructor(sourceRef) {
@@ -92,22 +93,23 @@ export class SourceLinker extends Visitor {
             else {
                 this.source.local.functions.push(fnRef);
             }
+            if (this.source.node.sourceKind == 1 && node.is(2)) {
+                const fnRef = this.source.local.functions.find((v) => v.node == node) ?? null;
+                if (fnRef && !fnRef.parent) {
+                    console.log(indent + "Found entry function " + fnRef.qualifiedName);
+                    this.source.functions.push(fnRef);
+                    Globals.refStack.add(fnRef);
+                    this.entryFns.push(fnRef);
+                    this.entryFn = fnRef;
+                    super.visitFunctionDeclaration(fnRef.node, false, fnRef.ref);
+                    this.entryFn = null;
+                    return;
+                }
+            }
             Globals.parentFn = fnRef;
             super.visitFunctionDeclaration(node, isDefault, ref);
             Globals.parentFn = null;
             return;
-        }
-        else if (this.state == "link") {
-            if (node.flags & 2) {
-                const fnRef = this.source.local.functions.find((v) => v.name == node.name.text) ?? null;
-                const lastFn = Globals.lastFn;
-                Globals.lastFn = fnRef;
-                Globals.parentFn = fnRef;
-                super.visitFunctionDeclaration(node, isDefault, ref);
-                Globals.parentFn = null;
-                Globals.lastFn = lastFn;
-                return;
-            }
         }
         const parentFn = this.source.local.functions.find((v) => v.name == node.name.text) ?? null;
         Globals.parentFn = parentFn;
@@ -165,7 +167,7 @@ export class SourceLinker extends Visitor {
     visitCallExpression(node, ref = null) {
         if (this.state == "gather")
             return super.visitCallExpression(node, ref);
-        if (this.state != "postprocess" && !Globals.lastTry)
+        if (this.state != "postprocess" && !Globals.lastFn && !Globals.lastTry)
             return super.visitCallExpression(node, ref);
         const fnName = getName(node.expression);
         if (fnName == "inline.always" || fnName == "unchecked")
@@ -244,6 +246,25 @@ export class SourceLinker extends Visitor {
         return super.visitThrowStatement(node, ref);
     }
     visitTryStatement(node, ref = null) {
+        if (this.entryFn) {
+            const tryRef = new TryRef(node, ref, this.source);
+            this.entryFn.tries.push(tryRef);
+            const lastFn = Globals.lastFn;
+            const parentFn = Globals.parentFn;
+            Globals.lastFn = this.entryFn;
+            Globals.parentFn = null;
+            Globals.refStack.add(tryRef);
+            this.visit(node.bodyStatements, node);
+            Globals.refStack.delete(tryRef);
+            Globals.parentFn = parentFn;
+            Globals.lastFn = lastFn;
+            this.visit(node.catchVariable, node);
+            this.visit(node.catchStatements, node);
+            this.visit(node.finallyStatements, node);
+            return;
+        }
+        if (this.state != "link")
+            return super.visitTryStatement(node, ref);
         if (Globals.lastFn) {
             if (DEBUG > 0 && this.state == "link")
                 console.log(indent + "Entered Try");
@@ -265,8 +286,6 @@ export class SourceLinker extends Visitor {
                 console.log(indent + "Exited Try");
             return;
         }
-        if (this.state != "link")
-            return super.visitTryStatement(node, ref);
         const tryRef = new TryRef(node, ref, this.source);
         (Globals.lastTry ? Globals.lastTry.tries : this.source.tries).push(tryRef);
         if (DEBUG > 0)
