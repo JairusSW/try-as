@@ -1,5 +1,9 @@
 # Change Log
 
+## 2025-07-02 - 0.2.3
+
+- fix: resolve issues with rethrowing
+
 ## 2025-06-23 - 0.2.0
 
 - feat: first feature-complete version of try-as
