@@ -44,8 +44,8 @@ export namespace ErrorState {
   export let stack: string | null = null;
 
   export let fileName: string | null = null;
-  export let lineNumber: i32 = 0;
-  export let columnNumber: i32 = 0;
+  export let lineNumber: i32 = -1;
+  export let columnNumber: i32 = -1;
 
   export let storage: usize = memory.data(8);
   export let discriminator: i32 = 0;
@@ -61,20 +61,20 @@ export namespace ErrorState {
     ErrorState.stack = null;
   }
   // @ts-ignore: inline
-  @inline export function error<T>(error: T, fileName: string, lineNumber: f64, columnNumber: f64): void {
+  @inline export function error<T>(error: T, fileName: string, lineNumber: string, columnNumber: string): void {
     ExceptionState.Failures++;
     ExceptionState.Type = ExceptionType.Throw;
 
     ErrorState.fileName = fileName;
-    ErrorState.lineNumber = i32(lineNumber);
-    ErrorState.columnNumber = i32(columnNumber);
+    ErrorState.lineNumber = i32.parse(lineNumber);
+    ErrorState.columnNumber = i32.parse(columnNumber);
 
     if (idof<T>() == idof<Exception>()) return;
 
     ErrorState.discriminator = DISCRIMINATOR<T>();
     store<T>(ErrorState.storage, error);
 
-    if (error instanceof Error) {
+    if (idof<T>() == idof<Error>()) {
       ErrorState.isErrorType = true;
       ErrorState.message = (error as Error).message;
       ErrorState.stack = (error as Error).stack as string | null;
@@ -83,7 +83,7 @@ export namespace ErrorState {
     }
 
     // @ts-ignore: defined
-    if (isDefined(error.toString())) {
+    if (isDefined(error.toString)) {
       // @ts-ignore: defined
       ErrorState.message = error.toString();
       ErrorState.hasMessage = true;

@@ -48,7 +48,7 @@ export class ExceptionRef extends BaseRef {
       let newException: ExpressionStatement;
       if (node.value.kind == NodeKind.New) {
         const value = node.value as NewExpression;
-        newException = Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range), null, [value, Node.createStringLiteralExpression(node.range.source.normalizedPath, node.range), Node.createFloatLiteralExpression(node.range.source.lineAt(node.range.start), node.range), Node.createFloatLiteralExpression(node.range.source.columnAt(), node.range)], node.range));
+        newException = Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range), null, [value, Node.createStringLiteralExpression(node.range.source.normalizedPath, node.range), Node.createStringLiteralExpression(node.range.source.lineAt(node.range.start).toString(), node.range), Node.createStringLiteralExpression(node.range.source.columnAt().toString(), node.range)], node.range));
         // }
 
         const breaker = getBreaker(node, this.parent?.node);

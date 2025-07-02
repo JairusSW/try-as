@@ -8,7 +8,6 @@ import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
 import { ThrowReplacer } from "./passes/replacer.js";
-import { CommonFlags } from "types:assemblyscript/src/common";
 
 let WRITE = process.env["WRITE"];
 export default class Transformer extends Transform {
@@ -19,7 +18,7 @@ export default class Transformer extends Transform {
 
     const isLib = path.dirname(baseDir).endsWith("node_modules");
 
-    if (!isLib && !sources.some((v) => v.normalizedPath.startsWith("assembly/types/exception.ts"))) {
+    if (!isLib && !sources.some((v) => v.normalizedPath.startsWith("assembly/types/exception  "))) {
       const p = "./assembly/types/exception.ts";
       if (fs.existsSync(path.join(baseDir, p))) {
         parser.parseFile(fs.readFileSync(path.join(baseDir, p.replaceAll("/", path.sep))).toString(), p, false);

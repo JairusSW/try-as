@@ -14,13 +14,13 @@ export namespace AbortState {
     AbortState.columnNumber = -1;
   }
   // @ts-ignore: inline
-  @inline export function abort(msg: string | null = null, fileName: string | null = null, lineNumber: i32 = 0, columnNumber: i32 = 0): void {
+  @inline export function abort(msg: string | null = null, fileName: string | null = null, lineNumber: string = "0", columnNumber: string = "0"): void {
     ExceptionState.Failures++;
     ExceptionState.Type = ExceptionType.Abort;
 
     AbortState.msg = msg;
     AbortState.fileName = fileName;
-    AbortState.lineNumber = lineNumber;
-    AbortState.columnNumber = columnNumber;
+    AbortState.lineNumber = i32.parse(lineNumber);
+    AbortState.columnNumber = i32.parse(columnNumber);
   }
 }

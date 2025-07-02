@@ -32,8 +32,10 @@ export class ThrowReplacer extends Visitor {
             return super.visitThrowStatement(node, ref);
         super.visitThrowStatement(node, ref);
         const value = node.value;
-        const newThrow = Node.createIfStatement(Node.createBinaryExpression(97, Node.createCallExpression(Node.createIdentifierExpression("isDefined", node.range), null, [Node.createIdentifierExpression(value.text + ".__IS_EXCEPTION_TYPE", node.range)], node.range), Node.createCallExpression(Node.createIdentifierExpression("isDefined", node.range), null, [Node.createIdentifierExpression(value.text + ".rethrow", node.range)], node.range), node.range), Node.createCallExpression(Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("rethrow", node.range), node.range), null, [], node.range), Node.createThrowStatement(node.value, node.range), node.range);
+        const newThrow = Node.createIfStatement(Node.createCallExpression(Node.createIdentifierExpression("isDefined", node.range), null, [Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("rethrow", node.range), node.range)], node.range), Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("rethrow", node.range), node.range), null, [], node.range)), Node.createThrowStatement(node.value, node.range), node.range);
+        debugger;
         replaceRef(node, [newThrow], ref);
+        console.log(toString(newThrow));
     }
     static replace(sources) {
         const replacer = new ThrowReplacer();
