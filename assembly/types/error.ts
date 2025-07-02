@@ -1,7 +1,7 @@
 import { Exception, ExceptionState, ExceptionType } from "./exception";
 
 // Taken from https://github.com/MaxGraey/as-variant/blob/main/assembly/index.ts
-const enum Discriminator {
+export const enum Discriminator {
   Bool,
   I8,
   I16,

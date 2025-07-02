@@ -1,6 +1,6 @@
 import { AbortState } from "./abort";
 import { UnreachableState } from "./unreachable";
-import { DISCRIMINATOR, ErrorState } from "./error";
+import { Discriminator, DISCRIMINATOR, ErrorState } from "./error";
 
 export enum ExceptionType {
   None,
@@ -27,6 +27,8 @@ export class Exception {
   public message: string | null = null;
   public name: string | null = null;
   public stack: string | null = null;
+  private discriminator: i32 = 0;
+  private storage: usize = 0;
 
   constructor(type: ExceptionType) {
     this.type = type;
@@ -47,6 +49,10 @@ export class Exception {
       this.fileName = ErrorState.fileName;
       this.lineNumber = ErrorState.lineNumber;
       this.columnNumber = ErrorState.columnNumber;
+
+      this.discriminator = ErrorState.discriminator;
+      this.storage = changetype<usize>(new ArrayBuffer(8));
+      store<u64>(this.storage, load<u64>(ErrorState.storage));
     }
   }
 
@@ -74,8 +80,8 @@ export class Exception {
   // @ts-ignore: inline
   @inline as<T>(): T {
     if (this.type != ExceptionType.Throw) return changetype<T>(0);
-    if (ErrorState.discriminator != DISCRIMINATOR<T>()) return changetype<T>(0);
-    return load<T>(ErrorState.storage);
+    if (this.discriminator != DISCRIMINATOR<T>()) return changetype<T>(0);
+    return load<T>(this.storage);
   }
 
   rethrow(): void {
@@ -108,6 +114,16 @@ export class Exception {
     copy.message = this.message;
     copy.name = this.name;
     copy.stack = this.stack;
+    copy.discriminator = this.discriminator;
+    copy.storage = this.storage;
     return copy;
+  }
+
+    @unsafe private __visit(cookie: u32): void {
+    if (this.discriminator >= Discriminator.ManagedRef) {
+      let ptr = this.as<usize>();
+      // @ts-ignore
+      if (ptr) __visit(ptr, cookie);
+    }
   }
 }
