@@ -20,7 +20,6 @@ import { Exception } from "./types/exception";
 //   }
 // }
 
-
 // @json
 // class Vec3 {
 //   x: i32;
@@ -41,7 +40,7 @@ export function main(): void {
     const err = e.clone() as Exception;
     console.log("Caught " + err.toString() + "\n");
     // console.log("Message: " + err.message!);
-    throw err
+    throw err;
   } finally {
     console.log("Finally.");
   }

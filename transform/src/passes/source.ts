@@ -260,7 +260,7 @@ export class SourceLinker extends Visitor {
     //   this.visit(node.catchStatements, node);
     //   this.visit(node.finallyStatements, node);
     //   return;
-    // } else 
+    // } else
     if (Globals.lastFn) {
       if (DEBUG > 0 && this.state == "link") console.log(indent + "Entered Try");
       const tryRef = new TryRef(node, ref, this.source);

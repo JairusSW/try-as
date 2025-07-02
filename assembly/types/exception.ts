@@ -56,8 +56,7 @@ export class Exception {
       out = "abort";
       if (this.msg) out += ": " + this.msg!;
       if (this.fileName) out += " in " + this.fileName!;
-      if (this.lineNumber >= 0 && this.columnNumber >= 0)
-        out += ` in (${this.lineNumber}:${this.columnNumber})`;
+      if (this.lineNumber >= 0 && this.columnNumber >= 0) out += ` in (${this.lineNumber}:${this.columnNumber})`;
     } else if (this.type == ExceptionType.Unreachable) {
       out = "unreachable";
     } else if (this.type == ExceptionType.Throw && this.message) {
