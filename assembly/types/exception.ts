@@ -119,7 +119,8 @@ export class Exception {
     return copy;
   }
 
-    @unsafe private __visit(cookie: u32): void {
+
+  @unsafe private __visit(cookie: u32): void {
     if (this.discriminator >= Discriminator.ManagedRef) {
       let ptr = this.as<usize>();
       // @ts-ignore

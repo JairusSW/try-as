@@ -1,5 +1,10 @@
 # Change Log
 
+## 2025-07-02 - 0.2.4
+
+- fix: make compatible with GC
+- feat: add full cloning compatability
+
 ## 2025-07-02 - 0.2.3
 
 - fix: resolve issues with rethrowing
