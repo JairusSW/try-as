@@ -13,7 +13,7 @@ export default class Transformer extends Transform {
         let sources = parser.sources;
         const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..");
         const isLib = path.dirname(baseDir).endsWith("node_modules");
-        if (!isLib && !sources.some((v) => v.normalizedPath.startsWith("assembly/types/exception  "))) {
+        if (!isLib && !sources.some((v) => v.normalizedPath.startsWith("assembly/types/exception.ts"))) {
             const p = "./assembly/types/exception.ts";
             if (fs.existsSync(path.join(baseDir, p))) {
                 parser.parseFile(fs.readFileSync(path.join(baseDir, p.replaceAll("/", path.sep))).toString(), p, false);

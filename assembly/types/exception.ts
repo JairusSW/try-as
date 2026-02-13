@@ -74,7 +74,7 @@ export class Exception {
   // @ts-ignore: inline
   @inline is<T>(): boolean {
     if (this.type != ExceptionType.Throw) return false;
-    return ErrorState.discriminator == DISCRIMINATOR<T>();
+    return this.discriminator == DISCRIMINATOR<T>();
   }
 
   // @ts-ignore: inline
@@ -115,7 +115,12 @@ export class Exception {
     copy.name = this.name;
     copy.stack = this.stack;
     copy.discriminator = this.discriminator;
-    copy.storage = this.storage;
+    if (this.storage) {
+      copy.storage = changetype<usize>(new ArrayBuffer(8));
+      store<u64>(copy.storage, load<u64>(this.storage));
+    } else {
+      copy.storage = 0;
+    }
     return copy;
   }
 

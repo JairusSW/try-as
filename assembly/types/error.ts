@@ -59,6 +59,12 @@ export namespace ErrorState {
     ErrorState.message = "";
     ErrorState.name = "";
     ErrorState.stack = null;
+    ErrorState.fileName = null;
+    ErrorState.lineNumber = -1;
+    ErrorState.columnNumber = -1;
+    ErrorState.discriminator = 0;
+    ErrorState.isErrorType = false;
+    ErrorState.hasMessage = false;
   }
   // @ts-ignore: inline
   @inline export function error<T>(error: T, fileName: string, lineNumber: string, columnNumber: string): void {

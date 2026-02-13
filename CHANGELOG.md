@@ -1,5 +1,14 @@
 # Change Log
 
+## 2026-02-13 - 0.2.5
+
+- fix: make `Exception.is<T>()` check the exception instance discriminator instead of shared global state
+- fix: deep-copy exception payload storage in `Exception.clone()` to avoid stale/overwritten throw data
+- fix: fully reset `ErrorState` metadata and flags (`fileName`, location, discriminator, message flags)
+- fix: correct transform exception type source-path match (`assembly/types/exception.ts`)
+- fix: remove stray `debugger` statements and throw-replacer debug logging
+- test: add coverage for thrown `Error` metadata, custom error type preservation, and clone stability across later throws
+
 ## 2025-07-02 - 0.2.4
 
 - fix: make compatible with GC

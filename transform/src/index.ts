@@ -1,9 +1,9 @@
-import { FunctionDeclaration, Parser } from "assemblyscript/dist/assemblyscript.js";
+import { Parser } from "assemblyscript/dist/assemblyscript.js";
 import { Transform } from "assemblyscript/dist/transform.js";
 import { SourceLinker } from "./passes/source.js";
 import { Globals } from "./globals/globals.js";
 import { removeExtension } from "./utils.js";
-import { SimpleParser, toString } from "./lib/util.js";
+import { toString } from "./lib/util.js";
 import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
@@ -18,7 +18,7 @@ export default class Transformer extends Transform {
 
     const isLib = path.dirname(baseDir).endsWith("node_modules");
 
-    if (!isLib && !sources.some((v) => v.normalizedPath.startsWith("assembly/types/exception  "))) {
+    if (!isLib && !sources.some((v) => v.normalizedPath.startsWith("assembly/types/exception.ts"))) {
       const p = "./assembly/types/exception.ts";
       if (fs.existsSync(path.join(baseDir, p))) {
         parser.parseFile(fs.readFileSync(path.join(baseDir, p.replaceAll("/", path.sep))).toString(), p, false);

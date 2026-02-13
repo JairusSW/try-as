@@ -1,10 +1,8 @@
-import { ExpressionStatement, IdentifierExpression, Node, NodeKind, ParenthesizedExpression, PropertyAccessExpression, Source, TernaryExpression, ThrowStatement, Token } from "assemblyscript/dist/assemblyscript.js";
+import { ExpressionStatement, IdentifierExpression, Node, NodeKind, PropertyAccessExpression, Source, ThrowStatement } from "assemblyscript/dist/assemblyscript.js";
 
 import { Visitor } from "../lib/visitor.js";
-import { RangeTransform } from "../lib/range.js";
-import { indent } from "../globals/indent.js";
-import { cloneNode, isRefStatement, replaceRef } from "../utils.js";
-import { SimpleParser, toString } from "../lib/util.js";
+import { cloneNode, replaceRef } from "../utils.js";
+import { toString } from "../lib/util.js";
 import { CallExpression } from "types:assemblyscript/src/ast";
 import { Globals } from "../globals/globals.js";
 
@@ -43,11 +41,7 @@ export class ThrowReplacer extends Visitor {
     const value = node.value as IdentifierExpression;
     const newThrow = Node.createIfStatement(Node.createCallExpression(Node.createIdentifierExpression("isDefined", node.range), null, [Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("rethrow", node.range), node.range)], node.range), Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("rethrow", node.range), node.range), null, [], node.range)), Node.createThrowStatement(node.value, node.range), node.range);
 
-    //     const a = SimpleParser.parseStatement(`if (isDefined(err.rethrow)) err.rethrow();
-    // else throw err`);
-    debugger;
     replaceRef(node, [newThrow], ref);
-    console.log(toString(newThrow));
   }
   static replace(sources: Source[]): void {
     const replacer = new ThrowReplacer();

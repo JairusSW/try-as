@@ -1,5 +1,12 @@
 import { describe, expect } from "./lib";
 import { deepImportedFunction, importedFunction } from "./imports";
+import { Exception, ExceptionType } from "../index";
+
+class MyError extends Error {
+  constructor(message: string) {
+    super(message);
+  }
+}
 
 describe("Should handle immediate abort call", (): void => {
   try {
@@ -150,6 +157,55 @@ describe("Should abort in finally after successful imported function", () => {
     }
   } catch (e) {
     expect(e.toString()).toBe("abort: Abort after imported function");
+  }
+});
+
+describe("Should handle thrown Error with metadata", () => {
+  try {
+    throw new Error("boom");
+  } catch (e) {
+    const err = e as Exception;
+    expect(err.type.toString()).toBe(ExceptionType.Throw.toString());
+    expect(err.message!).toBe("boom");
+    expect(err.toString()).toBe("Error: boom");
+  }
+});
+
+describe("Should preserve thrown object type info", () => {
+  try {
+    throw new MyError("typed");
+  } catch (e) {
+    const err = e as Exception;
+    expect(err.is<MyError>().toString()).toBe("true");
+    const typed = err.as<MyError>();
+    expect((typed != null).toString()).toBe("true");
+    if (typed) {
+      expect(typed.message).toBe("typed");
+    }
+  }
+});
+
+describe("Should keep cloned exception stable across later throws", () => {
+  let cloned: Exception | null = null;
+
+  try {
+    throw new MyError("first");
+  } catch (e) {
+    cloned = (e as Exception).clone();
+  }
+
+  try {
+    throw new Error("second");
+  } catch (_) {}
+
+  expect((cloned != null).toString()).toBe("true");
+  if (cloned) {
+    expect(cloned.is<MyError>().toString()).toBe("true");
+    const typed = cloned.as<MyError>();
+    expect((typed != null).toString()).toBe("true");
+    if (typed) {
+      expect(typed.message).toBe("first");
+    }
   }
 });
 

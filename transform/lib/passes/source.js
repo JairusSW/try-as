@@ -476,7 +476,6 @@ export class SourceLinker extends Visitor {
             const entrySourceRef = Globals.sources.get(entrySource.internalPath);
             entrySourceRef.linker.gather();
             entrySourceRef.linker.link(true);
-            debugger;
         }
         for (const entrySource of entrySources) {
             if (DEBUG > 0)
