@@ -1,9 +1,6 @@
 <h1 align="center"><pre>╔╦╗╦═╗╦ ╦  ╔═╗╔═╗
  ║ ╠╦╝╚╦╝══╠═╣╚═╗
  ╩ ╩╚═ ╩   ╩ ╩╚═╝</pre></h1>
-
-<p align="center"><code>AssemblyScript exception-handling transform • v0.2.5</code></p>
-
 <details>
 <summary>Table of Contents</summary>
 
