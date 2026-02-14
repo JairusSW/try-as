@@ -5,7 +5,7 @@
    ██    ██████    ████   █████ ███████ ███████ 
    ██    ██   ██    ██          ██   ██      ██ 
    ██    ██   ██    ██          ██   ██ ███████ </span>
-    AssemblyScript - v0.2.4
+    AssemblyScript - v0.2.5
   </pre>
 </h5>
 
@@ -105,6 +105,20 @@ try {
   } else {
     console.log("Unknown error type");
   }
+}
+```
+
+### 🗺️ Catching Missing Map Keys
+
+Stdlib throws such as `Map.get()` missing-key errors are catchable:
+
+```ts
+const map = new Map<string, string>();
+
+try {
+  map.get("missing");
+} catch (e) {
+  console.log(e.toString()); // Error: Key does not exist
 }
 ```
 

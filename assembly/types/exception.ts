@@ -28,7 +28,8 @@ export class Exception {
   public name: string | null = null;
   public stack: string | null = null;
   private discriminator: i32 = 0;
-  private storage: usize = 0;
+  private storage: ArrayBuffer | null = null;
+  private managed: Object | null = null;
 
   constructor(type: ExceptionType) {
     this.type = type;
@@ -51,8 +52,9 @@ export class Exception {
       this.columnNumber = ErrorState.columnNumber;
 
       this.discriminator = ErrorState.discriminator;
-      this.storage = changetype<usize>(new ArrayBuffer(8));
-      store<u64>(this.storage, load<u64>(ErrorState.storage));
+      this.managed = ErrorState.managed;
+      this.storage = new ArrayBuffer(8);
+      store<u64>(changetype<usize>(this.storage), load<u64>(ErrorState.storage));
     }
   }
 
@@ -81,7 +83,11 @@ export class Exception {
   @inline as<T>(): T {
     if (this.type != ExceptionType.Throw) return changetype<T>(0);
     if (this.discriminator != DISCRIMINATOR<T>()) return changetype<T>(0);
-    return load<T>(this.storage);
+    if (this.discriminator >= Discriminator.ManagedRef) {
+      return changetype<T>(this.managed);
+    }
+    if (!this.storage) return changetype<T>(0);
+    return load<T>(changetype<usize>(this.storage));
   }
 
   rethrow(): void {
@@ -115,19 +121,20 @@ export class Exception {
     copy.name = this.name;
     copy.stack = this.stack;
     copy.discriminator = this.discriminator;
-    if (this.storage) {
-      copy.storage = changetype<usize>(new ArrayBuffer(8));
-      store<u64>(copy.storage, load<u64>(this.storage));
+    copy.managed = this.managed;
+    if (this.storage != null) {
+      copy.storage = new ArrayBuffer(8);
+      store<u64>(changetype<usize>(copy.storage), load<u64>(changetype<usize>(this.storage)));
     } else {
-      copy.storage = 0;
+      copy.storage = null;
     }
     return copy;
   }
 
 
   @unsafe private __visit(cookie: u32): void {
-    if (this.discriminator >= Discriminator.ManagedRef) {
-      let ptr = this.as<usize>();
+    if (this.discriminator >= Discriminator.ManagedRef && this.managed != null) {
+      let ptr = changetype<usize>(this.managed);
       // @ts-ignore
       if (ptr) __visit(ptr, cookie);
     }

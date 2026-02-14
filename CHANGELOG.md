@@ -7,7 +7,11 @@
 - fix: fully reset `ErrorState` metadata and flags (`fileName`, location, discriminator, message flags)
 - fix: correct transform exception type source-path match (`assembly/types/exception.ts`)
 - fix: remove stray `debugger` statements and throw-replacer debug logging
+- feat: catch stdlib `throw new Error(...)` flows (e.g. `Map.get`) without touching runtime-internal trap paths (`~lib/rt`, `~lib/shared`, `~lib/wasi_`, `~lib/performance`)
+- fix: retain managed thrown payloads safely in `ErrorState` / `Exception` to prevent GC-related traps when using `Exception.as<T>()`
 - test: add coverage for thrown `Error` metadata, custom error type preservation, and clone stability across later throws
+- test: add coverage for catching missing-key exceptions from stdlib `Map.get()`
+- test: add coverage for additional stdlib throw sites (`Array.pop` empty, `String.at` out-of-range, malformed `decodeURIComponent`)
 
 ## 2025-07-02 - 0.2.4
 

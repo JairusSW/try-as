@@ -42,6 +42,7 @@ export namespace ErrorState {
   export let message: string = "";
   export let name: string = "";
   export let stack: string | null = null;
+  export let managed: Object | null = null;
 
   export let fileName: string | null = null;
   export let lineNumber: i32 = -1;
@@ -59,6 +60,7 @@ export namespace ErrorState {
     ErrorState.message = "";
     ErrorState.name = "";
     ErrorState.stack = null;
+    ErrorState.managed = null;
     ErrorState.fileName = null;
     ErrorState.lineNumber = -1;
     ErrorState.columnNumber = -1;
@@ -79,6 +81,11 @@ export namespace ErrorState {
 
     ErrorState.discriminator = DISCRIMINATOR<T>();
     store<T>(ErrorState.storage, error);
+    if (isManaged<T>()) {
+      ErrorState.managed = changetype<Object>(changetype<usize>(error));
+    } else {
+      ErrorState.managed = null;
+    }
 
     if (idof<T>() == idof<Error>()) {
       ErrorState.isErrorType = true;

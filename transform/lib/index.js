@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
 import { ThrowReplacer } from "./passes/replacer.js";
+import { StdlibThrowRewriter } from "./passes/stdlib.js";
 let WRITE = process.env["WRITE"];
 export default class Transformer extends Transform {
     afterParse(parser) {
@@ -40,6 +41,7 @@ export default class Transformer extends Transform {
         });
         Globals.baseCWD = path.join(process.cwd(), this.baseDir).replaceAll("\\", "/");
         SourceLinker.link(sources);
+        StdlibThrowRewriter.rewrite(sources);
         ThrowReplacer.replace(sources);
         if (WRITE) {
             console.log("\n======WRITING======\n");

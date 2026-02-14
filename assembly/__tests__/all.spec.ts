@@ -209,6 +209,54 @@ describe("Should keep cloned exception stable across later throws", () => {
   }
 });
 
+describe("Should catch stdlib Map.get missing key", () => {
+  const map = new Map<string, string>();
+
+  try {
+    map.get("missing");
+  } catch (e) {
+    const err = e as Exception;
+    expect(err.type.toString()).toBe(ExceptionType.Throw.toString());
+    expect(err.message!).toBe("Key does not exist");
+    expect(err.toString()).toBe("Error: Key does not exist");
+  }
+});
+
+describe("Should catch stdlib Array.pop on empty array", () => {
+  const arr = new Array<i32>();
+
+  try {
+    arr.pop();
+  } catch (e) {
+    const err = e as Exception;
+    expect(err.type.toString()).toBe(ExceptionType.Throw.toString());
+    expect(err.message!).toBe("RangeError: Array is empty");
+    expect(err.toString()).toBe("Error: RangeError: Array is empty");
+  }
+});
+
+describe("Should catch stdlib String.at out of range", () => {
+  try {
+    "abc".at(10);
+  } catch (e) {
+    const err = e as Exception;
+    expect(err.type.toString()).toBe(ExceptionType.Throw.toString());
+    expect(err.message!).toBe("RangeError: Index out of range");
+    expect(err.toString()).toBe("Error: RangeError: Index out of range");
+  }
+});
+
+describe("Should catch stdlib decodeURIComponent malformed input", () => {
+  try {
+    decodeURIComponent("%");
+  } catch (e) {
+    const err = e as Exception;
+    expect(err.type.toString()).toBe(ExceptionType.Throw.toString());
+    expect(err.message!).toBe("URIError: URI malformed");
+    expect(err.toString()).toBe("Error: URIError: URI malformed");
+  }
+});
+
 function abortingFunction(): void {
   abort("Aborted from abortingFunction");
 }
