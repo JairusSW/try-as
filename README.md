@@ -1,92 +1,108 @@
-<h5 align="center">
-  <pre>
-<span style="font-size: 0.8em;">████████ ██████  ██    ██        █████  ███████ 
-   ██    ██   ██  ██  ██        ██   ██ ██      
-   ██    ██████    ████   █████ ███████ ███████ 
-   ██    ██   ██    ██          ██   ██      ██ 
-   ██    ██   ██    ██          ██   ██ ███████ </span>
-    AssemblyScript - v0.2.5
-  </pre>
-</h5>
+<h1 align="center"><pre>╔╦╗╦═╗╦ ╦  ╔═╗╔═╗
+ ║ ╠╦╝╚╦╝══╠═╣╚═╗
+ ╩ ╩╚═ ╩   ╩ ╩╚═╝</pre></h1>
 
-## 📚 Contents
+<p align="center"><code>AssemblyScript exception-handling transform • v0.2.5</code></p>
 
-- [About](#-about)
-- [Installation](#-installation)
-- [Examples](#-examples)
-- [License](#-license)
-- [Contact](#-contact)
+<details>
+<summary>Table of Contents</summary>
 
-## 📝 About
+- [Installation](#installation)
+- [Usage](#usage)
+- [Exception API](#exception-api)
+- [Examples](#examples)
+  - [Catch abort and throw](#catch-abort-and-throw)
+  - [Type-safe custom errors](#type-safe-custom-errors)
+  - [Rethrow behavior](#rethrow-behavior)
+  - [Catching stdlib exceptions](#catching-stdlib-exceptions)
+- [Limitations](#limitations)
+- [Debugging](#debugging)
+- [Contributing](#contributing)
+- [License](#license)
+- [Contact](#contact)
 
-This library is an addon for AssemblyScript that brings JavaScript-like exception handling to the language, allowing you to use familiar `try/catch` syntax with a custom state management system. This allows AssemblyScript developers to write more readable, maintainable code, while retaining the performance benefits of WebAssembly.
+</details>
 
-## 💾 Installation
+## Installation
 
 ```bash
 npm install try-as
 ```
 
-Add the `--transform` to your `asc` command (e.g. in package.json)
+Add the transform to your `asc` build and load it last.
 
 ```bash
---transform try-as/transform
+asc assembly/index.ts --transform try-as/transform
 ```
 
-Alternatively, add it to your `asconfig.json`
+Or in `asconfig.json`:
 
 ```json
 {
-  // ...
-  "options": { "transform": ["try-as/transform"] }
-}
-```
-
-**NOTE: Make sure to load `try-as/transform` last!**
-
-If you'd like to see the code that the transform generates, run the build step with `DEBUG=true`
-
-## 🪄 Usage
-
-This library does all the work behind-the-scenes, so you, the developer, can use the classic `try/catch/finally` syntax with no changes!
-
-```js
-try {
-  abort("Failed to execute!");
-  console.log("This should not execute");
-} catch (e) {
-  console.log("Got an error: " + e.toString());
-} finally {
-  console.log("Gracefully shutting down...");
-  process.exit(0);
-}
-```
-
-## 🔍 Examples
-
-### ✅ Type-safe Error Handling
-
-```js
-import { JSON } from "json-as";
-import { Exception, ExceptionType } from "try-as";
-
-try {
-  // something dangerous
-} catch (e) {
-  const err = e as Exception; // Notice we cast to Exception
-  if (err.type == ExceptionType.Throw) {
-    console.log("Throw: " + err.toString());
-  } else if (err.type == ExceptionType.Abort) {
-    console.log("Abort: " + err.toString());
-  } else if (err.type == ExceptionType.Unreachable) {
-    console.log("Unreachable: " + err.toString());
+  "options": {
+    "transform": ["try-as/transform"]
   }
 }
 ```
 
-### ⚠️ Working with Custom Errors
+If you use multiple transforms, keep `try-as/transform` last.
 
-```typescript
+## Usage
+
+`try-as` rewrites `try/catch/finally`, `throw`, `abort`, and selected stdlib throw paths so they can be handled through a consistent `Exception` object.
+
+```ts
+import { Exception } from "try-as";
+
+try {
+  throw new Error("boom");
+} catch (e) {
+  const err = e as Exception;
+  console.log(err.toString()); // Error: boom
+} finally {
+  console.log("done");
+}
+```
+
+## Exception API
+
+```ts
+import { Exception, ExceptionType } from "try-as";
+```
+
+- `Exception.type: ExceptionType`
+- `Exception.toString(): string`
+- `Exception.is<T>(): bool`
+- `Exception.as<T>(): T`
+- `Exception.clone(): Exception`
+- `Exception.rethrow(): void`
+
+`ExceptionType`:
+- `None`
+- `Abort`
+- `Throw`
+- `Unreachable`
+
+## Examples
+
+### Catch abort and throw
+
+```ts
+import { Exception, ExceptionType } from "try-as";
+
+try {
+  abort("fatal");
+} catch (e) {
+  const err = e as Exception;
+  if (err.type == ExceptionType.Abort) {
+    console.log(err.toString()); // abort: fatal
+  }
+}
+```
+
+### Type-safe custom errors
+
+```ts
 import { Exception } from "try-as";
 
 class MyError extends Error {
@@ -96,62 +112,84 @@ class MyError extends Error {
 }
 
 try {
-  throw new MyError("This is my custom error!");
+  throw new MyError("typed");
 } catch (e) {
   const err = e as Exception;
-
   if (err.is<MyError>()) {
-    console.log("Caught MyError: " + err.as<MyError>().message);
-  } else {
-    console.log("Unknown error type");
+    const typed = err.as<MyError>();
+    console.log(typed.message);
   }
 }
 ```
 
-### 🗺️ Catching Missing Map Keys
-
-Stdlib throws such as `Map.get()` missing-key errors are catchable:
+### Rethrow behavior
 
 ```ts
-const map = new Map<string, string>();
+import { Exception } from "try-as";
 
 try {
-  map.get("missing");
-} catch (e) {
-  console.log(e.toString()); // Error: Key does not exist
-}
-```
-
-### 🔁 Re-throwing Errors
-
-Sometimes, you want to catch a certain kind of error, handle it, and re-throw it if needed:
-
-```typescript
-try {
-  // something dangerous
+  // risky code
 } catch (e) {
   const err = e as Exception;
-
-  if (!err.is<MyError>()) {
-    console.log("Rethrowing error: " + err.toString());
+  if (!err.is<Error>()) {
     err.rethrow();
-    // or
-    throw err;
   }
-
-  console.log("Got MyError, but handled it gracefully");
 }
 ```
 
-## 📃 License
+### Catching stdlib exceptions
 
-This project is distributed under an open source license. You can view the full license using the following link: [License](./LICENSE)
+Stdlib exceptions such as missing map keys, empty array pops, out-of-range string access, and malformed URI decode errors are catchable.
 
-## 📫 Contact
+```ts
+import { Exception } from "try-as";
 
-Please send all issues to [GitHub Issues](https://github.com/JairusSW/as-json/issues) and to converse, please send me an email at [me@jairus.dev](mailto:me@jairus.dev)
+try {
+  new Map<string, string>().get("missing");
+} catch (e) {
+  const err = e as Exception;
+  console.log(err.toString()); // Error: Key does not exist
+}
+```
 
-- **Email:** Send me inquiries, questions, or requests at [me@jairus.dev](mailto:me@jairus.dev)
-- **GitHub:** Visit the official GitHub repository [Here](https://github.com/JairusSW/as-json)
-- **Website:** Visit my official website at [jairus.dev](https://jairus.dev/)
-- **Discord:** Converse with me on [My Discord](https://discord.com/users/600700584038760448) or on the [AssemblyScript Discord Server](https://discord.gg/assemblyscript/)
+## Limitations
+
+- Runtime/internal trap paths are intentionally not rewritten.
+- Exceptions from these internals are not catchable by `try-as`:
+  - `~lib/rt`
+  - `~lib/shared`
+  - `~lib/wasi_`
+  - `~lib/performance`
+- This library handles transformed throw/abort flows, not low-level Wasm traps like out-of-bounds memory faults.
+
+## Debugging
+
+- `DEBUG=1` enables transform diagnostics.
+- `WRITE=pathA,pathB` writes transformed source snapshots as `*.tmp.ts`.
+
+Example:
+
+```bash
+DEBUG=1 WRITE=./assembly/test.ts,~lib/map asc assembly/test.ts --transform try-as/transform
+```
+
+## Contributing
+
+```bash
+npm run build:transform
+npm test
+npm run format
+```
+
+## License
+
+This project is distributed under the MIT license.
+
+- [LICENSE](./LICENSE)
+
+## Contact
+
+- Issues: https://github.com/JairusSW/try-as/issues
+- Repository: https://github.com/JairusSW/try-as
+- Email: [me@jairus.dev](mailto:me@jairus.dev)
+- Website: https://jairus.dev
