@@ -1,7 +1,6 @@
 import { MethodDeclaration, Node } from "assemblyscript/dist/assemblyscript.js";
 import { Visitor } from "../lib/visitor.js";
-import { replaceRef } from "../utils.js";
-import { toString } from "../lib/util.js";
+import { getBreaker, replaceRef } from "../utils.js";
 export class StdlibThrowRewriter extends Visitor {
     source = null;
     currentFn = null;
@@ -53,23 +52,13 @@ export class StdlibThrowRewriter extends Visitor {
             Node.createStringLiteralExpression(node.range.source.lineAt(node.range.start).toString(), node.range),
             Node.createStringLiteralExpression(node.range.source.columnAt().toString(), node.range),
         ], node.range));
-        const breaker = this.createStdlibReturn(node, this.currentFn);
+        const breaker = getBreaker(node, this.currentFn);
         if (Array.isArray(ref)) {
             replaceRef(node, [newException, breaker], ref);
         }
         else {
             replaceRef(node, Node.createBlockStatement([newException, breaker], node.range), ref);
         }
-    }
-    createStdlibReturn(node, fn) {
-        const returnType = fn.signature.returnType;
-        if (!returnType)
-            return Node.createReturnStatement(null, node.range);
-        const returnTypeText = toString(returnType);
-        if (returnTypeText == "void" || returnTypeText == "never") {
-            return Node.createReturnStatement(null, node.range);
-        }
-        return Node.createReturnStatement(Node.createCallExpression(Node.createIdentifierExpression("changetype", node.range), [returnType], [Node.createIntegerLiteralExpression(i64_zero, node.range)], node.range), node.range);
     }
     static rewrite(sources) {
         const rewriter = new StdlibThrowRewriter();

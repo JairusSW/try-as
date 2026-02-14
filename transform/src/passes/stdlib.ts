@@ -1,7 +1,6 @@
 import { FunctionDeclaration, MethodDeclaration, NewExpression, Node, NodeKind, Source, ThrowStatement } from "assemblyscript/dist/assemblyscript.js";
 import { Visitor } from "../lib/visitor.js";
-import { replaceRef } from "../utils.js";
-import { toString } from "../lib/util.js";
+import { getBreaker, replaceRef } from "../utils.js";
 
 type FnLike = FunctionDeclaration | MethodDeclaration;
 
@@ -62,24 +61,12 @@ export class StdlibThrowRewriter extends Visitor {
       ),
     );
 
-    const breaker = this.createStdlibReturn(node, this.currentFn);
+    const breaker = getBreaker(node, this.currentFn);
     if (Array.isArray(ref)) {
       replaceRef(node, [newException, breaker], ref);
     } else {
       replaceRef(node, Node.createBlockStatement([newException, breaker], node.range), ref);
     }
-  }
-
-  private createStdlibReturn(node: ThrowStatement, fn: FnLike): Node {
-    const returnType = fn.signature.returnType;
-    if (!returnType) return Node.createReturnStatement(null, node.range);
-
-    const returnTypeText = toString(returnType);
-    if (returnTypeText == "void" || returnTypeText == "never") {
-      return Node.createReturnStatement(null, node.range);
-    }
-
-    return Node.createReturnStatement(Node.createCallExpression(Node.createIdentifierExpression("changetype", node.range), [returnType], [Node.createIntegerLiteralExpression(i64_zero, node.range)], node.range), node.range);
   }
 
   static rewrite(sources: Source[]): void {

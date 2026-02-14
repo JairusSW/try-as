@@ -9,6 +9,7 @@
 - fix: remove stray `debugger` statements and throw-replacer debug logging
 - feat: catch stdlib `throw new Error(...)` flows (e.g. `Map.get`) without touching runtime-internal trap paths (`~lib/rt`, `~lib/shared`, `~lib/wasi_`, `~lib/performance`)
 - fix: retain managed thrown payloads safely in `ErrorState` / `Exception` to prevent GC-related traps when using `Exception.as<T>()`
+- fix: standardize stdlib throw rewrite return handling using shared breaker logic (fixes narrow primitive return signatures like `i8` / `i16`)
 - test: add coverage for thrown `Error` metadata, custom error type preservation, and clone stability across later throws
 - test: add coverage for catching missing-key exceptions from stdlib `Map.get()`
 - test: add coverage for additional stdlib throw sites (`Array.pop` empty, `String.at` out-of-range, malformed `decodeURIComponent`)
