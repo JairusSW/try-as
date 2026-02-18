@@ -7,6 +7,7 @@
 - fix: preserve thrown payload metadata/discriminator when rethrowing caught `Exception` values via transformed `throw e` paths
 - feat: resolve exception-aware calls through import aliases and multi-hop re-export chains, including generated `__try_` re-export propagation
 - feat: add configurable transform modes (`TRY_AS_REWRITE_STDLIB`, `TRY_AS_IMPORT_SCOPE`, `TRY_AS_DIAGNOSTICS`) for stdlib rewriting and import injection scope
+- test: expand recursive spec discovery, add nested/re-export/method regression suites, and run CI on a Node 20.x/22.x matrix with explicit transform build
 
 ## 2026-02-13 - 0.2.5
 
