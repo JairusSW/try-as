@@ -19,6 +19,10 @@ import { MethodRef } from "../types/methodref.js";
 const rawValue = process.env["DEBUG"];
 const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 
+export interface LinkOptions {
+  importScope?: "all" | "user";
+}
+
 export class SourceLinker extends Visitor {
   public node: Source;
   public state: "ready" | "gather" | "link" | "postprocess" | "done" = "ready";
@@ -532,7 +536,13 @@ export class SourceLinker extends Visitor {
     return changed;
   }
 
-  static link(sources: Source[]): void {
+  static link(sources: Source[], options: LinkOptions = {}): void {
+    const importScope = options.importScope || "all";
+    const shouldInjectImports = (source: Source): boolean => {
+      if (importScope == "all") return true;
+      return source.sourceKind == SourceKind.User || source.sourceKind == SourceKind.UserEntry;
+    };
+
     if (DEBUG > 0) console.log("\n========SOURCES========\n");
     for (const source of sources) {
       Globals.sources.set(source.internalPath, new SourceRef(source));
@@ -569,6 +579,8 @@ export class SourceLinker extends Visitor {
     }
 
     for (const source of sources) {
+      if (!shouldInjectImports(source)) continue;
+
       const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
       // console.log("Base Dir: " + baseDir);
       const pkgPath = path.join(Globals.baseCWD, "node_modules");

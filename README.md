@@ -170,6 +170,18 @@ Example:
 DEBUG=1 WRITE=./assembly/test.ts,~lib/map asc assembly/test.ts --transform try-as/transform
 ```
 
+## Transform Modes
+
+- `TRY_AS_REWRITE_STDLIB=0` disables stdlib throw rewriting.
+- `TRY_AS_IMPORT_SCOPE=user` injects helper imports only into user sources (`all` by default).
+- `TRY_AS_DIAGNOSTICS=1` prints the active mode configuration at transform time.
+
+Example:
+
+```bash
+TRY_AS_REWRITE_STDLIB=0 TRY_AS_IMPORT_SCOPE=user TRY_AS_DIAGNOSTICS=1 asc assembly/index.ts --transform try-as/transform
+```
+
 ## Contributing
 
 ```bash

@@ -518,7 +518,13 @@ export class SourceLinker extends Visitor {
         }
         return changed;
     }
-    static link(sources) {
+    static link(sources, options = {}) {
+        const importScope = options.importScope || "all";
+        const shouldInjectImports = (source) => {
+            if (importScope == "all")
+                return true;
+            return source.sourceKind == 0 || source.sourceKind == 1;
+        };
         if (DEBUG > 0)
             console.log("\n========SOURCES========\n");
         for (const source of sources) {
@@ -556,6 +562,8 @@ export class SourceLinker extends Visitor {
             }
         }
         for (const source of sources) {
+            if (!shouldInjectImports(source))
+                continue;
             const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
             const pkgPath = path.join(Globals.baseCWD, "node_modules");
             let fromPath = source.normalizedPath;

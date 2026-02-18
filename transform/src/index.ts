@@ -10,6 +10,29 @@ import fs from "fs";
 import { ThrowReplacer } from "./passes/replacer.js";
 import { StdlibThrowRewriter } from "./passes/stdlib.js";
 
+type ImportScope = "all" | "user";
+
+function envBool(name: string, fallback: boolean): boolean {
+  const value = process.env[name];
+  if (value == null || value == "") return fallback;
+  if (value == "1" || value.toLowerCase() == "true" || value.toLowerCase() == "yes") return true;
+  if (value == "0" || value.toLowerCase() == "false" || value.toLowerCase() == "no") return false;
+  return fallback;
+}
+
+function envImportScope(name: string, fallback: ImportScope): ImportScope {
+  const value = process.env[name];
+  if (!value) return fallback;
+  if (value == "all" || value == "user") return value;
+  return fallback;
+}
+
+const TRANSFORM_OPTIONS = {
+  rewriteStdlib: envBool("TRY_AS_REWRITE_STDLIB", true),
+  importScope: envImportScope("TRY_AS_IMPORT_SCOPE", "all"),
+  diagnostics: envBool("TRY_AS_DIAGNOSTICS", false),
+};
+
 let WRITE = process.env["WRITE"];
 export default class Transformer extends Transform {
   afterParse(parser: Parser): void {
@@ -50,9 +73,21 @@ export default class Transformer extends Transform {
 
     Globals.baseCWD = path.join(process.cwd(), this.baseDir).replaceAll("\\", "/");
 
-    SourceLinker.link(sources);
+    if (TRANSFORM_OPTIONS.diagnostics) {
+      console.log(
+        "[try-as] rewriteStdlib=%s importScope=%s",
+        TRANSFORM_OPTIONS.rewriteStdlib.toString(),
+        TRANSFORM_OPTIONS.importScope,
+      );
+    }
 
-    StdlibThrowRewriter.rewrite(sources);
+    SourceLinker.link(sources, { importScope: TRANSFORM_OPTIONS.importScope });
+
+    if (TRANSFORM_OPTIONS.rewriteStdlib) {
+      StdlibThrowRewriter.rewrite(sources);
+    } else if (TRANSFORM_OPTIONS.diagnostics) {
+      console.log("[try-as] skipped stdlib throw rewrite");
+    }
 
     ThrowReplacer.replace(sources);
 
