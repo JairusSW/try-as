@@ -1,6 +1,6 @@
 import { MethodDeclaration, Node } from "assemblyscript/dist/assemblyscript.js";
 import { Visitor } from "../lib/visitor.js";
-import { getBreaker, replaceRef } from "../utils.js";
+import { cloneNode, getBreaker, replaceRef } from "../utils.js";
 export class StdlibThrowRewriter extends Visitor {
     source = null;
     currentFn = null;
@@ -41,13 +41,10 @@ export class StdlibThrowRewriter extends Visitor {
         super.visitThrowStatement(node, ref);
         if (!this.source || !this.currentFn || !this.isStdlibSource(this.source.internalPath))
             return;
-        if (node.value.kind != 17)
-            return;
         if (this.currentFn instanceof MethodDeclaration && this.currentFn.name.kind == 26)
             return;
-        const value = node.value;
         const newException = Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range), null, [
-            value,
+            cloneNode(node.value),
             Node.createStringLiteralExpression(node.range.source.normalizedPath, node.range),
             Node.createStringLiteralExpression(node.range.source.lineAt(node.range.start).toString(), node.range),
             Node.createStringLiteralExpression(node.range.source.columnAt().toString(), node.range),

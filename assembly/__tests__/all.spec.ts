@@ -171,6 +171,30 @@ describe("Should handle thrown Error with metadata", () => {
   }
 });
 
+describe("Should catch thrown string expression", () => {
+  try {
+    const msg = "boom-string";
+    throw msg;
+  } catch (e) {
+    const err = e as Exception;
+    expect(err.type.toString()).toBe(ExceptionType.Throw.toString());
+    expect(err.message!).toBe("boom-string");
+    expect(err.toString()).toBe("Error: boom-string");
+  }
+});
+
+describe("Should preserve primitive payload when throwing expression", () => {
+  try {
+    throw 21 + 21;
+  } catch (e) {
+    const err = e as Exception;
+    expect(err.type.toString()).toBe(ExceptionType.Throw.toString());
+    expect(err.is<i32>().toString()).toBe("true");
+    expect(err.as<i32>().toString()).toBe("42");
+    expect(err.toString()).toBe("Error: 42");
+  }
+});
+
 describe("Should preserve thrown object type info", () => {
   try {
     throw new MyError("typed");
@@ -181,6 +205,22 @@ describe("Should preserve thrown object type info", () => {
     expect((typed != null).toString()).toBe("true");
     if (typed) {
       expect(typed.message).toBe("typed");
+    }
+  }
+});
+
+describe("Should preserve thrown identifier type info", () => {
+  const typedErr = new MyError("typed-identifier");
+  try {
+    throw typedErr;
+  } catch (e) {
+    const err = e as Exception;
+    expect(err.type.toString()).toBe(ExceptionType.Throw.toString());
+    expect(err.is<MyError>().toString()).toBe("true");
+    const typed = err.as<MyError>();
+    expect((typed != null).toString()).toBe("true");
+    if (typed) {
+      expect(typed.message).toBe("typed-identifier");
     }
   }
 });

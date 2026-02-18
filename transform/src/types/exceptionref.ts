@@ -1,6 +1,6 @@
-import { CallExpression, ExpressionStatement, NewExpression, Node, NodeKind, ThrowStatement } from "assemblyscript/dist/assemblyscript.js";
+import { CallExpression, ExpressionStatement, Node, NodeKind, ThrowStatement } from "assemblyscript/dist/assemblyscript.js";
 import { FunctionRef } from "./functionref.js";
-import { getBreaker, getName, isRefStatement, replaceRef } from "../utils.js";
+import { cloneNode, getBreaker, getName, isRefStatement, replaceRef } from "../utils.js";
 import { toString } from "../lib/util.js";
 import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
@@ -45,17 +45,24 @@ export class ExceptionRef extends BaseRef {
       else replaceRef(this.node, newException, this.ref);
     } else if (this.node.kind == NodeKind.Throw) {
       const node = this.node as ThrowStatement;
-      let newException: ExpressionStatement;
-      if (node.value.kind == NodeKind.New) {
-        const value = node.value as NewExpression;
-        newException = Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range), null, [value, Node.createStringLiteralExpression(node.range.source.normalizedPath, node.range), Node.createStringLiteralExpression(node.range.source.lineAt(node.range.start).toString(), node.range), Node.createStringLiteralExpression(node.range.source.columnAt().toString(), node.range)], node.range));
-        // }
+      const newException: ExpressionStatement = Node.createExpressionStatement(
+        Node.createCallExpression(
+          Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range),
+          null,
+          [
+            cloneNode(node.value),
+            Node.createStringLiteralExpression(node.range.source.normalizedPath, node.range),
+            Node.createStringLiteralExpression(node.range.source.lineAt(node.range.start).toString(), node.range),
+            Node.createStringLiteralExpression(node.range.source.columnAt().toString(), node.range),
+          ],
+          node.range,
+        ),
+      );
 
-        const breaker = getBreaker(node, this.parent?.node);
-        if (DEBUG > 0) console.log(indent + "Added Exception: " + toString(newException));
-        if (isRefStatement(node, this.ref)) replaceRef(this.node, [newException, breaker], this.ref);
-        else replaceRef(this.node, newException, this.ref);
-      }
+      const breaker = getBreaker(node, this.parent?.node);
+      if (DEBUG > 0) console.log(indent + "Added Exception: " + toString(newException));
+      if (isRefStatement(node, this.ref)) replaceRef(this.node, [newException, breaker], this.ref);
+      else replaceRef(this.node, newException, this.ref);
     }
   }
   update(ref: this): this {

@@ -1,5 +1,9 @@
 # Change Log
 
+## 2026-02-18 - 0.2.6
+
+- feat: rewrite all `throw <expr>` forms (not just `throw new ...`) in both user and rewritten-stdlib sources, including primitive and identifier payloads
+
 ## 2026-02-13 - 0.2.5
 
 - fix: make `Exception.is<T>()` check the exception instance discriminator instead of shared global state

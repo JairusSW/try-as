@@ -1,5 +1,5 @@
 import { Node } from "assemblyscript/dist/assemblyscript.js";
-import { getBreaker, getName, isRefStatement, replaceRef } from "../utils.js";
+import { cloneNode, getBreaker, getName, isRefStatement, replaceRef } from "../utils.js";
 import { toString } from "../lib/util.js";
 import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
@@ -41,18 +41,19 @@ export class ExceptionRef extends BaseRef {
         }
         else if (this.node.kind == 45) {
             const node = this.node;
-            let newException;
-            if (node.value.kind == 17) {
-                const value = node.value;
-                newException = Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range), null, [value, Node.createStringLiteralExpression(node.range.source.normalizedPath, node.range), Node.createStringLiteralExpression(node.range.source.lineAt(node.range.start).toString(), node.range), Node.createStringLiteralExpression(node.range.source.columnAt().toString(), node.range)], node.range));
-                const breaker = getBreaker(node, this.parent?.node);
-                if (DEBUG > 0)
-                    console.log(indent + "Added Exception: " + toString(newException));
-                if (isRefStatement(node, this.ref))
-                    replaceRef(this.node, [newException, breaker], this.ref);
-                else
-                    replaceRef(this.node, newException, this.ref);
-            }
+            const newException = Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range), null, [
+                cloneNode(node.value),
+                Node.createStringLiteralExpression(node.range.source.normalizedPath, node.range),
+                Node.createStringLiteralExpression(node.range.source.lineAt(node.range.start).toString(), node.range),
+                Node.createStringLiteralExpression(node.range.source.columnAt().toString(), node.range),
+            ], node.range));
+            const breaker = getBreaker(node, this.parent?.node);
+            if (DEBUG > 0)
+                console.log(indent + "Added Exception: " + toString(newException));
+            if (isRefStatement(node, this.ref))
+                replaceRef(this.node, [newException, breaker], this.ref);
+            else
+                replaceRef(this.node, newException, this.ref);
         }
     }
     update(ref) {

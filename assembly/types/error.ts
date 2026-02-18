@@ -77,17 +77,18 @@ export namespace ErrorState {
     ErrorState.lineNumber = i32.parse(lineNumber);
     ErrorState.columnNumber = i32.parse(columnNumber);
 
-    if (idof<T>() == idof<Exception>()) return;
+    const managedRef = isManaged<T>();
+    if (managedRef && idof<T>() == idof<Exception>()) return;
 
     ErrorState.discriminator = DISCRIMINATOR<T>();
     store<T>(ErrorState.storage, error);
-    if (isManaged<T>()) {
+    if (managedRef) {
       ErrorState.managed = changetype<Object>(changetype<usize>(error));
     } else {
       ErrorState.managed = null;
     }
 
-    if (idof<T>() == idof<Error>()) {
+    if (managedRef && idof<T>() == idof<Error>()) {
       ErrorState.isErrorType = true;
       ErrorState.message = (error as Error).message;
       ErrorState.stack = (error as Error).stack as string | null;
