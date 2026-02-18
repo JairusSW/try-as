@@ -225,6 +225,41 @@ describe("Should preserve thrown identifier type info", () => {
   }
 });
 
+describe("Should preserve throw identity when rethrowing caught Exception", () => {
+  try {
+    try {
+      throw new MyError("rethrown-typed");
+    } catch (e) {
+      throw e;
+    }
+  } catch (e) {
+    const err = e as Exception;
+    expect(err.type.toString()).toBe(ExceptionType.Throw.toString());
+    expect(err.is<MyError>().toString()).toBe("true");
+    const typed = err.as<MyError>();
+    expect((typed != null).toString()).toBe("true");
+    if (typed) {
+      expect(typed.message).toBe("rethrown-typed");
+    }
+  }
+});
+
+describe("Should preserve primitive payload when rethrowing caught Exception", () => {
+  try {
+    try {
+      throw 99;
+    } catch (e) {
+      throw e;
+    }
+  } catch (e) {
+    const err = e as Exception;
+    expect(err.type.toString()).toBe(ExceptionType.Throw.toString());
+    expect(err.is<i32>().toString()).toBe("true");
+    expect(err.as<i32>().toString()).toBe("99");
+    expect(err.toString()).toBe("Error: 99");
+  }
+});
+
 describe("Should keep cloned exception stable across later throws", () => {
   let cloned: Exception | null = null;
 

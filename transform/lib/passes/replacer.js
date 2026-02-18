@@ -207,7 +207,7 @@ export class ThrowReplacer extends Visitor {
         if (node.value.kind != 6)
             return super.visitThrowStatement(node, ref);
         super.visitThrowStatement(node, ref);
-        const newThrow = Node.createIfStatement(Node.createCallExpression(Node.createIdentifierExpression("isDefined", node.range), null, [Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("rethrow", node.range), node.range)], node.range), Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("rethrow", node.range), node.range), null, [], node.range)), Node.createThrowStatement(node.value, node.range), node.range);
+        const newThrow = Node.createIfStatement(Node.createCallExpression(Node.createIdentifierExpression("isDefined", node.range), null, [Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("__try_rethrow", node.range), node.range)], node.range), Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("__try_rethrow", node.range), node.range), null, [], node.range)), Node.createThrowStatement(node.value, node.range), node.range);
         replaceRef(node, [newThrow], ref);
     }
     static replace(sources) {

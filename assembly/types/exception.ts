@@ -100,12 +100,29 @@ export class Exception {
     }
   }
 
-  private __try_rethrow(): void {
+  __try_rethrow(): void {
     if (this.type == ExceptionType.Abort) {
       AbortState.abort(this.msg, this.fileName, this.lineNumber.toString(), this.columnNumber.toString());
     } else if (this.type == ExceptionType.Unreachable) {
       UnreachableState.unreachable();
     } else if (this.type == ExceptionType.Throw) {
+      ErrorState.message = this.message ? this.message! : "";
+      ErrorState.name = this.name ? this.name! : "";
+      ErrorState.stack = this.stack;
+      ErrorState.fileName = this.fileName;
+      ErrorState.lineNumber = this.lineNumber;
+      ErrorState.columnNumber = this.columnNumber;
+      ErrorState.discriminator = this.discriminator;
+      ErrorState.managed = this.managed;
+      ErrorState.hasMessage = this.message != null;
+      ErrorState.isErrorType = this.name != null || this.stack != null;
+
+      if (this.storage != null) {
+        store<u64>(ErrorState.storage, load<u64>(changetype<usize>(this.storage)));
+      } else {
+        store<u64>(ErrorState.storage, 0);
+      }
+
       ExceptionState.Failures++;
       ExceptionState.Type = ExceptionType.Throw;
     }
