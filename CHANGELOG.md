@@ -3,6 +3,7 @@
 ## 2026-02-18 - 0.2.6
 
 - feat: rewrite all `throw <expr>` forms (not just `throw new ...`) in both user and rewritten-stdlib sources, including primitive and identifier payloads
+- feat: make method-call rewriting receiver-aware (class/static intent + scoped type hints) and eliminate double-evaluation ternary rewrites
 
 ## 2026-02-13 - 0.2.5
 
