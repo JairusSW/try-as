@@ -121,6 +121,74 @@ export class SourceRef extends BaseRef {
         }
         return null;
     }
+    getSourceByPath(path) {
+        return Globals.sources.get(path) || Globals.sources.get(path + "/index") || null;
+    }
+    remapImportQuery(imp, qualifiedName) {
+        if (!imp.declarations?.length)
+            return qualifiedName;
+        for (const decl of imp.declarations) {
+            const local = decl.name.text;
+            if (qualifiedName != local && !qualifiedName.startsWith(local + "."))
+                continue;
+            const foreign = decl.foreignName.text;
+            return foreign + qualifiedName.slice(local.length);
+        }
+        return qualifiedName;
+    }
+    remapExportQueries(exp, qualifiedName) {
+        if (!exp.members?.length)
+            return [qualifiedName];
+        const out = [];
+        for (const member of exp.members) {
+            const exported = member.exportedName.text;
+            if (qualifiedName != exported && !qualifiedName.startsWith(exported + "."))
+                continue;
+            const local = member.localName.text;
+            out.push(local + qualifiedName.slice(exported.length));
+        }
+        return out;
+    }
+    collectImportTargets(source, qualifiedName, visitedPaths, out, seen = new Set()) {
+        const sourcePath = source.node.internalPath;
+        const seenKey = sourcePath + "::" + qualifiedName;
+        if (seen.has(seenKey))
+            return;
+        seen.add(seenKey);
+        out.push([source, qualifiedName]);
+        for (const exp of source.local.exports) {
+            if (!exp.internalPath)
+                continue;
+            const targetPath = exp.internalPath;
+            if (visitedPaths.has(targetPath))
+                continue;
+            const remappedQueries = this.remapExportQueries(exp, qualifiedName);
+            if (!remappedQueries.length)
+                continue;
+            const target = this.getSourceByPath(targetPath);
+            if (!target)
+                continue;
+            visitedPaths.add(targetPath);
+            for (const remapped of remappedQueries) {
+                this.collectImportTargets(target, remapped, visitedPaths, out, seen);
+            }
+        }
+    }
+    resolveImportTargets(imp, qualifiedName, visitedPaths) {
+        if (!imp.internalPath)
+            return [];
+        const basePath = imp.internalPath;
+        if (visitedPaths.has(basePath))
+            return [];
+        visitedPaths.add(basePath);
+        const baseSource = this.getSourceByPath(basePath);
+        if (!baseSource)
+            return [];
+        const remappedName = this.remapImportQuery(imp, qualifiedName);
+        const targets = [];
+        this.collectImportTargets(baseSource, remappedName, visitedPaths, targets);
+        return targets;
+    }
     findImportedFn(qualifiedName, visitedPaths = new Set()) {
         if (!qualifiedName)
             return [null, null];
@@ -128,16 +196,12 @@ export class SourceRef extends BaseRef {
             const matchesImport = imp.declarations?.some((decl) => qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + "."));
             if (!matchesImport)
                 continue;
-            const basePath = imp.internalPath;
-            if (visitedPaths.has(basePath))
-                continue;
-            visitedPaths.add(basePath);
-            const externSrc = Globals.sources.get(basePath) || Globals.sources.get(basePath + "/index");
-            if (!externSrc)
-                continue;
-            const fn = externSrc.findLocalFn(qualifiedName);
-            if (fn)
-                return [fn, externSrc];
+            const targets = this.resolveImportTargets(imp, qualifiedName, visitedPaths);
+            for (const [externSource, lookupName] of targets) {
+                const fn = externSource.findLocalFn(lookupName);
+                if (fn)
+                    return [fn, externSource];
+            }
         }
         return [null, null];
     }
@@ -148,16 +212,12 @@ export class SourceRef extends BaseRef {
             const matchesImport = imp.declarations?.some((decl) => qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + "."));
             if (!matchesImport)
                 continue;
-            const basePath = imp.internalPath;
-            if (visitedPaths.has(basePath))
-                continue;
-            visitedPaths.add(basePath);
-            const externSrc = Globals.sources.get(basePath) || Globals.sources.get(basePath + "/index");
-            if (!externSrc)
-                continue;
-            const ns = externSrc.findLocalNs(qualifiedName);
-            if (ns)
-                return [ns, externSrc];
+            const targets = this.resolveImportTargets(imp, qualifiedName, visitedPaths);
+            for (const [externSource, lookupName] of targets) {
+                const ns = externSource.findLocalNs(lookupName);
+                if (ns)
+                    return [ns, externSource];
+            }
         }
         return [null, null];
     }
@@ -168,30 +228,11 @@ export class SourceRef extends BaseRef {
             const matches = imp.declarations?.some((decl) => qualifiedName == decl.name.text || qualifiedName.startsWith(decl.name.text + "."));
             if (!matches)
                 continue;
-            const basePath = imp.internalPath;
-            if (visitedPaths.has(basePath))
-                continue;
-            visitedPaths.add(basePath);
-            const externSrc = Globals.sources.get(basePath) || Globals.sources.get(basePath + "/index");
-            if (!externSrc)
-                continue;
-            const method = externSrc.findLocalMethod(qualifiedName);
-            if (method)
-                return [method, externSrc];
-            const exported = externSrc.local.exports.find((exp) => {
-                if (exp.members) {
-                    return exp.members.some((member) => qualifiedName == member.exportedName.text || qualifiedName.startsWith(member.exportedName.text + "."));
-                }
-                return false;
-            });
-            if (exported && exported.internalPath) {
-                const exportPath = exported.internalPath;
-                const reexported = Globals.sources.get(exportPath) || Globals.sources.get(exportPath + "/index");
-                if (reexported) {
-                    const method = reexported.findLocalMethod(qualifiedName);
-                    if (method)
-                        return [method, reexported];
-                }
+            const targets = this.resolveImportTargets(imp, qualifiedName, visitedPaths);
+            for (const [externSource, lookupName] of targets) {
+                const method = externSource.findLocalMethod(lookupName);
+                if (method)
+                    return [method, externSource];
             }
         }
         return [null, null];

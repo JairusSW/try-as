@@ -5,6 +5,7 @@
 - feat: rewrite all `throw <expr>` forms (not just `throw new ...`) in both user and rewritten-stdlib sources, including primitive and identifier payloads
 - feat: make method-call rewriting receiver-aware (class/static intent + scoped type hints) and eliminate double-evaluation ternary rewrites
 - fix: preserve thrown payload metadata/discriminator when rethrowing caught `Exception` values via transformed `throw e` paths
+- feat: resolve exception-aware calls through import aliases and multi-hop re-export chains, including generated `__try_` re-export propagation
 
 ## 2026-02-13 - 0.2.5
 

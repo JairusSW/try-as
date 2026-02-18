@@ -59,12 +59,12 @@ export class FunctionRef extends BaseRef {
     indent.add();
     if (this.exported && !this.generatedImport) {
       this.generatedImport = true;
-      const seenSources = new Set<string>();
+      const seenImports = new Set<string>();
       for (const caller of this.callers) {
-        if (caller.name != this.name) continue;
         if (caller.node.range.source.internalPath == this.node.range.source.internalPath) continue;
-        if (seenSources.has(caller.node.range.source.internalPath)) continue;
-        seenSources.add(caller.node.range.source.internalPath);
+        const seenKey = caller.node.range.source.internalPath + "::" + caller.name;
+        if (seenImports.has(seenKey)) continue;
+        seenImports.add(seenKey);
 
         const callerSrc = Globals.sources.get(caller.node.range.source.internalPath);
         if (!callerSrc) throw new Error("Could not find " + caller.node.range.source.internalPath + " in sources!");

@@ -1,4 +1,4 @@
-import { CallExpression, ClassDeclaration, CommonFlags, ExportStatement, FunctionDeclaration, IfStatement, ImportDeclaration, ImportStatement, MethodDeclaration, NamespaceDeclaration, Node, NodeKind, Source, SourceKind, ThrowStatement, TryStatement } from "assemblyscript/dist/assemblyscript.js";
+import { CallExpression, ClassDeclaration, CommonFlags, ExportMember, ExportStatement, FunctionDeclaration, IfStatement, ImportDeclaration, ImportStatement, MethodDeclaration, NamespaceDeclaration, Node, NodeKind, Source, SourceKind, ThrowStatement, TryStatement } from "assemblyscript/dist/assemblyscript.js";
 import { SourceRef } from "../types/sourceref.js";
 import { Visitor } from "../lib/visitor.js";
 import { indent } from "../globals/indent.js";
@@ -463,6 +463,75 @@ export class SourceLinker extends Visitor {
     addImport("exception", ["Exception", "ExceptionState"]);
   }
 
+  private static getSourceRefByPath(pathName: string): SourceRef | null {
+    return Globals.sources.get(pathName) || Globals.sources.get(pathName + "/index") || null;
+  }
+
+  private static sourceExportsSymbol(sourceRef: SourceRef, exportedName: string, visited = new Set<string>()): boolean {
+    const sourcePath = sourceRef.node.internalPath;
+    const visitKey = sourcePath + "::" + exportedName;
+    if (visited.has(visitKey)) return false;
+    visited.add(visitKey);
+
+    if (sourceRef.local.functions.some((fn) => fn.exported && fn.node.name.text == exportedName)) {
+      return true;
+    }
+
+    for (const exp of sourceRef.local.exports) {
+      if (!exp.internalPath || !exp.members?.length) continue;
+      const target = this.getSourceRefByPath(exp.internalPath);
+      if (!target) continue;
+
+      for (const member of exp.members) {
+        if (member.exportedName.text != exportedName) continue;
+        if (this.sourceExportsSymbol(target, member.localName.text, visited)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  static addTryReexports(source: Source): boolean {
+    let changed = false;
+    for (const stmt of source.statements) {
+      if (stmt.kind != NodeKind.Export) continue;
+      const exp = stmt as ExportStatement;
+      if (!exp.internalPath || !exp.members?.length) continue;
+
+      const targetSource = this.getSourceRefByPath(exp.internalPath);
+      if (!targetSource) continue;
+
+      const existingNames = new Set(exp.members.map((member) => member.exportedName.text));
+      const additions: ExportMember[] = [];
+
+      for (const member of exp.members) {
+        if (member.exportedName.text.startsWith("__try_")) continue;
+
+        const tryLocal = "__try_" + member.localName.text;
+        const tryExported = "__try_" + member.exportedName.text;
+        if (existingNames.has(tryExported)) continue;
+        if (!this.sourceExportsSymbol(targetSource, tryLocal)) continue;
+
+        const tryMember = Node.createExportMember(
+          Node.createIdentifierExpression(tryLocal, member.localName.range),
+          Node.createIdentifierExpression(tryExported, member.exportedName.range),
+          member.range,
+        );
+
+        additions.push(tryMember);
+        existingNames.add(tryExported);
+      }
+
+      if (additions.length) {
+        exp.members.push(...additions);
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
   static link(sources: Source[]): void {
     if (DEBUG > 0) console.log("\n========SOURCES========\n");
     for (const source of sources) {
@@ -487,6 +556,16 @@ export class SourceLinker extends Visitor {
       const entryRef = Globals.sources.get(entrySource.internalPath);
       if (!entryRef) throw new Error("Could not find " + entrySource.internalPath + " in sources!");
       entryRef.generate();
+    }
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const source of sources) {
+        if (this.addTryReexports(source)) {
+          changed = true;
+        }
+      }
     }
 
     for (const source of sources) {

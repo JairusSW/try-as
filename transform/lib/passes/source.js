@@ -457,6 +457,67 @@ export class SourceLinker extends Visitor {
         addImport("error", ["ErrorState"]);
         addImport("exception", ["Exception", "ExceptionState"]);
     }
+    static getSourceRefByPath(pathName) {
+        return Globals.sources.get(pathName) || Globals.sources.get(pathName + "/index") || null;
+    }
+    static sourceExportsSymbol(sourceRef, exportedName, visited = new Set()) {
+        const sourcePath = sourceRef.node.internalPath;
+        const visitKey = sourcePath + "::" + exportedName;
+        if (visited.has(visitKey))
+            return false;
+        visited.add(visitKey);
+        if (sourceRef.local.functions.some((fn) => fn.exported && fn.node.name.text == exportedName)) {
+            return true;
+        }
+        for (const exp of sourceRef.local.exports) {
+            if (!exp.internalPath || !exp.members?.length)
+                continue;
+            const target = this.getSourceRefByPath(exp.internalPath);
+            if (!target)
+                continue;
+            for (const member of exp.members) {
+                if (member.exportedName.text != exportedName)
+                    continue;
+                if (this.sourceExportsSymbol(target, member.localName.text, visited)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    static addTryReexports(source) {
+        let changed = false;
+        for (const stmt of source.statements) {
+            if (stmt.kind != 35)
+                continue;
+            const exp = stmt;
+            if (!exp.internalPath || !exp.members?.length)
+                continue;
+            const targetSource = this.getSourceRefByPath(exp.internalPath);
+            if (!targetSource)
+                continue;
+            const existingNames = new Set(exp.members.map((member) => member.exportedName.text));
+            const additions = [];
+            for (const member of exp.members) {
+                if (member.exportedName.text.startsWith("__try_"))
+                    continue;
+                const tryLocal = "__try_" + member.localName.text;
+                const tryExported = "__try_" + member.exportedName.text;
+                if (existingNames.has(tryExported))
+                    continue;
+                if (!this.sourceExportsSymbol(targetSource, tryLocal))
+                    continue;
+                const tryMember = Node.createExportMember(Node.createIdentifierExpression(tryLocal, member.localName.range), Node.createIdentifierExpression(tryExported, member.exportedName.range), member.range);
+                additions.push(tryMember);
+                existingNames.add(tryExported);
+            }
+            if (additions.length) {
+                exp.members.push(...additions);
+                changed = true;
+            }
+        }
+        return changed;
+    }
     static link(sources) {
         if (DEBUG > 0)
             console.log("\n========SOURCES========\n");
@@ -484,6 +545,15 @@ export class SourceLinker extends Visitor {
             if (!entryRef)
                 throw new Error("Could not find " + entrySource.internalPath + " in sources!");
             entryRef.generate();
+        }
+        let changed = true;
+        while (changed) {
+            changed = false;
+            for (const source of sources) {
+                if (this.addTryReexports(source)) {
+                    changed = true;
+                }
+            }
         }
         for (const source of sources) {
             const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
