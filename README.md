@@ -1,6 +1,13 @@
 <h1 align="center"><pre>╔╦╗╦═╗╦ ╦  ╔═╗╔═╗
  ║ ╠╦╝╚╦╝══╠═╣╚═╗
  ╩ ╩╚═ ╩   ╩ ╩╚═╝</pre></h1>
+ 
+<p align="center">
+  <a href="https://www.npmjs.com/package/try-as"><img src="https://img.shields.io/npm/v/try-as" alt="npm version"></a>
+  <a href="https://github.com/JairusSW/try-as/actions/workflows/run-tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/JairusSW/try-as/run-tests.yml?label=tests" alt="tests"></a>
+  <a href="https://github.com/JairusSW/try-as/blob/master/LICENSE"><img src="https://img.shields.io/npm/l/try-as" alt="license"></a>
+</p>
+
 <details>
 <summary>Table of Contents</summary>
 
