@@ -8,6 +8,17 @@ class MyError extends Error {
   }
 }
 
+class PlainThing {
+  constructor(
+    public label: string,
+    public count: i32,
+  ) {}
+
+  toString(): string {
+    return this.label + ":" + this.count.toString();
+  }
+}
+
 describe("Should handle immediate abort call", (): void => {
   try {
     abort("This should abort");
@@ -209,6 +220,24 @@ describe("Should preserve thrown object type info", () => {
   }
 });
 
+describe("Should preserve thrown non-Error managed object type info", () => {
+  try {
+    throw new PlainThing("plain", 7);
+  } catch (e) {
+    const err = e as Exception;
+    expect(err.type.toString()).toBe(ExceptionType.Throw.toString());
+    expect(err.is<PlainThing>().toString()).toBe("true");
+    const typed = err.as<PlainThing>();
+    expect((typed != null).toString()).toBe("true");
+    if (typed) {
+      expect(typed.label).toBe("plain");
+      expect(typed.count.toString()).toBe("7");
+    }
+    expect(err.message!).toBe("plain:7");
+    expect(err.toString()).toBe("Error: plain:7");
+  }
+});
+
 describe("Should preserve thrown identifier type info", () => {
   const typedErr = new MyError("typed-identifier");
   try {
@@ -222,6 +251,30 @@ describe("Should preserve thrown identifier type info", () => {
     if (typed) {
       expect(typed.message).toBe("typed-identifier");
     }
+  }
+});
+
+describe("Should preserve bool payload when throwing expression", () => {
+  try {
+    throw true;
+  } catch (e) {
+    const err = e as Exception;
+    expect(err.type.toString()).toBe(ExceptionType.Throw.toString());
+    expect(err.is<bool>().toString()).toBe("true");
+    expect(err.as<bool>().toString()).toBe("true");
+    expect(err.toString()).toBe("Error: true");
+  }
+});
+
+describe("Should preserve f64 payload when throwing expression", () => {
+  try {
+    throw 1.5;
+  } catch (e) {
+    const err = e as Exception;
+    expect(err.type.toString()).toBe(ExceptionType.Throw.toString());
+    expect(err.is<f64>().toString()).toBe("true");
+    expect(err.as<f64>().toString()).toBe("1.5");
+    expect(err.toString()).toBe("Error: 1.5");
   }
 });
 
@@ -244,6 +297,26 @@ describe("Should preserve throw identity when rethrowing caught Exception", () =
   }
 });
 
+describe("Should preserve throw identity when calling Exception.rethrow()", () => {
+  try {
+    try {
+      throw new MyError("rethrown-via-api");
+    } catch (e) {
+      const err = e as Exception;
+      err.rethrow();
+    }
+  } catch (e) {
+    const err = e as Exception;
+    expect(err.type.toString()).toBe(ExceptionType.Throw.toString());
+    expect(err.is<MyError>().toString()).toBe("true");
+    const typed = err.as<MyError>();
+    expect((typed != null).toString()).toBe("true");
+    if (typed) {
+      expect(typed.message).toBe("rethrown-via-api");
+    }
+  }
+});
+
 describe("Should preserve primitive payload when rethrowing caught Exception", () => {
   try {
     try {
@@ -257,6 +330,23 @@ describe("Should preserve primitive payload when rethrowing caught Exception", (
     expect(err.is<i32>().toString()).toBe("true");
     expect(err.as<i32>().toString()).toBe("99");
     expect(err.toString()).toBe("Error: 99");
+  }
+});
+
+describe("Should preserve primitive payload when calling Exception.rethrow()", () => {
+  try {
+    try {
+      throw 123;
+    } catch (e) {
+      const err = e as Exception;
+      err.rethrow();
+    }
+  } catch (e) {
+    const err = e as Exception;
+    expect(err.type.toString()).toBe(ExceptionType.Throw.toString());
+    expect(err.is<i32>().toString()).toBe("true");
+    expect(err.as<i32>().toString()).toBe("123");
+    expect(err.toString()).toBe("Error: 123");
   }
 });
 

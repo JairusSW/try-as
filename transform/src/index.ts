@@ -74,11 +74,7 @@ export default class Transformer extends Transform {
     Globals.baseCWD = path.join(process.cwd(), this.baseDir).replaceAll("\\", "/");
 
     if (TRANSFORM_OPTIONS.diagnostics) {
-      console.log(
-        "[try-as] rewriteStdlib=%s importScope=%s",
-        TRANSFORM_OPTIONS.rewriteStdlib.toString(),
-        TRANSFORM_OPTIONS.importScope,
-      );
+      console.log("[try-as] rewriteStdlib=%s importScope=%s", TRANSFORM_OPTIONS.rewriteStdlib.toString(), TRANSFORM_OPTIONS.importScope);
     }
 
     SourceLinker.link(sources, { importScope: TRANSFORM_OPTIONS.importScope });

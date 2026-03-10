@@ -1,14 +1,17 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
-PACKAGE_NAME="json-as"
+PACKAGE_NAME="try-as"
+export NPM_CONFIG_CACHE="${NPM_CONFIG_CACHE:-/tmp/try-as-npm-cache}"
 
 echo -e "\n🔧 Building transform..."
 if ! npm run build:transform; then
     echo "❌ Build failed. Exiting."
     exit 1
 fi
+
+echo "📦 Using npm cache: $NPM_CONFIG_CACHE"
 
 read -r -p "✨ Do you want to format the code before publishing? [Y/n] " FORMAT_RESP
 FORMAT_RESP=${FORMAT_RESP,,}
@@ -21,6 +24,12 @@ fi
 echo -e "\n🧪 Running tests"
 if ! npm run test; then
     echo "❌ Tests failed. Exiting."
+    exit 1
+fi
+
+echo -e "\n📋 Verifying publish contents"
+if ! npm run pack:dry-run >/dev/null; then
+    echo "❌ Package dry-run failed. Exiting."
     exit 1
 fi
 

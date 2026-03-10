@@ -1,18 +1,4 @@
-import {
-  ClassDeclaration,
-  CommonFlags,
-  FunctionDeclaration,
-  IdentifierExpression,
-  MethodDeclaration,
-  NewExpression,
-  Node,
-  NodeKind,
-  ParameterNode,
-  PropertyAccessExpression,
-  Source,
-  ThrowStatement,
-  VariableDeclaration,
-} from "assemblyscript/dist/assemblyscript.js";
+import { AssertionExpression, AssertionKind, ClassDeclaration, CommonFlags, FunctionDeclaration, IdentifierExpression, MethodDeclaration, NewExpression, Node, NodeKind, ParameterNode, ParenthesizedExpression, PropertyAccessExpression, Source, ThrowStatement, VariableDeclaration } from "assemblyscript/dist/assemblyscript.js";
 
 import { Visitor } from "../lib/visitor.js";
 import { replaceRef } from "../utils.js";
@@ -122,6 +108,28 @@ export class ThrowReplacer extends Visitor {
     return null;
   }
 
+  private inferTypeNameFromExpression(node: Node | null): string | null {
+    if (!node) return null;
+
+    if (node.kind == NodeKind.New) {
+      return this.normalizeTypeName(toString((node as NewExpression).typeName));
+    }
+
+    if (node.kind == NodeKind.Assertion) {
+      const assertion = node as AssertionExpression;
+      if ((assertion.assertionKind == AssertionKind.As || assertion.assertionKind == AssertionKind.Prefix) && assertion.toType) {
+        return this.normalizeTypeName(toString(assertion.toType));
+      }
+      return this.inferTypeNameFromExpression(assertion.expression);
+    }
+
+    if (node.kind == NodeKind.Parenthesized) {
+      return this.inferTypeNameFromExpression((node as ParenthesizedExpression).expression);
+    }
+
+    return null;
+  }
+
   private inferStaticIntent(node: Node): boolean | null {
     if (node.kind == NodeKind.This || node.kind == NodeKind.New) return false;
 
@@ -210,8 +218,8 @@ export class ThrowReplacer extends Visitor {
     let typeName: string | null = null;
     if (node.type) {
       typeName = toString(node.type);
-    } else if (node.initializer && node.initializer.kind == NodeKind.New) {
-      typeName = toString((node.initializer as NewExpression).typeName);
+    } else if (node.initializer) {
+      typeName = this.inferTypeNameFromExpression(node.initializer);
     }
 
     if (node.name.kind == NodeKind.Identifier) {
@@ -223,12 +231,24 @@ export class ThrowReplacer extends Visitor {
 
   visitCallExpression(node: CallExpression, ref: Node | Node[] | null = null): void {
     const methRef = this.resolveMethodRef(node);
-    if (!methRef || node.expression.kind != NodeKind.PropertyAccess) return super.visitCallExpression(node, ref);
+    if ((!methRef && node.expression.kind != NodeKind.PropertyAccess) || node.expression.kind != NodeKind.PropertyAccess) {
+      return super.visitCallExpression(node, ref);
+    }
+
+    const target = node.expression as PropertyAccessExpression;
+    if (target.property.text == "rethrow") {
+      super.visitCallExpression(node, ref);
+      target.property.text = "__try_rethrow";
+      return;
+    }
+
+    if (!methRef) {
+      return super.visitCallExpression(node, ref);
+    }
 
     super.visitCallExpression(node, ref);
 
     if (methRef.tries.length) return;
-    const target = node.expression as PropertyAccessExpression;
     if (target.property.text.startsWith("__try_")) return;
 
     target.property.text = "__try_" + target.property.text;
@@ -242,12 +262,7 @@ export class ThrowReplacer extends Visitor {
     if (node.value.kind != NodeKind.Identifier) return super.visitThrowStatement(node, ref);
     super.visitThrowStatement(node, ref);
 
-    const newThrow = Node.createIfStatement(
-      Node.createCallExpression(Node.createIdentifierExpression("isDefined", node.range), null, [Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("__try_rethrow", node.range), node.range)], node.range),
-      Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("__try_rethrow", node.range), node.range), null, [], node.range)),
-      Node.createThrowStatement(node.value, node.range),
-      node.range,
-    );
+    const newThrow = Node.createIfStatement(Node.createCallExpression(Node.createIdentifierExpression("isDefined", node.range), null, [Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("__try_rethrow", node.range), node.range)], node.range), Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("__try_rethrow", node.range), node.range), null, [], node.range)), Node.createThrowStatement(node.value, node.range), node.range);
 
     replaceRef(node, [newThrow], ref);
   }

@@ -45,19 +45,7 @@ export class ExceptionRef extends BaseRef {
       else replaceRef(this.node, newException, this.ref);
     } else if (this.node.kind == NodeKind.Throw) {
       const node = this.node as ThrowStatement;
-      const newException: ExpressionStatement = Node.createExpressionStatement(
-        Node.createCallExpression(
-          Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range),
-          null,
-          [
-            cloneNode(node.value),
-            Node.createStringLiteralExpression(node.range.source.normalizedPath, node.range),
-            Node.createStringLiteralExpression(node.range.source.lineAt(node.range.start).toString(), node.range),
-            Node.createStringLiteralExpression(node.range.source.columnAt().toString(), node.range),
-          ],
-          node.range,
-        ),
-      );
+      const newException: ExpressionStatement = Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range), null, [cloneNode(node.value), Node.createStringLiteralExpression(node.range.source.normalizedPath, node.range), Node.createStringLiteralExpression(node.range.source.lineAt(node.range.start).toString(), node.range), Node.createStringLiteralExpression(node.range.source.columnAt().toString(), node.range)], node.range));
 
       const breaker = getBreaker(node, this.parent?.node);
       if (DEBUG > 0) console.log(indent + "Added Exception: " + toString(newException));

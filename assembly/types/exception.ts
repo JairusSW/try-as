@@ -12,6 +12,16 @@ export enum ExceptionType {
 export namespace ExceptionState {
   export let Failures: i32 = 0;
   export let Type: ExceptionType = ExceptionType.None;
+  export let DefaultValue: usize = memory.data(8);
+
+  // @ts-ignore: inline
+  @inline export function shouldCatch(mask: i32): bool {
+    if (Failures <= 0) return false;
+    if (Type == ExceptionType.Abort) return (mask & (1 << ExceptionType.Abort)) != 0;
+    if (Type == ExceptionType.Throw) return (mask & (1 << ExceptionType.Throw)) != 0;
+    if (Type == ExceptionType.Unreachable) return (mask & (1 << ExceptionType.Unreachable)) != 0;
+    return false;
+  }
 }
 
 export class Exception {
@@ -81,12 +91,9 @@ export class Exception {
 
   // @ts-ignore: inline
   @inline as<T>(): T {
-    if (this.type != ExceptionType.Throw) return changetype<T>(0);
-    if (this.discriminator != DISCRIMINATOR<T>()) return changetype<T>(0);
-    if (this.discriminator >= Discriminator.ManagedRef) {
-      return changetype<T>(this.managed);
-    }
-    if (!this.storage) return changetype<T>(0);
+    if (this.type != ExceptionType.Throw) return load<T>(ExceptionState.DefaultValue);
+    if (this.discriminator != DISCRIMINATOR<T>()) return load<T>(ExceptionState.DefaultValue);
+    if (!this.storage) return load<T>(ExceptionState.DefaultValue);
     return load<T>(changetype<usize>(this.storage));
   }
 

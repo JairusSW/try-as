@@ -1,6 +1,6 @@
 import { BlockStatement, CommonFlags, DoStatement, IfStatement, Node, Range, Token, TryStatement } from "assemblyscript/dist/assemblyscript.js";
 import { cloneNode, replaceRef } from "../utils.js";
-import { toString } from "../lib/util.js";
+import { SimpleParser, toString } from "../lib/util.js";
 import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
 import { CallRef } from "./callref.js";
@@ -9,6 +9,12 @@ import { SourceRef } from "./sourceref.js";
 
 const rawValue = process.env["DEBUG"];
 const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
+const CATCH_KIND_MASK = {
+  abort: 1 << 1,
+  throw: 1 << 2,
+  unreachable: 1 << 3,
+} as const;
+const DEFAULT_CATCH_MASK = CATCH_KIND_MASK.abort | CATCH_KIND_MASK.throw | CATCH_KIND_MASK.unreachable;
 
 export class TryRef extends BaseRef {
   public node: TryStatement;
@@ -21,11 +27,32 @@ export class TryRef extends BaseRef {
   public tryBlock: DoStatement | null = null;
   public catchBlock: IfStatement | null = null;
   public finallyBlock: BlockStatement | DoStatement | null = null;
+  public catchMask: number = DEFAULT_CATCH_MASK;
   constructor(node: TryStatement, ref: Node | Node[] | null, source: SourceRef) {
     super();
     this.node = node;
     this.ref = ref;
     this.source = source;
+    this.catchMask = this.resolveCatchMask();
+  }
+
+  private resolveCatchMask(): number {
+    const sourceText = this.node.range.source.text;
+    const currentLine = this.node.range.source.lineAt(this.node.range.start);
+    if (currentLine <= 1) return DEFAULT_CATCH_MASK;
+
+    const lines = sourceText.split(/\r?\n/);
+    const directiveLine = lines[currentLine - 2];
+    if (!directiveLine) return DEFAULT_CATCH_MASK;
+
+    const match = directiveLine.trim().match(/^\/\/ @try-as: (throw|abort|unreachable)(,(throw|abort|unreachable))*$/);
+    if (!match) return DEFAULT_CATCH_MASK;
+
+    let mask = 0;
+    for (const kind of directiveLine.trim().slice("// @try-as: ".length).split(",")) {
+      mask |= CATCH_KIND_MASK[kind as keyof typeof CATCH_KIND_MASK];
+    }
+    return mask || DEFAULT_CATCH_MASK;
   }
   generate(): void {
     // if (!this.hasException) return;
@@ -56,9 +83,10 @@ export class TryRef extends BaseRef {
       const catchVar = Node.createVariableStatement(null, [Node.createVariableDeclaration(this.node.catchVariable!, null, CommonFlags.Let, null, Node.createNewExpression(Node.createSimpleTypeName("__Exception", this.node.range), null, [Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Type", this.node.range), this.node.range)], this.node.range), this.node.range)], this.node.range);
 
       const stateReset = Node.createExpressionStatement(Node.createUnaryPostfixExpression(Token.Minus_Minus, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Failures", this.node.range), this.node.range), this.node.range));
+      const catchCondition = Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("shouldCatch", this.node.range), this.node.range), null, [SimpleParser.parseExpression("<i32>" + this.catchMask.toString())], this.node.range);
 
       this.catchBlock = Node.createIfStatement(
-        Node.createBinaryExpression(Token.GreaterThan, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Failures", this.node.range), this.node.range), Node.createIntegerLiteralExpression(i64_zero, this.node.range), this.node.range),
+        catchCondition,
         // Node.createDoStatement(
         Node.createBlockStatement([catchVar, stateReset, ...cloneNode(this.node.catchStatements)], this.node.range),
         // Node.createFalseExpression(this.node.range),

@@ -518,11 +518,7 @@ export class SourceLinker extends Visitor {
         if (existingNames.has(tryExported)) continue;
         if (!this.sourceExportsSymbol(targetSource, tryLocal)) continue;
 
-        const tryMember = Node.createExportMember(
-          Node.createIdentifierExpression(tryLocal, member.localName.range),
-          Node.createIdentifierExpression(tryExported, member.exportedName.range),
-          member.range,
-        );
+        const tryMember = Node.createExportMember(Node.createIdentifierExpression(tryLocal, member.localName.range), Node.createIdentifierExpression(tryExported, member.exportedName.range), member.range);
 
         additions.push(tryMember);
         existingNames.add(tryExported);

@@ -10,7 +10,9 @@
 - [Examples](#examples)
   - [Catch abort and throw](#catch-abort-and-throw)
   - [Type-safe custom errors](#type-safe-custom-errors)
+  - [Throwing non-Error values](#throwing-non-error-values)
   - [Rethrow behavior](#rethrow-behavior)
+  - [Selective catch kinds](#selective-catch-kinds)
   - [Catching stdlib exceptions](#catching-stdlib-exceptions)
 - [Limitations](#limitations)
 - [Debugging](#debugging)
@@ -29,7 +31,7 @@ npm install try-as
 Add the transform to your `asc` build and load it last.
 
 ```bash
-asc assembly/index.ts --transform try-as/transform
+asc assembly/index.ts --transform try-as
 ```
 
 Or in `asconfig.json`:
@@ -37,16 +39,16 @@ Or in `asconfig.json`:
 ```json
 {
   "options": {
-    "transform": ["try-as/transform"]
+    "transform": ["try-as"]
   }
 }
 ```
 
-If you use multiple transforms, keep `try-as/transform` last.
+If you use multiple transforms, keep `try-as` last.
 
 ## Usage
 
-`try-as` rewrites `try/catch/finally`, `throw`, `abort`, and selected stdlib throw paths so they can be handled through a consistent `Exception` object.
+`try-as` rewrites `try/catch/finally`, `throw`, `abort`, `unreachable`, and selected stdlib throw paths so they can be handled through a consistent `Exception` object.
 
 ```ts
 import { Exception } from "try-as";
@@ -73,6 +75,9 @@ import { Exception, ExceptionType } from "try-as";
 - `Exception.as<T>(): T`
 - `Exception.clone(): Exception`
 - `Exception.rethrow(): void`
+
+`Exception.as<T>()` supports `Error` subclasses, other managed objects, and primitive payloads like `i32`, `bool`, and `f64`.
+`Exception.rethrow()` is intended for transformed code paths, where `try-as` rewrites it to preserve the active exception state.
 
 `ExceptionType`:
 - `None`
@@ -119,6 +124,32 @@ try {
 }
 ```
 
+### Throwing non-Error values
+
+`throw` is not limited to `Error`.
+
+```ts
+import { Exception } from "try-as";
+
+class PlainThing {
+  constructor(public label: string) {}
+
+  toString(): string {
+    return this.label;
+  }
+}
+
+try {
+  throw new PlainThing("plain");
+} catch (e) {
+  const err = e as Exception;
+  if (err.is<PlainThing>()) {
+    const value = err.as<PlainThing>();
+    console.log(value.label); // plain
+  }
+}
+```
+
 ### Rethrow behavior
 
 ```ts
@@ -131,6 +162,27 @@ try {
   if (!err.is<Error>()) {
     err.rethrow();
   }
+}
+```
+
+### Selective catch kinds
+
+Use a `// @try-as: ...` comment immediately above a `try` to control which transformed exception kinds that `catch` should handle.
+
+Accepted values are `throw`, `abort`, and `unreachable`, comma-separated in that exact format.
+
+```ts
+import { Exception } from "try-as";
+
+try {
+  // @try-as: throw,abort
+  try {
+    abort("selected");
+  } catch (e) {
+    console.log((e as Exception).toString()); // abort: selected
+  }
+} catch (_) {
+  // only runs if the inner catch does not select that exception kind
 }
 ```
 
@@ -151,6 +203,7 @@ try {
 
 ## Limitations
 
+- The selective catch directive must be written exactly as `// @try-as: throw,abort,unreachable` with the chosen kinds, immediately above the `try`.
 - Runtime/internal trap paths are intentionally not rewritten.
 - Exceptions from these internals are not catchable by `try-as`:
   - `~lib/rt`
@@ -158,6 +211,7 @@ try {
   - `~lib/wasi_`
   - `~lib/performance`
 - This library handles transformed throw/abort flows, not low-level Wasm traps like out-of-bounds memory faults.
+- `Exception.rethrow()` preserves throw semantics when used in transformed code. Outside transformed `try-as` flows, it falls back to the runtime method body.
 
 ## Debugging
 
@@ -167,7 +221,7 @@ try {
 Example:
 
 ```bash
-DEBUG=1 WRITE=./assembly/test.ts,~lib/map asc assembly/test.ts --transform try-as/transform
+DEBUG=1 WRITE=./assembly/test.ts,~lib/map asc assembly/test.ts --transform try-as
 ```
 
 ## Transform Modes
@@ -179,7 +233,7 @@ DEBUG=1 WRITE=./assembly/test.ts,~lib/map asc assembly/test.ts --transform try-a
 Example:
 
 ```bash
-TRY_AS_REWRITE_STDLIB=0 TRY_AS_IMPORT_SCOPE=user TRY_AS_DIAGNOSTICS=1 asc assembly/index.ts --transform try-as/transform
+TRY_AS_REWRITE_STDLIB=0 TRY_AS_IMPORT_SCOPE=user TRY_AS_DIAGNOSTICS=1 asc assembly/index.ts --transform try-as
 ```
 
 ## Contributing

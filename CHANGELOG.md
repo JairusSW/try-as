@@ -1,5 +1,13 @@
 # Change Log
 
+## 2026-03-10 - 1.0.0
+
+- release: promote the stabilized `0.2.6` feature set to `1.0.0`
+- release: tighten published package contents to the public AssemblyScript API, built transform, and top-level docs
+- fix: add explicit package exports for `try-as` and `try-as/transform`
+- fix: replace stale `json-as` release script references with working `try-as` build commands
+- fix: make release checks resilient to broken global npm cache permissions by using a local cache and an explicit package dry-run
+
 ## 2026-02-18 - 0.2.6
 
 - feat: rewrite all `throw <expr>` forms (not just `throw new ...`) in both user and rewritten-stdlib sources, including primitive and identifier payloads

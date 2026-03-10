@@ -44,19 +44,7 @@ export class StdlibThrowRewriter extends Visitor {
 
     if (!this.source || !this.currentFn || !this.isStdlibSource(this.source.internalPath)) return;
     if (this.currentFn instanceof MethodDeclaration && this.currentFn.name.kind == NodeKind.Constructor) return;
-    const newException = Node.createExpressionStatement(
-      Node.createCallExpression(
-        Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range),
-        null,
-        [
-          cloneNode(node.value),
-          Node.createStringLiteralExpression(node.range.source.normalizedPath, node.range),
-          Node.createStringLiteralExpression(node.range.source.lineAt(node.range.start).toString(), node.range),
-          Node.createStringLiteralExpression(node.range.source.columnAt().toString(), node.range),
-        ],
-        node.range,
-      ),
-    );
+    const newException = Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range), null, [cloneNode(node.value), Node.createStringLiteralExpression(node.range.source.normalizedPath, node.range), Node.createStringLiteralExpression(node.range.source.lineAt(node.range.start).toString(), node.range), Node.createStringLiteralExpression(node.range.source.columnAt().toString(), node.range)], node.range));
 
     const breaker = getBreaker(node, this.currentFn);
     if (Array.isArray(ref)) {

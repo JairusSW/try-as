@@ -1,20 +1,24 @@
 {
   "name": "try-as",
-  "version": "0.2.5",
+  "version": "1.0.0",
   "author": "Jairus Tanaka",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/JairusSW/try-as.git"
   },
-  "main": "transform/lib/index.js",
+  "main": "./transform/lib/index.js",
+  "exports": {
+    ".": "./index.ts",
+    "./transform": "./transform/lib/index.js",
+    "./package.json": "./package.json"
+  },
   "devDependencies": {
     "@assemblyscript/wasi-shim": "^0.1.0",
-    "@types/node": "^22.13.10",
-    "assemblyscript": "^0.27.35",
-    "assemblyscript-prettier": "^3.0.1",
-    "json-as": "^1.1.16",
-    "prettier": "^3.5.3",
-    "typescript": "^5.8.2"
+    "@types/node": "^25.4.0",
+    "assemblyscript": "^0.28.10",
+    "assemblyscript-prettier": "^3.0.4",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3"
   },
   "bugs": {
     "url": "https://github.com/JairusSW/try-as/issues"
@@ -34,17 +38,29 @@
     "result"
   ],
   "license": "MIT",
+  "files": [
+    "assembly/index.ts",
+    "assembly/types/**/*.ts",
+    "index.ts",
+    "transform/lib/**/*.js",
+    "transform/lib/**/*.js.map",
+    "transform/package.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
   "publishConfig": {
-    "@JairusSW:registry": "https://npm.pkg.github.com"
+    "access": "public"
   },
   "scripts": {
     "test": "bash ./run-tests.sh",
-    "build:test": "rm -rf ./build/ && DEBUG=true WRITE=assembly/test,assembly/foo,assembly/json,~lib/json-as/assembly/index ../compiler/bin/asc.js assembly/test.ts --transform json-as/transform --transform ./transform -o ./build/test.wasm --textFile ./build/test.wat --optimizeLevel 3 --shrinkLevel 0",
-    "build:test:tmp": "../compiler/bin/asc.js assembly/test.tmp.ts -o ./build/test.wasm --textFile ./build/test.wat --optimizeLevel 3 --shrinkLevel 0",
+    "build:test": "rm -rf ./build/ && DEBUG=true WRITE=assembly/test,assembly/foo,assembly/json npx asc assembly/test.ts --transform ./transform -o ./build/test.wasm --textFile ./build/test.wat --optimizeLevel 3 --shrinkLevel 0",
+    "build:test:tmp": "npx asc assembly/test.tmp.ts -o ./build/test.wasm --textFile ./build/test.wat --optimizeLevel 3 --shrinkLevel 0",
     "build:test:wine": "DEBUG=1 NODE_SKIP_PLATFORM_CHECK=1 wine ~/.win-bin/node/node.exe ./node_modules/assemblyscript/bin/asc.js assembly/test.ts --transform ./transform -o ./build/test.wasm --textFile ./build/test.wat --debug",
     "test:wasmtime": "wasmtime ./build/test.wasm",
     "test:wasmer": "wasmer ./build/test.wasm",
     "build:transform": "tsc -p ./transform",
+    "pack:dry-run": "NPM_CONFIG_CACHE=/tmp/try-as-npm-cache npm pack --dry-run",
     "bench:wasmer": "wasmer ./build/bench.wasm --llvm",
     "format": "prettier -w ."
   },

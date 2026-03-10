@@ -101,6 +101,25 @@ export class ThrowReplacer extends Visitor {
         }
         return null;
     }
+    inferTypeNameFromExpression(node) {
+        if (!node)
+            return null;
+        if (node.kind == 17) {
+            return this.normalizeTypeName(toString(node.typeName));
+        }
+        if (node.kind == 7) {
+            const assertion = node;
+            if ((assertion.assertionKind == 1 || assertion.assertionKind == 0) &&
+                assertion.toType) {
+                return this.normalizeTypeName(toString(assertion.toType));
+            }
+            return this.inferTypeNameFromExpression(assertion.expression);
+        }
+        if (node.kind == 20) {
+            return this.inferTypeNameFromExpression(node.expression);
+        }
+        return null;
+    }
     inferStaticIntent(node) {
         if (node.kind == 24 || node.kind == 17)
             return false;
@@ -180,8 +199,8 @@ export class ThrowReplacer extends Visitor {
         if (node.type) {
             typeName = toString(node.type);
         }
-        else if (node.initializer && node.initializer.kind == 17) {
-            typeName = toString(node.initializer.typeName);
+        else if (node.initializer) {
+            typeName = this.inferTypeNameFromExpression(node.initializer);
         }
         if (node.name.kind == 6) {
             this.rememberType(node.name.text, typeName);
@@ -190,12 +209,21 @@ export class ThrowReplacer extends Visitor {
     }
     visitCallExpression(node, ref = null) {
         const methRef = this.resolveMethodRef(node);
-        if (!methRef || node.expression.kind != 21)
+        if ((!methRef && node.expression.kind != 21) || node.expression.kind != 21) {
             return super.visitCallExpression(node, ref);
+        }
+        const target = node.expression;
+        if (target.property.text == "rethrow") {
+            super.visitCallExpression(node, ref);
+            target.property.text = "__try_rethrow";
+            return;
+        }
+        if (!methRef) {
+            return super.visitCallExpression(node, ref);
+        }
         super.visitCallExpression(node, ref);
         if (methRef.tries.length)
             return;
-        const target = node.expression;
         if (target.property.text.startsWith("__try_"))
             return;
         target.property.text = "__try_" + target.property.text;
