@@ -13,6 +13,7 @@
 
 - [Installation](#installation)
 - [Usage](#usage)
+- [How It Works](#how-it-works)
 - [Exception API](#exception-api)
 - [Examples](#examples)
   - [Catch abort and throw](#catch-abort-and-throw)
@@ -69,6 +70,55 @@ try {
   console.log("done");
 }
 ```
+
+## How It Works
+
+`try-as` is a source-to-source transform. It analyzes the AssemblyScript call graph, rewrites exception-producing code paths into helper state updates, and lowers each `try/catch/finally` into explicit control-flow checks.
+
+```text
+AssemblyScript source
+  -> source linker finds try blocks, throwing calls, methods, imports, and re-exports
+  -> exception-aware functions/methods are marked
+  -> throw/abort/unreachable are rewritten to helper state writes
+  -> try/catch/finally becomes explicit do/break + catch-state checks
+  -> catch receives a rebuilt Exception object
+```
+
+```text
+throw / abort / unreachable
+  -> __ErrorState.error / __AbortState.abort / __UnreachableState.unreachable
+  -> __ExceptionState.Failures++
+  -> generated break/return exits the current rewritten scope
+  -> nearest transformed catch checks __ExceptionState.shouldCatch(mask)
+  -> new __Exception(__ExceptionState.Type) reconstructs the caught value
+```
+
+Conceptually, code like this:
+
+```ts
+try {
+  mightFail();
+} catch (e) {
+  trace((e as Exception).toString());
+}
+```
+
+is lowered into code shaped like this:
+
+```ts
+do {
+  __try_mightFail();
+  if (__ExceptionState.Failures > 0) break;
+} while (false);
+
+if (__ExceptionState.shouldCatch(/* throw|abort|unreachable */ <i32>14)) {
+  let e = new __Exception(__ExceptionState.Type);
+  __ExceptionState.Failures--;
+  trace((e as Exception).toString());
+}
+```
+
+The exact generated AST is more verbose, but that is the core model: transformed calls write shared exception state, generated control flow propagates it, and `catch` reconstructs a typed `Exception`.
 
 ## Exception API
 
