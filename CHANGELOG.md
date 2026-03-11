@@ -1,9 +1,10 @@
 # Change Log
 
-## 2026-03-11 - Unreleased
+## 2026-03-11 - 1.0.1
 
 - fix: rewrite `throw err` to `err.rethrow()` when `err` is statically typed as `Exception` (or an `Exception` subclass), while keeping the generic identifier fallback path for non-`Exception` values
 - fix: preserve direct `Exception.rethrow()` runtime behavior while exposing it as `never` in the package type declarations for TS tooling
+- test: add focused rethrow semantics coverage for typed locals, subclass inference, assertions, typed parameters, and direct `rethrow()` calls
 - docs: document the new typed-`Exception` rethrow alias semantics in the README and architecture notes
 
 ## 2026-03-10 - 1.0.0
