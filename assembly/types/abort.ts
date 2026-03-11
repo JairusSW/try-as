@@ -10,11 +10,11 @@ export namespace AbortState {
     ExceptionState.Failures = 0;
     AbortState.msg = null;
     AbortState.fileName = null;
-    AbortState.lineNumber = 0;
-    AbortState.columnNumber = 0;
+    AbortState.lineNumber = -1;
+    AbortState.columnNumber = -1;
   }
   // @ts-ignore: inline
-  @inline export function abort(msg: string | null = null, fileName: string | null = null, lineNumber: string = "0", columnNumber: string = "0"): void {
+  @inline export function abort(msg: string | null = null, fileName: string | null = null, lineNumber: string = "-1", columnNumber: string = "-1"): void {
     ExceptionState.Failures++;
     ExceptionState.Type = ExceptionType.Abort;
 

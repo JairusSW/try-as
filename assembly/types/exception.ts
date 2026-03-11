@@ -99,7 +99,7 @@ export class Exception {
 
   rethrow(): void {
     if (this.type == ExceptionType.Abort) {
-      abort(this.msg, this.fileName, this.lineNumber, this.columnNumber);
+      abort(this.msg, this.fileName, this.lineNumber >= 0 ? this.lineNumber : 0, this.columnNumber >= 0 ? this.columnNumber : 0);
     } else if (this.type == ExceptionType.Unreachable) {
       unreachable();
     } else if (this.type == ExceptionType.Throw) {
