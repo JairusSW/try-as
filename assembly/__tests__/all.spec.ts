@@ -19,6 +19,52 @@ class PlainThing {
   }
 }
 
+class RethrowFallback {
+  static calls: i32 = 0;
+
+  rethrow(): void {
+    RethrowFallback.calls++;
+  }
+}
+
+class RethrowPreference {
+  static rethrowCalls: i32 = 0;
+  static tryRethrowCalls: i32 = 0;
+
+  rethrow(): void {
+    RethrowPreference.rethrowCalls++;
+  }
+
+  __try_rethrow(): void {
+    RethrowPreference.tryRethrowCalls++;
+  }
+}
+
+class TryOnlyRethrow {
+  static calls: i32 = 0;
+
+  __try_rethrow(): void {
+    TryOnlyRethrow.calls++;
+  }
+}
+
+class TypedExceptionRethrow extends Exception {
+  static rethrowCalls: i32 = 0;
+  static tryRethrowCalls: i32 = 0;
+
+  constructor() {
+    super(ExceptionType.Throw);
+  }
+
+  rethrow(): void {
+    TypedExceptionRethrow.rethrowCalls++;
+  }
+
+  __try_rethrow(): void {
+    TypedExceptionRethrow.tryRethrowCalls++;
+  }
+}
+
 describe("Should handle immediate abort call", (): void => {
   try {
     abort("This should abort");
@@ -297,24 +343,19 @@ describe("Should preserve throw identity when rethrowing caught Exception", () =
   }
 });
 
-describe("Should preserve throw identity when calling Exception.rethrow()", () => {
+describe("Should prefer __try_rethrow() over rethrow() when throwing an identifier", () => {
+  RethrowPreference.rethrowCalls = 0;
+  RethrowPreference.tryRethrowCalls = 0;
+
   try {
-    try {
-      throw new MyError("rethrown-via-api");
-    } catch (e) {
-      const err = e as Exception;
-      err.rethrow();
-    }
-  } catch (e) {
-    const err = e as Exception;
-    expect(err.type.toString()).toBe(ExceptionType.Throw.toString());
-    expect(err.is<MyError>().toString()).toBe("true");
-    const typed = err.as<MyError>();
-    expect((typed != null).toString()).toBe("true");
-    if (typed) {
-      expect(typed.message).toBe("rethrown-via-api");
-    }
+    throw new Error("seed");
+  } catch (_) {
+    const preferred = new RethrowPreference();
+    throw preferred;
   }
+
+  expect(RethrowPreference.rethrowCalls.toString()).toBe("0");
+  expect(RethrowPreference.tryRethrowCalls.toString()).toBe("1");
 });
 
 describe("Should preserve primitive payload when rethrowing caught Exception", () => {
@@ -333,21 +374,45 @@ describe("Should preserve primitive payload when rethrowing caught Exception", (
   }
 });
 
-describe("Should preserve primitive payload when calling Exception.rethrow()", () => {
+describe("Should fall back to rethrow() when __try_rethrow() is unavailable", () => {
+  RethrowFallback.calls = 0;
+
   try {
-    try {
-      throw 123;
-    } catch (e) {
-      const err = e as Exception;
-      err.rethrow();
-    }
-  } catch (e) {
-    const err = e as Exception;
-    expect(err.type.toString()).toBe(ExceptionType.Throw.toString());
-    expect(err.is<i32>().toString()).toBe("true");
-    expect(err.as<i32>().toString()).toBe("123");
-    expect(err.toString()).toBe("Error: 123");
+    throw new Error("seed");
+  } catch (_) {
+    const legacy = new RethrowFallback();
+    throw legacy;
   }
+
+  expect(RethrowFallback.calls.toString()).toBe("1");
+});
+
+describe("Should fall back to __try_rethrow() when rethrow() is unavailable", () => {
+  TryOnlyRethrow.calls = 0;
+
+  try {
+    throw new Error("seed");
+  } catch (_) {
+    const fallback = new TryOnlyRethrow();
+    throw fallback;
+  }
+
+  expect(TryOnlyRethrow.calls.toString()).toBe("1");
+});
+
+describe("Should alias typed Exception throws in catch blocks to rethrow()", () => {
+  TypedExceptionRethrow.rethrowCalls = 0;
+  TypedExceptionRethrow.tryRethrowCalls = 0;
+
+  try {
+    throw new Error("seed");
+  } catch (_) {
+    const err: Exception = new TypedExceptionRethrow();
+    throw err;
+  }
+
+  expect(TypedExceptionRethrow.rethrowCalls.toString()).toBe("1");
+  expect(TypedExceptionRethrow.tryRethrowCalls.toString()).toBe("0");
 });
 
 describe("Should keep cloned exception stable across later throws", () => {

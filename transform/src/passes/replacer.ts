@@ -14,6 +14,7 @@ export class ThrowReplacer extends Visitor {
   public source!: Source;
 
   private methodIndex: Map<string, MethodRef[]> = new Map();
+  private classExtends: Map<string, string | null> = new Map();
   private scopeStack: Map<string, string>[] = [];
   private currentClass: string | null = null;
 
@@ -30,6 +31,23 @@ export class ThrowReplacer extends Visitor {
 
   private methodKey(name: string, arity: number): string {
     return name + "/" + arity.toString();
+  }
+
+  private isExceptionType(typeName: string | null): boolean {
+    if (!typeName) return false;
+    let normalized = this.normalizeTypeName(typeName);
+    const seen = new Set<string>();
+
+    while (normalized.length && !seen.has(normalized)) {
+      if (normalized == "Exception" || normalized.endsWith(".Exception")) return true;
+      seen.add(normalized);
+      const fallback = normalized.split(".").pop() || "";
+      const parent = this.classExtends.get(normalized) || this.classExtends.get(fallback) || null;
+      if (!parent) return false;
+      normalized = parent;
+    }
+
+    return false;
   }
 
   private normalizeTypeName(name: string): string {
@@ -195,6 +213,7 @@ export class ThrowReplacer extends Visitor {
 
   visitClassDeclaration(node: ClassDeclaration, isDefault: boolean = false, ref: Node | Node[] | null = null): void {
     const previousClass = this.currentClass;
+    this.classExtends.set(node.name.text, node.extendsType ? this.normalizeTypeName(toString(node.extendsType)) : null);
     this.currentClass = node.name.text;
     super.visitClassDeclaration(node, isDefault, ref);
     this.currentClass = previousClass;
@@ -237,9 +256,7 @@ export class ThrowReplacer extends Visitor {
 
     const target = node.expression as PropertyAccessExpression;
     if (target.property.text == "rethrow") {
-      super.visitCallExpression(node, ref);
-      target.property.text = "__try_rethrow";
-      return;
+      return super.visitCallExpression(node, ref);
     }
 
     if (!methRef) {
@@ -262,7 +279,17 @@ export class ThrowReplacer extends Visitor {
     if (node.value.kind != NodeKind.Identifier) return super.visitThrowStatement(node, ref);
     super.visitThrowStatement(node, ref);
 
-    const newThrow = Node.createIfStatement(Node.createCallExpression(Node.createIdentifierExpression("isDefined", node.range), null, [Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("__try_rethrow", node.range), node.range)], node.range), Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("__try_rethrow", node.range), node.range), null, [], node.range)), Node.createThrowStatement(node.value, node.range), node.range);
+    const thrown = node.value as IdentifierExpression;
+    if (this.isExceptionType(this.resolveScopedType(thrown.text))) {
+      const rethrow = Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("rethrow", node.range), node.range);
+      const rethrowCall = Node.createExpressionStatement(Node.createCallExpression(rethrow, null, [], node.range));
+      replaceRef(node, rethrowCall, ref);
+      return;
+    }
+
+    const tryRethrow = Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("__try_rethrow", node.range), node.range);
+    const rethrow = Node.createPropertyAccessExpression(node.value, Node.createIdentifierExpression("rethrow", node.range), node.range);
+    const newThrow = Node.createIfStatement(Node.createCallExpression(Node.createIdentifierExpression("isDefined", node.range), null, [tryRethrow], node.range), Node.createExpressionStatement(Node.createCallExpression(tryRethrow, null, [], node.range)), Node.createIfStatement(Node.createCallExpression(Node.createIdentifierExpression("isDefined", node.range), null, [rethrow], node.range), Node.createExpressionStatement(Node.createCallExpression(rethrow, null, [], node.range)), Node.createThrowStatement(node.value, node.range), node.range), node.range);
 
     replaceRef(node, [newThrow], ref);
   }

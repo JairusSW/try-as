@@ -170,7 +170,7 @@ Important behavior:
 - `is<T>()` compares the stored discriminator.
 - `as<T>()` returns the stored value if the discriminator matches, otherwise it returns a default value via `ExceptionState.DefaultValue`.
 - `clone()` deep-copies the 8-byte payload storage buffer.
-- `rethrow()` falls back to its runtime method body when used outside transformed control flow; for `Throw`, that degrades to `abort(message, ...)`.
+- `rethrow()` always uses its runtime method body; for `Throw`, that degrades to `abort(message, ...)`.
 - `__try_rethrow()` writes the exception back into shared state so transformed rethrows preserve the active failure.
 - `__visit(...)` keeps managed payloads visible to the GC when needed.
 
@@ -545,11 +545,25 @@ It does two important jobs.
 
 #### 1. `rethrow` semantics
 
-Method calls named `rethrow` are rewritten to `__try_rethrow`.
+Direct method calls named `rethrow` are left alone, so `Exception.rethrow()` keeps its runtime behavior.
 
-This matters because `Exception.__try_rethrow()` restores shared exception state, while `Exception.rethrow()` falls back to native behavior.
+Identifier throws are split into two cases.
 
-It also rewrites identifier throws of the form:
+If the thrown identifier is statically typed as `Exception` or an `Exception` subclass, the transform lowers:
+
+```ts
+throw err;
+```
+
+directly to:
+
+```ts
+err.rethrow();
+```
+
+For all other identifier throws, the transform keeps the guarded fallback path.
+
+That fallback rewrites identifier throws of the form:
 
 ```ts
 throw e;
@@ -560,12 +574,14 @@ into a guarded form:
 ```ts
 if (isDefined(e.__try_rethrow)) {
   e.__try_rethrow();
+} else if (isDefined(e.rethrow)) {
+  e.rethrow();
 } else {
   throw e;
 }
 ```
 
-That allows caught `Exception` values to re-enter transformed propagation correctly.
+This keeps explicit `Exception` rethrows on the runtime path while still supporting custom identifier rethrow helpers for non-`Exception` values.
 
 #### 2. Method target selection
 

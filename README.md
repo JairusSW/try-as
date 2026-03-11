@@ -131,10 +131,12 @@ import { Exception, ExceptionType } from "try-as";
 - `Exception.is<T>(): bool`
 - `Exception.as<T>(): T`
 - `Exception.clone(): Exception`
-- `Exception.rethrow(): void`
+- `Exception.rethrow(): never`
 
 `Exception.as<T>()` supports `Error` subclasses, other managed objects, and primitive payloads like `i32`, `bool`, and `f64`.
-`Exception.rethrow()` is intended for transformed code paths, where `try-as` rewrites it to preserve the active exception state.
+`Exception.rethrow()` uses the runtime method body.
+If `err` is statically typed as `Exception`, `throw err;` is rewritten as `err.rethrow();`.
+Other identifier throws still use the generated `__try_rethrow()` / `rethrow()` / raw `throw` fallback chain when available.
 
 `ExceptionType`:
 - `None`
@@ -217,7 +219,7 @@ try {
 } catch (e) {
   const err = e as Exception;
   if (!err.is<Error>()) {
-    err.rethrow();
+    throw err; // alias of err.rethrow() when `err` is typed as Exception
   }
 }
 ```
@@ -268,7 +270,8 @@ try {
   - `~lib/wasi_`
   - `~lib/performance`
 - This library handles transformed throw/abort flows, not low-level Wasm traps like out-of-bounds memory faults.
-- `Exception.rethrow()` preserves throw semantics when used in transformed code. Outside transformed `try-as` flows, it falls back to the runtime method body.
+- `throw err;` becomes `err.rethrow();` when `err` is statically typed as `Exception`.
+- Other identifier throws still use the generated `__try_rethrow()` / `rethrow()` fallback path when available.
 
 ## Debugging
 

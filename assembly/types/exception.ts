@@ -105,6 +105,7 @@ export class Exception {
     } else if (this.type == ExceptionType.Throw) {
       abort(this.message, this.fileName, this.lineNumber, this.columnNumber);
     }
+    abort("Invalid exception type", this.fileName, this.lineNumber, this.columnNumber);
   }
 
   __try_rethrow(): void {

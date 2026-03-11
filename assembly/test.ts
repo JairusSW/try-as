@@ -7,9 +7,9 @@ import { Exception } from "./types/exception";
 //   }
 // }
 
-// function foo(): void {
-//   abort("Aborted from foo");
-// }
+function foo(): void {
+  abort("Aborted from foo");
+}
 
 // class BAR {
 //   bar(): void {
@@ -35,15 +35,19 @@ export function main(): void {
     // foo();
     // BAR.bar();
     // new BAR().bar();
-    throw new Error("throw from my error");
+    // throw new Error("throw from my error");
+    foo();
   } catch (e) {
     const err = e.clone() as Exception;
     console.log("Caught " + err.toString() + "\n");
     // console.log("Message: " + err.message!);
     throw err;
+    err.rethrow();
   } finally {
     console.log("Finally.");
   }
 }
 
 main();
+
+foo();

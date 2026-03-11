@@ -41,6 +41,7 @@
   "files": [
     "assembly/index.ts",
     "assembly/types/**/*.ts",
+    "index.d.ts",
     "index.ts",
     "transform/lib/**/*.js",
     "transform/lib/**/*.js.map",
@@ -65,6 +66,6 @@
     "format": "prettier -w ."
   },
   "type": "module",
-  "types": "assembly/index.ts",
+  "types": "./index.d.ts",
   "dependencies": {}
 }

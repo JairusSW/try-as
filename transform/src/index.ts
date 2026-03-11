@@ -34,6 +34,19 @@ const TRANSFORM_OPTIONS = {
 };
 
 let WRITE = process.env["WRITE"];
+
+function hasParsedSource(sources: Parser["sources"], targetPath: string): boolean {
+  const normalizedTarget = targetPath.replaceAll("\\", "/");
+  const withoutExtension = removeExtension(normalizedTarget).replaceAll("\\", "/");
+  const candidates = new Set<string>([normalizedTarget, withoutExtension, normalizedTarget.replace(/^\.\//, ""), withoutExtension.replace(/^\.\//, "")]);
+
+  return sources.some((source) => {
+    const paths = [source.normalizedPath, source.internalPath].filter((value): value is string => Boolean(value)).map((value) => value.replaceAll("\\", "/"));
+
+    return paths.some((value) => candidates.has(value) || candidates.has(value.replace(/^\.\//, "")));
+  });
+}
+
 export default class Transformer extends Transform {
   afterParse(parser: Parser): void {
     let sources = parser.sources;
@@ -42,24 +55,24 @@ export default class Transformer extends Transform {
 
     const isLib = path.dirname(baseDir).endsWith("node_modules");
 
-    if (!isLib && !sources.some((v) => v.normalizedPath.startsWith("assembly/types/exception.ts"))) {
+    if (!isLib && !hasParsedSource(sources, "assembly/types/exception.ts")) {
       const p = "./assembly/types/exception.ts";
       if (fs.existsSync(path.join(baseDir, p))) {
         parser.parseFile(fs.readFileSync(path.join(baseDir, p.replaceAll("/", path.sep))).toString(), p, false);
       }
     }
-    if (isLib && !sources.some((v) => v.normalizedPath.startsWith("~lib/try-as/assembly/types/exception.ts"))) {
+    if (isLib && !hasParsedSource(sources, "~lib/try-as/assembly/types/exception.ts")) {
       parser.parseFile(fs.readFileSync(path.join(baseDir, "assembly", "types", "exception.ts")).toString(), "~lib/try-as/assembly/types/exception.ts", false);
     }
 
-    if (!isLib && !sources.some((v) => v.normalizedPath.startsWith("assembly/types/unreachable.ts"))) {
+    if (!isLib && !hasParsedSource(sources, "assembly/types/unreachable.ts")) {
       const p = "./assembly/types/unreachable.ts";
       if (fs.existsSync(path.join(baseDir, p))) {
         parser.parseFile(fs.readFileSync(path.join(baseDir, p.replaceAll("/", path.sep))).toString(), p, false);
       }
     }
 
-    if (isLib && !sources.some((v) => v.normalizedPath.startsWith("~lib/try-as/assembly/types/unreachable.ts"))) {
+    if (isLib && !hasParsedSource(sources, "~lib/try-as/assembly/types/unreachable.ts")) {
       parser.parseFile(fs.readFileSync(path.join(baseDir, "assembly", "types", "unreachable.ts")).toString(), "~lib/try-as/assembly/types/unreachable.ts", false);
     }
 
