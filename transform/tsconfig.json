@@ -2,8 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ES2020",
-    "moduleResolution": "Node",
-    "ignoreDeprecations": "6.0",
+    "moduleResolution": "Bundler",
     "removeComments": true,
     "skipLibCheck": true,
     "types": ["node"],
