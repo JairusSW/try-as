@@ -50,4 +50,3 @@ export function toString(node) {
         return node.map((v) => toString(v)).join("\n");
     return ASTBuilder.build(node);
 }
-//# sourceMappingURL=util.js.map

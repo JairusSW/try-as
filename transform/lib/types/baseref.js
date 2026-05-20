@@ -6,4 +6,3 @@ export class BaseRef {
         return this;
     }
 }
-//# sourceMappingURL=baseref.js.map

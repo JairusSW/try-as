@@ -1,4 +1,5 @@
-import { BlockStatement, CommonFlags, FunctionDeclaration, ImportDeclaration, ImportStatement, Node, NodeKind, SourceKind, Statement, Token } from "assemblyscript/dist/assemblyscript.js";
+import { BlockStatement, CommonFlags, FunctionDeclaration, IdentifierExpression, ImportDeclaration, ImportStatement, Node, SourceKind, Statement, Token } from "assemblyscript/dist/assemblyscript.js";
+import { NodeKind } from "../types.js";
 import { CallRef } from "./callref.js";
 import { addAfter, blockify, cloneNode, getBreaker, getName } from "../utils.js";
 import { ExceptionRef } from "./exceptionref.js";
@@ -55,6 +56,21 @@ export class FunctionRef extends BaseRef {
   generate(): void {
     if (!this.hasException) return;
     if (this.node.name.text.startsWith("__try_")) return;
+    // @inline functions get substituted at every call site by AS — emitting
+    // a `__try_<name>` shadow is wasted (AS still inlines the original) and
+    // worse, the rename forces callers to look up a name AS may not have in
+    // scope. Leave @inline functions at their original name; their body's
+    // throws stay raw, so exception propagation through them is lost, but
+    // compilation succeeds. Acceptable tradeoff — @inline is overwhelmingly
+    // used for small leaf helpers where exception propagation isn't
+    // load-bearing.
+    if (this.node.decorators) {
+      for (const dec of this.node.decorators) {
+        if (dec.name.kind == NodeKind.Identifier && (dec.name as IdentifierExpression).text == "inline") {
+          return;
+        }
+      }
+    }
     if (DEBUG > 0) console.log(indent + "Generating function " + this.qualifiedName);
     indent.add();
     if (this.exported && !this.generatedImport) {
@@ -100,7 +116,14 @@ export class FunctionRef extends BaseRef {
 
     const replacementFunction = Node.createFunctionDeclaration(Node.createIdentifierExpression(this.node.name.text, this.node.name.range), this.node.decorators, this.node.flags, this.node.typeParameters, this.node.signature, this.cloneBody, this.node.arrowKind, this.node.range);
 
-    if (!this.tries.length) this.node.name = Node.createIdentifierExpression("__try_" + this.node.name.text, this.node.name.range);
+    // Anonymous arrow callbacks (`(): void => { … }`) have an empty
+    // `name.text`. Renaming them to `__try_` would trip the AST-builder
+    // assertion `declaration.name.text.length == 0` in the DEBUG WRITE
+    // pass and adds nothing — nothing references arrows by name. Keep
+    // them anonymous; the body's lowered throws still update
+    // `__ExceptionState`.
+    const isAnonymous = this.node.name.text.length == 0;
+    if (!this.tries.length && !isAnonymous) this.node.name = Node.createIdentifierExpression("__try_" + this.node.name.text, this.node.name.range);
 
     if (this.node.body && this.node.body.kind != NodeKind.Block) {
       this.node.body = blockify(this.node.body);

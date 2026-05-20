@@ -1,7 +1,7 @@
 import { AssertionExpression, AssertionKind, ClassDeclaration, CommonFlags, FunctionDeclaration, IdentifierExpression, MethodDeclaration, NewExpression, Node, NodeKind, ParameterNode, ParenthesizedExpression, PropertyAccessExpression, Source, ThrowStatement, VariableDeclaration } from "assemblyscript/dist/assemblyscript.js";
 
 import { Visitor } from "../lib/visitor.js";
-import { replaceRef } from "../utils.js";
+import { cloneNode, replaceCallExpression, replaceCallWithIsDefinedIf, replaceRef } from "../utils.js";
 import { toString } from "../lib/util.js";
 import { CallExpression } from "types:assemblyscript/src/ast";
 import { Globals } from "../globals/globals.js";
@@ -105,9 +105,18 @@ export class ThrowReplacer extends Visitor {
   private matchesClass(method: MethodRef, className: string): boolean {
     const normalized = this.normalizeTypeName(className);
     if (!normalized.length) return false;
-    if (method.parent.name == normalized) return true;
-    if (method.parent.qualifiedName == normalized) return true;
-    if (method.parent.qualifiedName.endsWith("." + normalized)) return true;
+    // Walk the inheritance chain so calls on a derived class resolve to a
+    // method defined on a base class.  `classExtends` is populated during
+    // `visitClassDeclaration` and stores the direct base for each known class.
+    let current: string | null = normalized;
+    const seen = new Set<string>();
+    while (current != null && !seen.has(current)) {
+      if (method.parent.name == current) return true;
+      if (method.parent.qualifiedName == current) return true;
+      if (method.parent.qualifiedName.endsWith("." + current)) return true;
+      seen.add(current);
+      current = this.classExtends.get(current) || null;
+    }
     return false;
   }
 
@@ -268,10 +277,51 @@ export class ThrowReplacer extends Visitor {
     if (methRef.tries.length) return;
     if (target.property.text.startsWith("__try_")) return;
 
-    target.property.text = "__try_" + target.property.text;
+    // Skip @inline targets — AS inlines them at the call site and our
+    // ternary wrap would land inside the inliner's machinery (it asserts
+    // when it expects a CallExpression but finds a TernaryExpression).
+    const decorators = methRef.node.decorators;
+    if (decorators) {
+      for (const dec of decorators) {
+        if (dec.name.kind == NodeKind.Identifier && (dec.name as IdentifierExpression).text == "inline") return;
+      }
+    }
 
+    // Wrap the call as
+    //   isDefined(obj.__try_name) ? obj.__try_name(args) : obj.name(args)
+    // (ternary in expression position) OR
+    //   if (isDefined(obj.__try_name)) obj.__try_name(args); else obj.name(args);
+    // (if/else at statement position). The ternary path has been observed to
+    // trip AS's builtin-call compiler on certain property-access shapes inside
+    // ExpressionStatement scope; the if/else form folds reliably because AS
+    // constant-folds `isDefined()` at the statement boundary and emits only
+    // the chosen branch.
+    const range = node.range;
+    const originalName = target.property.text;
+    const renamedName = "__try_" + originalName;
+
+    const buildOriginalCall = () => cloneNode(node) as CallExpression;
+    const buildRenamedCall = () => {
+      const renamedTarget = Node.createPropertyAccessExpression(cloneNode(target.expression) as Node, Node.createIdentifierExpression(renamedName, range), range);
+      return Node.createCallExpression(renamedTarget, node.typeArguments, node.args.map((arg) => cloneNode(arg) as Node) as any, range);
+    };
+    const buildIsDefinedArg = () => Node.createPropertyAccessExpression(cloneNode(target.expression) as Node, Node.createIdentifierExpression(renamedName, range), range);
+
+    // Statement position: emit `if (isDefined(...)) __try_X(args); else X(args);`.
+    const placedAsIf = replaceCallWithIsDefinedIf(node, buildIsDefinedArg(), buildRenamedCall(), buildOriginalCall(), ref);
+    if (placedAsIf) {
+      if (DEBUG > 1) {
+        console.log("Wrapped method call in isDefined-if: " + renamedName + " in " + node.range.source.internalPath);
+      }
+      return;
+    }
+
+    // Expression position: leave the call unchanged. Wrapping in a ternary
+    // breaks AS builtins (`inline.always`, etc.) that require their argument
+    // to be a plain CallExpression. The original-name clone still resolves,
+    // we just don't propagate exception state through this call site.
     if (DEBUG > 1) {
-      console.log("Rewrote method call to " + target.property.text + " in " + node.range.source.internalPath);
+      console.log("Skipped method-call wrap (expression position): " + originalName + " in " + node.range.source.internalPath);
     }
   }
 

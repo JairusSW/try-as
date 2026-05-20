@@ -66,7 +66,8 @@ export class TryRef extends BaseRef {
             const catchVar = Node.createVariableStatement(null, [Node.createVariableDeclaration(this.node.catchVariable, null, 16, null, Node.createNewExpression(Node.createSimpleTypeName("__Exception", this.node.range), null, [Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Type", this.node.range), this.node.range)], this.node.range), this.node.range)], this.node.range);
             const stateReset = Node.createExpressionStatement(Node.createUnaryPostfixExpression(88, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Failures", this.node.range), this.node.range), this.node.range));
             const catchCondition = Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("shouldCatch", this.node.range), this.node.range), null, [SimpleParser.parseExpression("<i32>" + this.catchMask.toString())], this.node.range);
-            this.catchBlock = Node.createIfStatement(catchCondition, Node.createBlockStatement([catchVar, stateReset, ...cloneNode(this.node.catchStatements)], this.node.range), null, this.node.range);
+            const catchBodyLoop = Node.createDoStatement(Node.createBlockStatement(cloneNode(this.node.catchStatements), catchRange), Node.createFalseExpression(this.node.range), catchRange);
+            this.catchBlock = Node.createIfStatement(catchCondition, Node.createBlockStatement([catchVar, stateReset, catchBodyLoop], this.node.range), null, this.node.range);
             if (DEBUG > 0)
                 console.log(indent +
                     "Catch Block: " +
@@ -94,4 +95,3 @@ export class TryRef extends BaseRef {
         return this;
     }
 }
-//# sourceMappingURL=tryref.js.map

@@ -69,13 +69,13 @@ export namespace ErrorState {
     ErrorState.hasMessage = false;
   }
   // @ts-ignore: inline
-  @inline export function error<T>(error: T, fileName: string, lineNumber: string, columnNumber: string): void {
+  @inline export function error<T>(error: T, fileName: string, lineNumber: i32, columnNumber: i32): void {
     ExceptionState.Failures++;
     ExceptionState.Type = ExceptionType.Throw;
 
     ErrorState.fileName = fileName;
-    ErrorState.lineNumber = i32.parse(lineNumber);
-    ErrorState.columnNumber = i32.parse(columnNumber);
+    ErrorState.lineNumber = lineNumber;
+    ErrorState.columnNumber = columnNumber;
 
     const managedRef = isManaged<T>();
     if (managedRef && idof<T>() == idof<Exception>()) return;

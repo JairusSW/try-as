@@ -1,5 +1,29 @@
 # Change Log
 
+## 2026-05-20 - 1.1.0
+
+- fix: skip `__try_<name>` rename for calls inside `inline.always(...)`, `inline.never(...)`, and `unchecked(...)` builtin args — AS was inlining the renamed body's leading unroll-check Statement into the builtin's expression slot and asserting in `compileCommaExpression` / `compileExpression`
+- fix: skip rename + clone for `@inline`-decorated functions (including methods); AS substitutes their bodies at every call site, so the `__try_` shadow is unreachable and the rewrite caused inliner asserts when the call resolved to a non-CallExpression
+- fix: skip rename for anonymous arrow callbacks (empty `name.text`); the AS AST builder asserts on `declaration.name.text.length == 0` during the DEBUG WRITE pass
+- fix: skip rename + clone for constructors, getters, and setters (`MethodRef.cannotRename`); these slots can't carry a `__try_`-prefixed name
+- fix: keep the `__try_<name>` rename when a throwing call sits in expression position (assignment, return, initializer); reverting it back to the original name (the previous behavior) routed the call to the un-instrumented function and trapped the wasm module on raw `abort()` / `throw`
+- fix: linker now visits constructor `MethodDeclaration`s so their bodies get the same throw/abort rewrites as regular methods; without this, `new ThrowingCtor(...)` ran the raw constructor body and trapped
+- fix: emit `return this;` (instead of a bare `return;`) for the in-body breaker of constructor exception sites — AS rejects bare `return` against the synthetic class-instance return type
+- fix: `ThrowReplacer.matchesClass` now walks `classExtends` so a call to a method inherited (not overridden) from a base class resolves through the base's `MethodRef` and gets rewritten
+- fix: don't crash on throws that have no attributable parent function or try (top-level / module-scope throws now walk through)
+- fix: wrap generated catch bodies in `do { ... } while(false)` so the rewritten `break` lands at the catch boundary instead of returning from the enclosing function
+- fix: route identifier-throws inside catch bodies through `ThrowReplacer`'s `isDefined(__try_rethrow / rethrow)` guard (new `Globals.inCatchBody` flag) instead of capturing them in `ExceptionRef`
+- fix: stdlib + exception-ref location args (`lineNumber`, `columnNumber`) are now emitted as `i32` integer literals to match the updated `__ErrorState.error(error, fileName, lineNumber, columnNumber)` signature in `assembly/types/error.ts`
+- fix: `AbortState.abort(msg, fileName, lineNumber, columnNumber)` accepts `i32` line/column (previously `string`) so user code calling the documented `abort(msg, file, line, col)` shape compiles after the transform; `Exception.rethrow` updated to match
+- feat: detect consuming-project installs via `createRequire(<anchor>/package.json).resolve(spec)` instead of literal `node_modules/try-as/...` path probes; works across npm, yarn, and pnpm symlinked layouts without needing `--preserve-symlinks`
+- feat: emit bare `try-as/assembly/types/...` specifiers when the consumer has try-as on its resolver path
+- test: add `control-flow.spec.ts` covering loops (`while`/`for`/`do-while`), if/else/switch branches, sequential failure state hygiene, payload type mismatches via `is<T>()` / `as<T>()`, `clone()` of primitive payloads, and try-finally without catch
+- test: add `edges.spec.ts` covering three-deep call chains, arrow-function callbacks, deep throw-from-catch nesting, generic instantiation, `as<T>()` defaults on non-Throw exceptions, payload preservation across rethrow, and the now-compiling `abort(msg, file, i32, i32)` location capture
+- test: add `regression-bugs.spec.ts` pinning the six fixes above (expression-position rename, inherited methods, catch-finally interleaving, ctor throws, getter throws)
+- chore: add husky pre-commit / commit-msg / pre-push hooks (mirrors json-as/as-test setup)
+- chore: fix TS6 deprecations in `transform/tsconfig.json` (`ignoreDeprecations: "6.0"` + explicit `rootDir`)
+- chore: clean stale `transform/lib` outputs
+
 ## 2026-03-11 - 1.0.1
 
 - fix: rewrite `throw err` to `err.rethrow()` when `err` is statically typed as `Exception` (or an `Exception` subclass), while keeping the generic identifier fallback path for non-`Exception` values

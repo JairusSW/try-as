@@ -1,4 +1,5 @@
 import { MethodDeclaration, Node } from "assemblyscript/dist/assemblyscript.js";
+import { NodeKind } from "../types.js";
 import { Visitor } from "../lib/visitor.js";
 import { cloneNode, getBreaker, replaceRef } from "../utils.js";
 export class StdlibThrowRewriter extends Visitor {
@@ -41,9 +42,11 @@ export class StdlibThrowRewriter extends Visitor {
         super.visitThrowStatement(node, ref);
         if (!this.source || !this.currentFn || !this.isStdlibSource(this.source.internalPath))
             return;
-        if (this.currentFn instanceof MethodDeclaration && this.currentFn.name.kind == 26)
+        if (this.currentFn.flags & 524288)
             return;
-        const newException = Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range), null, [cloneNode(node.value), Node.createStringLiteralExpression(node.range.source.normalizedPath, node.range), Node.createStringLiteralExpression(node.range.source.lineAt(node.range.start).toString(), node.range), Node.createStringLiteralExpression(node.range.source.columnAt().toString(), node.range)], node.range));
+        if (this.currentFn instanceof MethodDeclaration && this.currentFn.name.kind == NodeKind.Constructor)
+            return;
+        const newException = Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range), null, [cloneNode(node.value), Node.createStringLiteralExpression(node.range.source.normalizedPath, node.range), Node.createIntegerLiteralExpression(i64_new(node.range.source.lineAt(node.range.start)), node.range), Node.createIntegerLiteralExpression(i64_new(node.range.source.columnAt()), node.range)], node.range));
         const breaker = getBreaker(node, this.currentFn);
         if (Array.isArray(ref)) {
             replaceRef(node, [newException, breaker], ref);
@@ -59,4 +62,3 @@ export class StdlibThrowRewriter extends Visitor {
         }
     }
 }
-//# sourceMappingURL=stdlib.js.map

@@ -1,4 +1,5 @@
 import { Node } from "assemblyscript/dist/assemblyscript.js";
+import { NodeKind } from "../types.js";
 import { BaseRef } from "./baseref.js";
 import { addAfter, blockify, cloneNode, getBreaker, getName } from "../utils.js";
 import { indent } from "../globals/indent.js";
@@ -33,18 +34,28 @@ export class MethodRef extends BaseRef {
             return;
         if (this.node.name.text.startsWith("__try_"))
             return;
+        if (this.node.decorators) {
+            for (const dec of this.node.decorators) {
+                if (dec.name.kind == NodeKind.Identifier && dec.name.text == "inline") {
+                    return;
+                }
+            }
+        }
         if (DEBUG > 0)
             console.log(indent + "Generating method " + this.qualifiedName);
         indent.add();
+        const isCtor = Boolean(this.node.flags & 524288);
+        const cannotRename = isCtor || Boolean(this.node.flags & (2048 | 4096));
         const returnStmt = getBreaker(this.node, this.node);
         const unrollCheck = Node.createIfStatement(Node.createBinaryExpression(73, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Failures", this.node.range), this.node.range), Node.createIntegerLiteralExpression(i64_zero, this.node.range), this.node.range), blockify(returnStmt), null, this.node.range);
         const replacementMethod = Node.createMethodDeclaration(Node.createIdentifierExpression(this.node.name.text, this.node.name.range), this.node.decorators, this.node.flags, this.node.typeParameters, this.node.signature, this.cloneBody, this.node.range);
-        if (!this.tries.length)
+        if (!this.tries.length && !cannotRename)
             this.node.name = Node.createIdentifierExpression("__try_" + this.node.name.text, this.node.name.range);
-        if (this.node.body && this.node.body.kind != 30) {
+        if (this.node.body && this.node.body.kind != NodeKind.Block) {
             this.node.body = blockify(this.node.body);
         }
-        this.node.body.statements.unshift(unrollCheck);
+        if (!isCtor)
+            this.node.body.statements.unshift(unrollCheck);
         for (const exception of this.exceptions) {
             if (DEBUG > 0)
                 console.log(indent + "Generating exceptions");
@@ -66,7 +77,7 @@ export class MethodRef extends BaseRef {
             tryRef.generate();
             indent.rm();
         }
-        if (!this.tries.length)
+        if (!this.tries.length && !cannotRename)
             addAfter(this.node, replacementMethod, this.ref);
         indent.rm();
     }
@@ -76,4 +87,3 @@ export class MethodRef extends BaseRef {
         return this;
     }
 }
-//# sourceMappingURL=methodref.js.map

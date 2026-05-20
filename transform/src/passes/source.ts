@@ -8,9 +8,39 @@ import { ExceptionRef } from "../types/exceptionref.js";
 import { CallRef } from "../types/callref.js";
 import { TryRef } from "../types/tryref.js";
 import { fileURLToPath } from "url";
+import { createRequire } from "module";
 import { Globals } from "../globals/globals.js";
 import path from "path";
 import fs from "fs";
+
+// Resolve a specifier from the consumer's project root via Node's module
+// resolver — works for npm, yarn, symlinks, and (hoisted) pnpm without the
+// caller needing --preserve-symlinks. `selfDir` guards against Node's
+// package self-reference when the transform is being exercised from within
+// try-as's own checkout (consumer cwd is inside try-as). A symlinked
+// install where the consumer is OUTSIDE try-as is the opposite case and
+// must not trip the guard — that's why the test is on cwd, not on the
+// resolved path.
+function resolveFromConsumer(specifier: string, selfDir?: string): string | null {
+  const cwd = Globals.baseCWD || process.cwd();
+  const anchor = path.join(cwd, "package.json");
+  let resolved: string;
+  try {
+    resolved = createRequire(anchor).resolve(specifier);
+  } catch {
+    return null;
+  }
+  if (selfDir) {
+    try {
+      const cwdReal = fs.realpathSync(cwd);
+      const selfReal = fs.realpathSync(selfDir);
+      if (cwdReal === selfReal || cwdReal.startsWith(selfReal + path.sep)) return null;
+    } catch {
+      // realpath failure: fall through.
+    }
+  }
+  return resolved;
+}
 import { toString } from "../lib/util.js";
 import { ClassRef } from "../types/classref.js";
 import { NamespaceRef } from "../types/namespaceref.js";
@@ -72,7 +102,9 @@ export class SourceLinker extends Visitor {
   visitMethodDeclaration(node: MethodDeclaration, ref: Node | Node[] | null = null): void {
     if (this.state != "gather" || !this.parentSpace) return super.visitMethodDeclaration(node, ref);
     if (this.parentSpace instanceof NamespaceRef) return super.visitMethodDeclaration(node, ref);
-    if (node.name.kind == NodeKind.Constructor) return super.visitMethodDeclaration(node, ref);
+    // Constructors are tracked too so their body throws get rewritten via the
+    // shared exception-state machinery, but MethodRef.generate is careful not
+    // to rename them (`constructor` is a reserved class-shape name).
     const methRef = new MethodRef(node, ref, this.source, this.parentSpace);
     Globals.methods.push(methRef);
     if (DEBUG > 0) console.log(indent + "Found method " + methRef.name);
@@ -112,12 +144,39 @@ export class SourceLinker extends Visitor {
       Globals.parentFn = null;
       return;
     }
-    const parentFn = this.source.local.functions.find((v) => v.name == node.name.text) ?? null;
-    Globals.parentFn = parentFn;
-    // Globals.refStack.add(parentFn);
+    // Match by node identity first so anonymous arrow callbacks
+    // (`(): void => { throw ... }` passed to expect-like helpers) get
+    // attributed to their own FunctionRef. Matching by name alone returns
+    // null for arrows (their `node.name.text` is empty), which leaves the
+    // body's throws orphaned. If we find an arrow's ref, also push it into
+    // source.functions and Globals.refStack so `smashStack` marks it
+    // hasException and SourceRef.generate emits its lowered body.
+    const byNode = this.source.local.functions.find((v) => v.node == node) ?? null;
+    const parentFn = byNode ?? this.source.local.functions.find((v) => v.name == node.name.text) ?? null;
+    if (byNode && !this.source.functions.includes(byNode)) {
+      this.source.functions.push(byNode);
+    }
+    // Save and restore parentFn around the body walk so nested arrows don't
+    // clobber the OUTER tracked function's parentFn — otherwise `getBreaker`
+    // would emit a bare `break;` after the arrow returns.
+    //
+    // For named top-level functions, ALSO set lastFn so visitTryStatement's
+    // path A fires and attaches the try directly to the function's `tries`
+    // (FunctionRef.generate's `if (!this.tries.length)` clone-and-rename
+    // branch then correctly stays off). For anonymous arrows, leave lastFn
+    // alone — their tries should fall through to the source-level path so
+    // outer/inner try nesting flows through `Globals.lastTry` rather than
+    // getting flattened onto the arrow itself.
+    const isNamed = node.name.text.length > 0;
+    const savedParentFn = Globals.parentFn;
+    const savedLastFn = Globals.lastFn;
+    Globals.parentFn = parentFn ?? savedParentFn;
+    if (parentFn && isNamed) Globals.lastFn = parentFn;
+    if (byNode) Globals.refStack.add(byNode);
     super.visitFunctionDeclaration(node, isDefault, ref);
-    Globals.parentFn = null;
-    // Globals.refStack.delete(parentFn);
+    if (byNode) Globals.refStack.delete(byNode);
+    Globals.parentFn = savedParentFn;
+    Globals.lastFn = savedLastFn;
   }
   linkFunctionRef(fnRef: FunctionRef): void {
     if (!fnRef || (fnRef.visited && !fnRef.hasException)) return;
@@ -178,7 +237,21 @@ export class SourceLinker extends Visitor {
     if (this.state != "postprocess" && !Globals.lastFn && !Globals.lastTry) return super.visitCallExpression(node, ref);
 
     const fnName = getName(node.expression);
-    if (fnName == "inline.always" || fnName == "unchecked") return super.visitCallExpression(node, ref);
+    // `inline.always(X)` / `inline.never(X)` / `unchecked(X)` and friends
+    // are AS builtins that take a *plain CallExpression* argument and inline
+    // its body in place. If we rename X to `__try_X`, the renamed body
+    // starts with an `if (__ExceptionState.Failures > 0) return;` unroll
+    // check — a Statement — and AS lands that inside the builtin's
+    // expression slot, then asserts in `compileCommaExpression` /
+    // `compileExpression`. Mark CallRefs created while walking the args so
+    // CallRef.generate can skip the rename for them.
+    if (fnName == "inline.always" || fnName == "inline.never" || fnName == "unchecked") {
+      const wasInBuiltin = Globals.inInlineBuiltinArg;
+      Globals.inInlineBuiltinArg = true;
+      const result = super.visitCallExpression(node, ref);
+      Globals.inInlineBuiltinArg = wasInBuiltin;
+      return result;
+    }
 
     if (fnName == "unreachable" || fnName == "abort") {
       if (DEBUG > 0) console.log(indent + "Found exception " + toString(node) + " " + node.range.source.internalPath);
@@ -187,7 +260,10 @@ export class SourceLinker extends Visitor {
       newException.hasException = true;
       if (Globals.parentFn) Globals.parentFn.exceptions.push(newException);
       else if (Globals.lastTry) Globals.lastTry.exceptions.push(newException);
-      else throw new Error("No parent function");
+      // No enclosing function or try — top-level abort/unreachable, just
+      // walk past it. Don't propagate via smashStack since there's nothing
+      // to attribute to.
+      else return super.visitCallExpression(node, ref);
 
       this.smashStack();
 
@@ -197,6 +273,7 @@ export class SourceLinker extends Visitor {
     let [fnRef, fnSrc] = this.source.findFn(fnName);
     if (!fnRef || !fnSrc) return super.visitCallExpression(node, ref);
     const callRef = new CallRef(node, ref, fnRef, this.source, Globals.parentFn);
+    callRef.inInlineBuiltinArg = Globals.inInlineBuiltinArg;
     Globals.refStack.add(callRef);
     fnRef?.callers.push(callRef);
 
@@ -206,7 +283,9 @@ export class SourceLinker extends Visitor {
       callRef.hasException = true;
       if (Globals.parentFn) Globals.parentFn.exceptions.push(callRef);
       else if (Globals.lastTry) Globals.lastTry.exceptions.push(callRef);
-      else throw new Error("No parent function");
+      // Throwing call outside any tracked function/try — likely at module
+      // scope. Nothing to attribute the exception to, just walk on.
+      else return super.visitCallExpression(node, ref);
       this.smashStack();
     }
 
@@ -225,7 +304,9 @@ export class SourceLinker extends Visitor {
       callRef.hasException = true;
       if (Globals.parentFn) Globals.parentFn.exceptions.push(callRef);
       else if (Globals.lastTry) Globals.lastTry.exceptions.push(callRef);
-      else throw new Error("No parent function");
+      // Throwing call outside any tracked function/try — likely at module
+      // scope. Nothing to attribute the exception to, just walk on.
+      else return super.visitCallExpression(node, ref);
       this.smashStack();
     }
 
@@ -234,13 +315,43 @@ export class SourceLinker extends Visitor {
 
   visitThrowStatement(node: ThrowStatement, ref: Node | Node[] | null = null): void {
     if (this.state != "link" && this.state != "done" && this.state != "postprocess") return super.visitThrowStatement(node, ref);
-    if (this.state != "postprocess" && !Globals.lastTry) return super.visitThrowStatement(node, ref);
+    // Identifier throws inside a catch body are handled by ThrowReplacer
+    // (isDefined-guarded __try_rethrow / rethrow / throw fallback) so user
+    // hooks like `RethrowPreference.__try_rethrow` still fire when a
+    // re-thrown identifier value carries them.  Walk past without creating
+    // an ExceptionRef so the raw ThrowStatement survives into the post pass.
+    if (Globals.inCatchBody && node.value.kind == NodeKind.Identifier) return super.visitThrowStatement(node, ref);
+    // Allow throws inside any tracked function (e.g. arrow callbacks passed
+    // to test helpers), not just throws nested in a try block — otherwise
+    // `expect((): void => { throw ... }).toThrow()` keeps the raw throw and
+    // aborts at runtime.
+    if (this.state != "postprocess" && !Globals.lastTry && !Globals.parentFn) return super.visitThrowStatement(node, ref);
+    // Skip throws inside @inline parentFns. AS inlines the body wholesale
+    // at every call site, and our rewritten form (state-update + breaker)
+    // doesn't survive AS's compileCommaExpression / inliner machinery when
+    // the call site sits inside coverage-transform's `return (__COVER, …)`
+    // pattern. Leaving these throws raw means they abort at runtime — which
+    // is the same as not having try-as at all for these specific calls —
+    // but compilation succeeds.
+    if (this.state != "postprocess" && !Globals.lastTry && Globals.parentFn) {
+      const parentNode = Globals.parentFn.node;
+      const decorators = parentNode.decorators;
+      if (decorators) {
+        for (const dec of decorators) {
+          if (dec.name.kind == NodeKind.Identifier && (dec.name as unknown as { text: string }).text == "inline") {
+            return super.visitThrowStatement(node, ref);
+          }
+        }
+      }
+    }
     if (DEBUG > 0) console.log(indent + "Found exception " + toString(node));
     Globals.foundException = true;
     const newException = new ExceptionRef(node, ref, this.source, Globals.parentFn);
     if (Globals.parentFn) Globals.parentFn.exceptions.push(newException);
     else if (Globals.lastTry) Globals.lastTry.exceptions.push(newException);
-    else throw new Error("No parent function");
+    // No enclosing function or try — top-level throw. Nothing to attribute
+    // it to, so walk past it without smashStack.
+    else return super.visitThrowStatement(node, ref);
 
     this.smashStack();
 
@@ -276,10 +387,21 @@ export class SourceLinker extends Visitor {
       Globals.refStack.add(tryRef);
       this.visit(node.bodyStatements, node);
       Globals.refStack.delete(tryRef);
-      Globals.parentFn = parentFn;
       Globals.lastTry = lastTry;
       this.visit(node.catchVariable, node);
+      // Visit catch body with parentFn cleared and lastTry pointed at this
+      // try, so exception rewrites inside the catch use `break` (handled by
+      // TryRef.generate wrapping the catch in its own do/while) rather than a
+      // function-`return` that would skip the trailing finally block.
+      Globals.lastTry = tryRef;
+      Globals.refStack.add(tryRef);
+      const wasInCatchA = Globals.inCatchBody;
+      Globals.inCatchBody = true;
       this.visit(node.catchStatements, node);
+      Globals.inCatchBody = wasInCatchA;
+      Globals.refStack.delete(tryRef);
+      Globals.parentFn = parentFn;
+      Globals.lastTry = lastTry;
       this.visit(node.finallyStatements, node);
       if (DEBUG > 0 && this.state == "link") console.log(indent + "Exited Try");
       return;
@@ -298,10 +420,20 @@ export class SourceLinker extends Visitor {
     Globals.refStack.add(tryRef);
     this.visit(node.bodyStatements, node);
     Globals.refStack.delete(tryRef);
-    Globals.parentFn = parentFn;
     Globals.lastTry = lastTry;
     this.visit(node.catchVariable, node);
+    // See comment above: catch body is visited with parentFn cleared so
+    // generated exception rewrites break out of the catch's wrapping
+    // do/while rather than returning from the enclosing function.
+    Globals.lastTry = tryRef;
+    Globals.refStack.add(tryRef);
+    const wasInCatchB = Globals.inCatchBody;
+    Globals.inCatchBody = true;
     this.visit(node.catchStatements, node);
+    Globals.inCatchBody = wasInCatchB;
+    Globals.refStack.delete(tryRef);
+    Globals.parentFn = parentFn;
+    Globals.lastTry = lastTry;
     this.visit(node.finallyStatements, node);
     if (DEBUG > 0) console.log(indent + "Exited Try");
 
@@ -434,18 +566,33 @@ export class SourceLinker extends Visitor {
 
   static addImports(node: Source): void {
     const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
-    // console.log("Base Dir: " + baseDir);
     const pkgPath = path.join(Globals.baseCWD, "node_modules");
-    let fromPath = node.range.source.normalizedPath;
 
-    fromPath = fromPath.startsWith("~lib/") ? (fs.existsSync(path.join(pkgPath, fromPath.slice(5, fromPath.indexOf("/", 5)))) ? path.join(pkgPath, fromPath.slice(5)) : fromPath) : path.join(Globals.baseCWD, fromPath);
+    // If try-as is reachable as a module from the consumer (npm, yarn,
+    // pnpm-hoisted, or symlinked via `npm link` / `file:...`), always emit a
+    // bare `try-as/assembly/types/...` specifier. AS's module resolution
+    // walks node_modules transparently and follows symlinks, so this works
+    // without the user needing `--preserve-symlinks`. Computing a relative
+    // path was what made the symlinked-install case explode: `path.relative`
+    // from the consumer's cwd to try-as's realpath produces something like
+    // `../../../actual/try-as`, and AS resolves that into a SECOND copy of
+    // each types file alongside the `~lib/try-as/...` one the user's
+    // `import "try-as"` already pulled in — duplicate declarations, then
+    // assertion in `program.initialize`.
+    const consumerHasTryAs = resolveFromConsumer("try-as/package.json", baseDir) != null;
 
-    let relDir = path.posix.join(...path.relative(path.dirname(fromPath), path.join(baseDir, "assembly", "types")).split(path.sep));
-
-    if (relDir.includes("node_modules" + path.sep + "try-as")) {
-      relDir = "try-as" + relDir.slice(relDir.indexOf("node_modules" + path.sep + "try-as") + 19);
-    } else if (!relDir.startsWith(".") && !relDir.startsWith("/") && !relDir.startsWith("try-as")) {
-      relDir = "./" + relDir;
+    let relDir: string;
+    if (consumerHasTryAs) {
+      relDir = "try-as/assembly/types";
+    } else {
+      let fromPath = node.range.source.normalizedPath;
+      fromPath = fromPath.startsWith("~lib/") ? (fs.existsSync(path.join(pkgPath, fromPath.slice(5, fromPath.indexOf("/", 5)))) ? path.join(pkgPath, fromPath.slice(5)) : fromPath) : path.join(Globals.baseCWD, fromPath);
+      relDir = path.posix.join(...path.relative(path.dirname(fromPath), path.join(baseDir, "assembly", "types")).split(path.sep));
+      if (relDir.includes("node_modules" + path.sep + "try-as")) {
+        relDir = "try-as" + relDir.slice(relDir.indexOf("node_modules" + path.sep + "try-as") + 19);
+      } else if (!relDir.startsWith(".") && !relDir.startsWith("/") && !relDir.startsWith("try-as")) {
+        relDir = "./" + relDir;
+      }
     }
 
     const addImport = (file: string, names: string[]) => {

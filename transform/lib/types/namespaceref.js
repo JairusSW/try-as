@@ -39,4 +39,3 @@ export class NamespaceRef extends BaseRef {
         indent.rm();
     }
 }
-//# sourceMappingURL=namespaceref.js.map

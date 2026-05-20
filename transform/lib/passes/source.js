@@ -8,9 +8,32 @@ import { ExceptionRef } from "../types/exceptionref.js";
 import { CallRef } from "../types/callref.js";
 import { TryRef } from "../types/tryref.js";
 import { fileURLToPath } from "url";
+import { createRequire } from "module";
 import { Globals } from "../globals/globals.js";
 import path from "path";
 import fs from "fs";
+function resolveFromConsumer(specifier, selfDir) {
+    const cwd = Globals.baseCWD || process.cwd();
+    const anchor = path.join(cwd, "package.json");
+    let resolved;
+    try {
+        resolved = createRequire(anchor).resolve(specifier);
+    }
+    catch {
+        return null;
+    }
+    if (selfDir) {
+        try {
+            const cwdReal = fs.realpathSync(cwd);
+            const selfReal = fs.realpathSync(selfDir);
+            if (cwdReal === selfReal || cwdReal.startsWith(selfReal + path.sep))
+                return null;
+        }
+        catch {
+        }
+    }
+    return resolved;
+}
 import { toString } from "../lib/util.js";
 import { ClassRef } from "../types/classref.js";
 import { NamespaceRef } from "../types/namespaceref.js";
@@ -75,8 +98,6 @@ export class SourceLinker extends Visitor {
             return super.visitMethodDeclaration(node, ref);
         if (this.parentSpace instanceof NamespaceRef)
             return super.visitMethodDeclaration(node, ref);
-        if (node.name.kind == 26)
-            return super.visitMethodDeclaration(node, ref);
         const methRef = new MethodRef(node, ref, this.source, this.parentSpace);
         Globals.methods.push(methRef);
         if (DEBUG > 0)
@@ -114,10 +135,24 @@ export class SourceLinker extends Visitor {
             Globals.parentFn = null;
             return;
         }
-        const parentFn = this.source.local.functions.find((v) => v.name == node.name.text) ?? null;
-        Globals.parentFn = parentFn;
+        const byNode = this.source.local.functions.find((v) => v.node == node) ?? null;
+        const parentFn = byNode ?? this.source.local.functions.find((v) => v.name == node.name.text) ?? null;
+        if (byNode && !this.source.functions.includes(byNode)) {
+            this.source.functions.push(byNode);
+        }
+        const isNamed = node.name.text.length > 0;
+        const savedParentFn = Globals.parentFn;
+        const savedLastFn = Globals.lastFn;
+        Globals.parentFn = parentFn ?? savedParentFn;
+        if (parentFn && isNamed)
+            Globals.lastFn = parentFn;
+        if (byNode)
+            Globals.refStack.add(byNode);
         super.visitFunctionDeclaration(node, isDefault, ref);
-        Globals.parentFn = null;
+        if (byNode)
+            Globals.refStack.delete(byNode);
+        Globals.parentFn = savedParentFn;
+        Globals.lastFn = savedLastFn;
     }
     linkFunctionRef(fnRef) {
         if (!fnRef || (fnRef.visited && !fnRef.hasException))
@@ -173,8 +208,13 @@ export class SourceLinker extends Visitor {
         if (this.state != "postprocess" && !Globals.lastFn && !Globals.lastTry)
             return super.visitCallExpression(node, ref);
         const fnName = getName(node.expression);
-        if (fnName == "inline.always" || fnName == "unchecked")
-            return super.visitCallExpression(node, ref);
+        if (fnName == "inline.always" || fnName == "inline.never" || fnName == "unchecked") {
+            const wasInBuiltin = Globals.inInlineBuiltinArg;
+            Globals.inInlineBuiltinArg = true;
+            const result = super.visitCallExpression(node, ref);
+            Globals.inInlineBuiltinArg = wasInBuiltin;
+            return result;
+        }
         if (fnName == "unreachable" || fnName == "abort") {
             if (DEBUG > 0)
                 console.log(indent + "Found exception " + toString(node) + " " + node.range.source.internalPath);
@@ -186,7 +226,7 @@ export class SourceLinker extends Visitor {
             else if (Globals.lastTry)
                 Globals.lastTry.exceptions.push(newException);
             else
-                throw new Error("No parent function");
+                return super.visitCallExpression(node, ref);
             this.smashStack();
             return super.visitCallExpression(node, ref);
         }
@@ -194,6 +234,7 @@ export class SourceLinker extends Visitor {
         if (!fnRef || !fnSrc)
             return super.visitCallExpression(node, ref);
         const callRef = new CallRef(node, ref, fnRef, this.source, Globals.parentFn);
+        callRef.inInlineBuiltinArg = Globals.inInlineBuiltinArg;
         Globals.refStack.add(callRef);
         fnRef?.callers.push(callRef);
         if (DEBUG > 0)
@@ -205,7 +246,7 @@ export class SourceLinker extends Visitor {
             else if (Globals.lastTry)
                 Globals.lastTry.exceptions.push(callRef);
             else
-                throw new Error("No parent function");
+                return super.visitCallExpression(node, ref);
             this.smashStack();
         }
         if (fnRef.hasException || fnRef.visited)
@@ -226,7 +267,7 @@ export class SourceLinker extends Visitor {
             else if (Globals.lastTry)
                 Globals.lastTry.exceptions.push(callRef);
             else
-                throw new Error("No parent function");
+                return super.visitCallExpression(node, ref);
             this.smashStack();
         }
         Globals.refStack.delete(callRef);
@@ -234,8 +275,21 @@ export class SourceLinker extends Visitor {
     visitThrowStatement(node, ref = null) {
         if (this.state != "link" && this.state != "done" && this.state != "postprocess")
             return super.visitThrowStatement(node, ref);
-        if (this.state != "postprocess" && !Globals.lastTry)
+        if (Globals.inCatchBody && node.value.kind == 7)
             return super.visitThrowStatement(node, ref);
+        if (this.state != "postprocess" && !Globals.lastTry && !Globals.parentFn)
+            return super.visitThrowStatement(node, ref);
+        if (this.state != "postprocess" && !Globals.lastTry && Globals.parentFn) {
+            const parentNode = Globals.parentFn.node;
+            const decorators = parentNode.decorators;
+            if (decorators) {
+                for (const dec of decorators) {
+                    if (dec.name.kind == 7 && dec.name.text == "inline") {
+                        return super.visitThrowStatement(node, ref);
+                    }
+                }
+            }
+        }
         if (DEBUG > 0)
             console.log(indent + "Found exception " + toString(node));
         Globals.foundException = true;
@@ -245,7 +299,7 @@ export class SourceLinker extends Visitor {
         else if (Globals.lastTry)
             Globals.lastTry.exceptions.push(newException);
         else
-            throw new Error("No parent function");
+            return super.visitThrowStatement(node, ref);
         this.smashStack();
         return super.visitThrowStatement(node, ref);
     }
@@ -262,10 +316,17 @@ export class SourceLinker extends Visitor {
             Globals.refStack.add(tryRef);
             this.visit(node.bodyStatements, node);
             Globals.refStack.delete(tryRef);
-            Globals.parentFn = parentFn;
             Globals.lastTry = lastTry;
             this.visit(node.catchVariable, node);
+            Globals.lastTry = tryRef;
+            Globals.refStack.add(tryRef);
+            const wasInCatchA = Globals.inCatchBody;
+            Globals.inCatchBody = true;
             this.visit(node.catchStatements, node);
+            Globals.inCatchBody = wasInCatchA;
+            Globals.refStack.delete(tryRef);
+            Globals.parentFn = parentFn;
+            Globals.lastTry = lastTry;
             this.visit(node.finallyStatements, node);
             if (DEBUG > 0 && this.state == "link")
                 console.log(indent + "Exited Try");
@@ -284,10 +345,17 @@ export class SourceLinker extends Visitor {
         Globals.refStack.add(tryRef);
         this.visit(node.bodyStatements, node);
         Globals.refStack.delete(tryRef);
-        Globals.parentFn = parentFn;
         Globals.lastTry = lastTry;
         this.visit(node.catchVariable, node);
+        Globals.lastTry = tryRef;
+        Globals.refStack.add(tryRef);
+        const wasInCatchB = Globals.inCatchBody;
+        Globals.inCatchBody = true;
         this.visit(node.catchStatements, node);
+        Globals.inCatchBody = wasInCatchB;
+        Globals.refStack.delete(tryRef);
+        Globals.parentFn = parentFn;
+        Globals.lastTry = lastTry;
         this.visit(node.finallyStatements, node);
         if (DEBUG > 0)
             console.log(indent + "Exited Try");
@@ -349,9 +417,9 @@ export class SourceLinker extends Visitor {
     visitIfStatement(node, ref = null) {
         if (this.state != "gather")
             return super.visitIfStatement(node, ref);
-        if (node.ifTrue && node.ifTrue.kind != 30)
+        if (node.ifTrue && node.ifTrue.kind != 31)
             node.ifTrue = blockify(node.ifTrue);
-        if (node.ifFalse && node.ifFalse.kind != 30)
+        if (node.ifFalse && node.ifFalse.kind != 31)
             node.ifFalse = blockify(node.ifFalse);
         return super.visitIfStatement(node, ref);
     }
@@ -434,14 +502,21 @@ export class SourceLinker extends Visitor {
     static addImports(node) {
         const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
         const pkgPath = path.join(Globals.baseCWD, "node_modules");
-        let fromPath = node.range.source.normalizedPath;
-        fromPath = fromPath.startsWith("~lib/") ? (fs.existsSync(path.join(pkgPath, fromPath.slice(5, fromPath.indexOf("/", 5)))) ? path.join(pkgPath, fromPath.slice(5)) : fromPath) : path.join(Globals.baseCWD, fromPath);
-        let relDir = path.posix.join(...path.relative(path.dirname(fromPath), path.join(baseDir, "assembly", "types")).split(path.sep));
-        if (relDir.includes("node_modules" + path.sep + "try-as")) {
-            relDir = "try-as" + relDir.slice(relDir.indexOf("node_modules" + path.sep + "try-as") + 19);
+        const consumerHasTryAs = resolveFromConsumer("try-as/package.json", baseDir) != null;
+        let relDir;
+        if (consumerHasTryAs) {
+            relDir = "try-as/assembly/types";
         }
-        else if (!relDir.startsWith(".") && !relDir.startsWith("/") && !relDir.startsWith("try-as")) {
-            relDir = "./" + relDir;
+        else {
+            let fromPath = node.range.source.normalizedPath;
+            fromPath = fromPath.startsWith("~lib/") ? (fs.existsSync(path.join(pkgPath, fromPath.slice(5, fromPath.indexOf("/", 5)))) ? path.join(pkgPath, fromPath.slice(5)) : fromPath) : path.join(Globals.baseCWD, fromPath);
+            relDir = path.posix.join(...path.relative(path.dirname(fromPath), path.join(baseDir, "assembly", "types")).split(path.sep));
+            if (relDir.includes("node_modules" + path.sep + "try-as")) {
+                relDir = "try-as" + relDir.slice(relDir.indexOf("node_modules" + path.sep + "try-as") + 19);
+            }
+            else if (!relDir.startsWith(".") && !relDir.startsWith("/") && !relDir.startsWith("try-as")) {
+                relDir = "./" + relDir;
+            }
         }
         const addImport = (file, names) => {
             const imps = [];
@@ -488,7 +563,7 @@ export class SourceLinker extends Visitor {
     static addTryReexports(source) {
         let changed = false;
         for (const stmt of source.statements) {
-            if (stmt.kind != 35)
+            if (stmt.kind != 36)
                 continue;
             const exp = stmt;
             if (!exp.internalPath || !exp.members?.length)
@@ -579,4 +654,3 @@ export class SourceLinker extends Visitor {
         }
     }
 }
-//# sourceMappingURL=source.js.map

@@ -110,7 +110,7 @@ export class Exception {
 
   __try_rethrow(): void {
     if (this.type == ExceptionType.Abort) {
-      AbortState.abort(this.msg, this.fileName, this.lineNumber.toString(), this.columnNumber.toString());
+      AbortState.abort(this.msg, this.fileName, this.lineNumber, this.columnNumber);
     } else if (this.type == ExceptionType.Unreachable) {
       UnreachableState.unreachable();
     } else if (this.type == ExceptionType.Throw) {

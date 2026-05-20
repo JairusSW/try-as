@@ -1,7 +1,8 @@
 // Taken from https://github.com/as-pect/visitor-as/blob/master/src/astBuilder.ts
 // tslint:disable: as-internal-case
 
-import { CommonFlags, TypeNode, Node, NodeKind, Source, NamedTypeNode, FunctionTypeNode, TypeParameterNode, IdentifierExpression, CallExpression, ClassExpression, ElementAccessExpression, FunctionExpression, InstanceOfExpression, LiteralExpression, NewExpression, ParenthesizedExpression, PropertyAccessExpression, TernaryExpression, UnaryPostfixExpression, UnaryPrefixExpression, BlockStatement, BreakStatement, ContinueStatement, DoStatement, EmptyStatement, ExportStatement, ExportDefaultStatement, ExportImportStatement, ExpressionStatement, ForStatement, IfStatement, ImportStatement, ReturnStatement, SwitchStatement, ThrowStatement, TryStatement, VariableStatement, WhileStatement, ClassDeclaration, EnumDeclaration, EnumValueDeclaration, FieldDeclaration, FunctionDeclaration, ImportDeclaration, InterfaceDeclaration, MethodDeclaration, NamespaceDeclaration, TypeDeclaration, VariableDeclaration, DecoratorNode, ExportMember, ParameterNode, SwitchCase, TypeName, ArrayLiteralExpression, Expression, ObjectLiteralExpression, AssertionKind, LiteralKind, FloatLiteralExpression, StringLiteralExpression, RegexpLiteralExpression, UnaryExpression, ArrowKind, ParameterKind, DeclarationStatement, AssertionExpression, BinaryExpression, CommaExpression, IntegerLiteralExpression, isTypeOmitted, operatorTokenToString, ForOfStatement, IndexSignatureNode, TemplateLiteralExpression, util, FalseExpression, NullExpression, TrueExpression } from "assemblyscript/dist/assemblyscript.js";
+import { CommonFlags, TypeNode, Node, Source, NamedTypeNode, FunctionTypeNode, TypeParameterNode, IdentifierExpression, CallExpression, ClassExpression, ElementAccessExpression, FunctionExpression, InstanceOfExpression, LiteralExpression, NewExpression, ParenthesizedExpression, PropertyAccessExpression, TernaryExpression, UnaryPostfixExpression, UnaryPrefixExpression, BlockStatement, BreakStatement, ContinueStatement, DoStatement, EmptyStatement, ExportStatement, ExportDefaultStatement, ExportImportStatement, ExpressionStatement, ForStatement, IfStatement, ImportStatement, ReturnStatement, SwitchStatement, ThrowStatement, TryStatement, VariableStatement, WhileStatement, ClassDeclaration, EnumDeclaration, EnumValueDeclaration, FieldDeclaration, FunctionDeclaration, ImportDeclaration, InterfaceDeclaration, MethodDeclaration, NamespaceDeclaration, TypeDeclaration, VariableDeclaration, DecoratorNode, ExportMember, ParameterNode, SwitchCase, TypeName, ArrayLiteralExpression, Expression, ObjectLiteralExpression, AssertionKind, LiteralKind, FloatLiteralExpression, StringLiteralExpression, RegexpLiteralExpression, UnaryExpression, ArrowKind, ParameterKind, DeclarationStatement, AssertionExpression, BinaryExpression, CommaExpression, IntegerLiteralExpression, isTypeOmitted, operatorTokenToString, ForOfStatement, IndexSignatureNode, TemplateLiteralExpression, util, FalseExpression, NullExpression, TrueExpression } from "assemblyscript/dist/assemblyscript.js";
+import { NodeKind } from "../types.js";
 import { Visitor } from "./visitor.js";
 import { ThisExpression } from "types:assemblyscript/src/ast";
 
@@ -153,7 +154,9 @@ export class ASTBuilder extends Visitor {
   visitObjectLiteralExpression(node: ObjectLiteralExpression): void {
     var sb = this.sb;
     var names = node.names;
-    var values = node.values;
+    // Newer AssemblyScript releases can surface synthetic enum nodes here
+    // without attached values on the debug write path.
+    var values = node.values || [];
     var numElements = names.length;
     assert(numElements == values.length);
     if (numElements) {

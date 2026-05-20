@@ -288,4 +288,3 @@ export class SourceRef extends BaseRef {
         return this;
     }
 }
-//# sourceMappingURL=sourceref.js.map

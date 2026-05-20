@@ -4,10 +4,32 @@ import { Globals } from "./globals/globals.js";
 import { removeExtension } from "./utils.js";
 import { toString } from "./lib/util.js";
 import { fileURLToPath } from "url";
+import { createRequire } from "module";
 import path from "path";
 import fs from "fs";
 import { ThrowReplacer } from "./passes/replacer.js";
 import { StdlibThrowRewriter } from "./passes/stdlib.js";
+function resolveFromConsumer(specifier, selfDir) {
+    const anchor = path.join(process.cwd(), "package.json");
+    let resolved;
+    try {
+        resolved = createRequire(anchor).resolve(specifier);
+    }
+    catch {
+        return null;
+    }
+    if (selfDir) {
+        try {
+            const cwdReal = fs.realpathSync(process.cwd());
+            const selfReal = fs.realpathSync(selfDir);
+            if (cwdReal === selfReal || cwdReal.startsWith(selfReal + path.sep))
+                return null;
+        }
+        catch {
+        }
+    }
+    return resolved;
+}
 function envBool(name, fallback) {
     const value = process.env[name];
     if (value == null || value == "")
@@ -45,24 +67,17 @@ export default class Transformer extends Transform {
     afterParse(parser) {
         let sources = parser.sources;
         const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..");
-        const isLib = path.dirname(baseDir).endsWith("node_modules");
-        if (!isLib && !hasParsedSource(sources, "assembly/types/exception.ts")) {
-            const p = "./assembly/types/exception.ts";
-            if (fs.existsSync(path.join(baseDir, p))) {
-                parser.parseFile(fs.readFileSync(path.join(baseDir, p.replaceAll("/", path.sep))).toString(), p, false);
-            }
-        }
-        if (isLib && !hasParsedSource(sources, "~lib/try-as/assembly/types/exception.ts")) {
-            parser.parseFile(fs.readFileSync(path.join(baseDir, "assembly", "types", "exception.ts")).toString(), "~lib/try-as/assembly/types/exception.ts", false);
-        }
-        if (!isLib && !hasParsedSource(sources, "assembly/types/unreachable.ts")) {
-            const p = "./assembly/types/unreachable.ts";
-            if (fs.existsSync(path.join(baseDir, p))) {
-                parser.parseFile(fs.readFileSync(path.join(baseDir, p.replaceAll("/", path.sep))).toString(), p, false);
-            }
-        }
-        if (isLib && !hasParsedSource(sources, "~lib/try-as/assembly/types/unreachable.ts")) {
-            parser.parseFile(fs.readFileSync(path.join(baseDir, "assembly", "types", "unreachable.ts")).toString(), "~lib/try-as/assembly/types/unreachable.ts", false);
+        const isLib = path.dirname(baseDir).endsWith("node_modules") || resolveFromConsumer("try-as/package.json", baseDir) != null;
+        const RUNTIME_TYPES = ["exception.ts", "abort.ts", "error.ts", "unreachable.ts"];
+        const prefix = isLib ? "~lib/try-as/assembly/types" : "./assembly/types";
+        for (const file of RUNTIME_TYPES) {
+            const target = `${prefix}/${file}`;
+            if (hasParsedSource(sources, target))
+                continue;
+            const diskPath = path.join(baseDir, "assembly", "types", file);
+            if (!fs.existsSync(diskPath))
+                continue;
+            parser.parseFile(fs.readFileSync(diskPath).toString(), target, false);
         }
         sources = parser.sources.filter((source) => {
             const p = source.internalPath;
@@ -97,4 +112,3 @@ export default class Transformer extends Transform {
         }
     }
 }
-//# sourceMappingURL=index.js.map

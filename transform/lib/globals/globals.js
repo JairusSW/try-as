@@ -8,6 +8,7 @@ class _Globals {
     methods = [];
     lastFn = null;
     parentFn = null;
+    inCatchBody = false;
+    inInlineBuiltinArg = false;
 }
 export const Globals = new _Globals();
-//# sourceMappingURL=globals.js.map

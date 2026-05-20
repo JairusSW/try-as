@@ -1,5 +1,6 @@
 // Taken from https://github.com/as-pect/visitor-as/blob/master/src/simpleParser.ts
-import { Parser, Tokenizer, Source, SourceKind, Expression, Statement, NamespaceDeclaration, ClassDeclaration, DeclarationStatement, Range, Node, NodeKind } from "assemblyscript/dist/assemblyscript.js";
+import { Parser, Tokenizer, Source, SourceKind, Expression, Statement, NamespaceDeclaration, ClassDeclaration, DeclarationStatement, Range, Node } from "assemblyscript/dist/assemblyscript.js";
+import { NodeKind } from "../types.js";
 import { ASTBuilder } from "./builder.js";
 
 export class SimpleParser {

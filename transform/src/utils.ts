@@ -1,4 +1,5 @@
-import { BlockStatement, BreakStatement, ExpressionStatement, FunctionDeclaration, IdentifierExpression, IfStatement, MethodDeclaration, Node, NodeKind, PropertyAccessExpression, ReturnStatement, Statement, Token } from "assemblyscript/dist/assemblyscript.js";
+import { BlockStatement, BreakStatement, CommonFlags, Expression, ExpressionStatement, FunctionDeclaration, IdentifierExpression, IfStatement, MethodDeclaration, Node, PropertyAccessExpression, ReturnStatement, Statement, Token } from "assemblyscript/dist/assemblyscript.js";
+import { NodeKind } from "./types.js";
 import { toString } from "./lib/util.js";
 import path from "path";
 import { NamespaceRef } from "./types/namespaceref.js";
@@ -106,6 +107,87 @@ export function stripExpr(node: Node): Node {
   return node;
 }
 
+// Locate `callNode` in `ref`. Returns whether the position is a statement
+// slot (array element wrapping the call in an ExpressionStatement) or an
+// expression slot (anywhere else).
+export type CallPosition = { kind: "statementArray"; container: Node[]; index: number } | { kind: "objectArray"; container: Node[]; index: number } | { kind: "expressionSlot"; container: Record<string, unknown>; key: string } | { kind: "notFound" };
+
+export function locateCall(callNode: Node, ref: Node | Node[] | null): CallPosition {
+  if (!callNode || !ref) return { kind: "notFound" };
+  const callExpr = stripExpr(callNode);
+
+  if (Array.isArray(ref)) {
+    for (let i = 0; i < ref.length; i++) {
+      // Only a true statement position has the call wrapped in an
+      // ExpressionStatement (so stripExpr unwraps to our call). If
+      // `ref[i] === callExpr` the call is sitting directly in the array
+      // (e.g. a CallExpression's `args` list) — that's an expression slot
+      // dressed up as an array, not a statement slot.
+      if (ref[i] !== callExpr && stripExpr(ref[i]) == callExpr) return { kind: "statementArray", container: ref, index: i };
+      if (ref[i] === callExpr) return { kind: "objectArray", container: ref, index: i };
+    }
+    return { kind: "notFound" };
+  }
+
+  if (typeof ref != "object") return { kind: "notFound" };
+
+  for (const key of Object.keys(ref)) {
+    // @ts-ignore
+    const current = ref[key] as Node | Node[];
+    if (Array.isArray(current)) {
+      for (let i = 0; i < current.length; i++) {
+        if (current[i] !== callExpr && stripExpr(current[i]) == callExpr) return { kind: "statementArray", container: current, index: i };
+        if (current[i] === callExpr) return { kind: "objectArray", container: current, index: i };
+      }
+    } else if (current && stripExpr(current) == callExpr) {
+      return { kind: "expressionSlot", container: ref as unknown as Record<string, unknown>, key };
+    }
+  }
+  return { kind: "notFound" };
+}
+
+// Replace a CallExpression with a new Expression, preserving correct AST
+// shape based on context. When the call lives at statement position (inside
+// an ExpressionStatement that's a member of a Block / Source / etc.), the
+// replacement must itself be wrapped in an ExpressionStatement — bare
+// expressions in statement arrays trip AS's compileStatement assertion.
+// When the call lives at expression position (return value, initializer,
+// argument, …), the replacement slots in directly.
+export function replaceCallExpression(callNode: Node, replacement: Expression, ref: Node | Node[] | null): void {
+  const pos = locateCall(callNode, ref);
+  if (pos.kind == "notFound") return;
+  if (pos.kind == "statementArray") {
+    pos.container.splice(pos.index, 1, Node.createExpressionStatement(replacement));
+  } else if (pos.kind == "objectArray") {
+    // Expression slot inside an array (e.g. CallExpression.args) — splice in
+    // the bare expression, not an ExpressionStatement wrapper.
+    pos.container.splice(pos.index, 1, replacement as unknown as Node);
+  } else {
+    pos.container[pos.key] = replacement;
+  }
+}
+
+// Replace a CallExpression with an if/else statement that picks between
+// renamed and original calls based on `isDefined`. Only safe when the call
+// is at statement position — AS folds `isDefined` constant inside an
+// IfStatement and emits only the chosen branch, where TernaryExpression in
+// builtin-call context has been observed to trip the compiler in some
+// generic / namespace-method shapes.
+export function replaceCallWithIsDefinedIf(callNode: Node, isDefinedArg: Expression, renamedCall: Expression, originalCall: Expression, ref: Node | Node[] | null): boolean {
+  const pos = locateCall(callNode, ref);
+  if (pos.kind == "notFound") return false;
+  // Only the top-level "statementArray" case is a true statement position.
+  // The "objectArray" case includes things like a CallExpression's args list
+  // — placing an IfStatement there is invalid (if is a Statement, not an
+  // Expression). For those we must use the ternary expression form.
+  if (pos.kind != "statementArray") return false;
+  const range = callNode.range;
+  const isDefinedCheck = Node.createCallExpression(Node.createIdentifierExpression("isDefined", range), null, [isDefinedArg], range);
+  const ifStmt = Node.createIfStatement(isDefinedCheck, Node.createBlockStatement([Node.createExpressionStatement(renamedCall)], range), Node.createBlockStatement([Node.createExpressionStatement(originalCall)], range), range);
+  pos.container.splice(pos.index, 1, ifStmt);
+  return true;
+}
+
 export function blockify(node: Node): BlockStatement {
   let block = node.kind == NodeKind.Block ? node : Node.createBlockStatement([node], node.range);
 
@@ -151,10 +233,24 @@ export function getBreaker(node: Node, parentFn: FunctionDeclaration | MethodDec
   let breakStmt: ReturnStatement | BreakStatement | IfStatement = Node.createBreakStatement(null, node.range);
 
   if (parentFn) {
+    // Constructors don't have a usable signature.returnType (it's a synthetic
+    // class-instance node that toString() can't render), and AS rejects a
+    // bare `return;` in a constructor body — the synthetic instance type
+    // doesn't accept void.  Emit `return this;` so the partially-constructed
+    // instance flows back to the `new` site; the caller's next checkpoint
+    // sees `__ExceptionState.Failures > 0` and unwinds.
+    if (parentFn.flags & CommonFlags.Constructor) {
+      return Node.createReturnStatement(Node.createThisExpression(node.range), node.range);
+    }
     if (!parentFn.signature.returnType) {
       return Node.createReturnStatement(null, node.range);
     }
     const returnType = toString(parentFn.signature.returnType);
+    // Empty toString result means the signature node carries a synthetic
+    // type with no printable name; emitting it would produce `isBoolean<>()`.
+    if (returnType == "") {
+      return Node.createReturnStatement(null, node.range);
+    }
     if (returnType != "void" && returnType != "never") {
       breakStmt = Node.createIfStatement(Node.createCallExpression(Node.createIdentifierExpression("isBoolean", node.range), [parentFn.signature.returnType], [], node.range), Node.createReturnStatement(Node.createFalseExpression(node.range), node.range), Node.createIfStatement(Node.createBinaryExpression(Token.Bar_Bar, Node.createCallExpression(Node.createIdentifierExpression("isInteger", node.range), [parentFn.signature.returnType], [], node.range), Node.createCallExpression(Node.createIdentifierExpression("isFloat", node.range), [parentFn.signature.returnType], [], node.range), node.range), Node.createReturnStatement(Node.createIntegerLiteralExpression(i64_zero, node.range), node.range), Node.createIfStatement(Node.createBinaryExpression(Token.Bar_Bar, Node.createCallExpression(Node.createIdentifierExpression("isManaged", node.range), [parentFn.signature.returnType], [], node.range), Node.createCallExpression(Node.createIdentifierExpression("isReference", node.range), [parentFn.signature.returnType], [], node.range), node.range), Node.createReturnStatement(Node.createCallExpression(Node.createIdentifierExpression("changetype", node.range), [parentFn.signature.returnType], [Node.createIntegerLiteralExpression(i64_zero, node.range)], node.range), node.range), Node.createReturnStatement(null, node.range), node.range), node.range), node.range);
     } else {

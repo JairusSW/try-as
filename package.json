@@ -1,6 +1,6 @@
 {
   "name": "try-as",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "author": "Jairus Tanaka",
   "repository": {
     "type": "git",
@@ -63,7 +63,10 @@
     "build:transform": "tsc -p ./transform",
     "pack:dry-run": "NPM_CONFIG_CACHE=/tmp/try-as-npm-cache npm pack --dry-run",
     "bench:wasmer": "wasmer ./build/bench.wasm --llvm",
-    "format": "prettier -w ."
+    "format": "prettier -w .",
+    "precommit:verify": "bash ./scripts/pre-commit.sh",
+    "commitmsg:verify": "bash ./scripts/commit-msg.sh",
+    "prepush:verify": "bash ./scripts/pre-push.sh"
   },
   "type": "module",
   "types": "./index.d.ts",

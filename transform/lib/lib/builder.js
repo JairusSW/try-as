@@ -1,4 +1,5 @@
 import { isTypeOmitted, operatorTokenToString, util } from "assemblyscript/dist/assemblyscript.js";
+import { NodeKind } from "../types.js";
 import { Visitor } from "./visitor.js";
 function assert(isTruish, message = "assertion error") {
     if (!isTruish)
@@ -28,11 +29,11 @@ export class ASTBuilder extends Visitor {
     }
     visitTypeNode(node) {
         switch (node.kind) {
-            case 1: {
+            case NodeKind.NamedType: {
                 this.visitNamedTypeNode(node);
                 break;
             }
-            case 2: {
+            case NodeKind.FunctionType: {
                 this.visitFunctionTypeNode(node);
                 break;
             }
@@ -140,7 +141,7 @@ export class ASTBuilder extends Visitor {
     visitObjectLiteralExpression(node) {
         var sb = this.sb;
         var names = node.names;
-        var values = node.values;
+        var values = node.values || [];
         var numElements = names.length;
         assert(numElements == values.length);
         if (numElements) {
@@ -492,11 +493,11 @@ export class ASTBuilder extends Visitor {
     }
     visitUnaryExpression(node) {
         switch (node.kind) {
-            case 27: {
+            case NodeKind.UnaryPostfix: {
                 this.visitUnaryPostfixExpression(node);
                 break;
             }
-            case 28: {
+            case NodeKind.UnaryPrefix: {
                 this.visitUnaryPrefixExpression(node);
                 break;
             }
@@ -518,8 +519,8 @@ export class ASTBuilder extends Visitor {
         this.visitNode(node);
         var sb = this.sb;
         if (!sb.length ||
-            node.kind == 47 ||
-            node.kind == 38) {
+            node.kind == NodeKind.Variable ||
+            node.kind == NodeKind.Expression) {
             sb.push(";\n");
         }
         else {
@@ -633,7 +634,7 @@ export class ASTBuilder extends Visitor {
             }
             for (let i = 0, k = members.length; i < k; ++i) {
                 let member = members[i];
-                if (member.kind != 54 || member.parameterIndex < 0) {
+                if (member.kind != NodeKind.FieldDeclaration || member.parameterIndex < 0) {
                     util.indent(sb, indentLevel);
                     this.visitNodeAndTerminate(member);
                 }
@@ -649,7 +650,7 @@ export class ASTBuilder extends Visitor {
         var sb = this.sb;
         sb.push("do ");
         this.visitNode(node.body);
-        if (node.body?.kind == 30) {
+        if (node.body?.kind == NodeKind.Block) {
             sb.push(" while (");
         }
         else {
@@ -751,23 +752,23 @@ export class ASTBuilder extends Visitor {
     visitExportDefaultStatement(node) {
         var declaration = node.declaration;
         switch (declaration.kind) {
-            case 52: {
+            case NodeKind.EnumDeclaration: {
                 this.visitEnumDeclaration(declaration, true);
                 break;
             }
-            case 55: {
+            case NodeKind.FunctionDeclaration: {
                 this.visitFunctionDeclaration(declaration, true);
                 break;
             }
-            case 51: {
+            case NodeKind.ClassDeclaration: {
                 this.visitClassDeclaration(declaration, true);
                 break;
             }
-            case 57: {
+            case NodeKind.InterfaceDeclaration: {
                 this.visitInterfaceDeclaration(declaration, true);
                 break;
             }
-            case 59: {
+            case NodeKind.NamespaceDeclaration: {
                 this.visitNamespaceDeclaration(declaration, true);
                 break;
             }
@@ -948,12 +949,12 @@ export class ASTBuilder extends Visitor {
         sb.push(") ");
         var ifTrue = node.ifTrue;
         this.visitNode(ifTrue);
-        if (ifTrue.kind != 30) {
+        if (ifTrue.kind != NodeKind.Block) {
             sb.push(";\n");
         }
         var ifFalse = node.ifFalse;
         if (ifFalse) {
-            if (ifTrue.kind == 30) {
+            if (ifTrue.kind == NodeKind.Block) {
                 sb.push(" else ");
             }
             else {
@@ -1261,7 +1262,7 @@ export class ASTBuilder extends Visitor {
         sb.push("while (");
         this.visitNode(node.condition);
         var statement = node.body;
-        if (statement.kind == 34) {
+        if (statement.kind == NodeKind.Empty) {
             sb.push(")");
         }
         else {
@@ -1356,4 +1357,3 @@ export class ASTBuilder extends Visitor {
         return ret;
     }
 }
-//# sourceMappingURL=builder.js.map

@@ -1,4 +1,5 @@
-import { FunctionDeclaration, MethodDeclaration, Node, NodeKind, Source, ThrowStatement } from "assemblyscript/dist/assemblyscript.js";
+import { CommonFlags, FunctionDeclaration, MethodDeclaration, Node, Source, ThrowStatement } from "assemblyscript/dist/assemblyscript.js";
+import { NodeKind } from "../types.js";
 import { Visitor } from "../lib/visitor.js";
 import { cloneNode, getBreaker, replaceRef } from "../utils.js";
 
@@ -43,8 +44,14 @@ export class StdlibThrowRewriter extends Visitor {
     super.visitThrowStatement(node, ref);
 
     if (!this.source || !this.currentFn || !this.isStdlibSource(this.source.internalPath)) return;
+    // Skip constructors. The breaker emits typed default-value returns based
+    // on parentFn.signature.returnType, which is synthetic / unprintable for
+    // constructors and produces invalid `isBoolean<>()` calls. Use the flag
+    // bit instead of `name.kind == Constructor` because the latter has been
+    // flaky across AS releases.
+    if (this.currentFn.flags & CommonFlags.Constructor) return;
     if (this.currentFn instanceof MethodDeclaration && this.currentFn.name.kind == NodeKind.Constructor) return;
-    const newException = Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range), null, [cloneNode(node.value), Node.createStringLiteralExpression(node.range.source.normalizedPath, node.range), Node.createStringLiteralExpression(node.range.source.lineAt(node.range.start).toString(), node.range), Node.createStringLiteralExpression(node.range.source.columnAt().toString(), node.range)], node.range));
+    const newException = Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range), null, [cloneNode(node.value), Node.createStringLiteralExpression(node.range.source.normalizedPath, node.range), Node.createIntegerLiteralExpression(i64_new(node.range.source.lineAt(node.range.start)), node.range), Node.createIntegerLiteralExpression(i64_new(node.range.source.columnAt()), node.range)], node.range));
 
     const breaker = getBreaker(node, this.currentFn);
     if (Array.isArray(ref)) {

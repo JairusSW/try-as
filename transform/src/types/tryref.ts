@@ -85,16 +85,13 @@ export class TryRef extends BaseRef {
       const stateReset = Node.createExpressionStatement(Node.createUnaryPostfixExpression(Token.Minus_Minus, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Failures", this.node.range), this.node.range), this.node.range));
       const catchCondition = Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("shouldCatch", this.node.range), this.node.range), null, [SimpleParser.parseExpression("<i32>" + this.catchMask.toString())], this.node.range);
 
-      this.catchBlock = Node.createIfStatement(
-        catchCondition,
-        // Node.createDoStatement(
-        Node.createBlockStatement([catchVar, stateReset, ...cloneNode(this.node.catchStatements)], this.node.range),
-        // Node.createFalseExpression(this.node.range),
-        // this.node.range,
-        // ),
-        null,
-        this.node.range,
-      );
+      // Wrap the user's catch statements in a do/while(false) so any
+      // generated `break` from a re-thrown abort/throw inside the catch
+      // body lands here instead of returning from the enclosing function
+      // and skipping the trailing finally block.
+      const catchBodyLoop = Node.createDoStatement(Node.createBlockStatement(cloneNode(this.node.catchStatements), catchRange), Node.createFalseExpression(this.node.range), catchRange);
+
+      this.catchBlock = Node.createIfStatement(catchCondition, Node.createBlockStatement([catchVar, stateReset, catchBodyLoop], this.node.range), null, this.node.range);
       if (DEBUG > 0)
         console.log(
           indent +

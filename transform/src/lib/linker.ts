@@ -1,4 +1,5 @@
-import { ClassDeclaration, ImportStatement, NodeKind, Parser, Source } from "assemblyscript/dist/assemblyscript.js";
+import { ClassDeclaration, ImportStatement, Parser, Source } from "assemblyscript/dist/assemblyscript.js";
+import { NodeKind } from "../types.js";
 
 export function getImports(source: Source): ImportStatement[] {
   return source.statements.filter((v) => v.kind == NodeKind.Import) as ImportStatement[];

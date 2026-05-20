@@ -1,4 +1,5 @@
 import { Node } from "assemblyscript/dist/assemblyscript.js";
+import { NodeKind } from "../types.js";
 import { addAfter, blockify, cloneNode, getBreaker, getName } from "../utils.js";
 import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
@@ -41,6 +42,13 @@ export class FunctionRef extends BaseRef {
             return;
         if (this.node.name.text.startsWith("__try_"))
             return;
+        if (this.node.decorators) {
+            for (const dec of this.node.decorators) {
+                if (dec.name.kind == NodeKind.Identifier && dec.name.text == "inline") {
+                    return;
+                }
+            }
+        }
         if (DEBUG > 0)
             console.log(indent + "Generating function " + this.qualifiedName);
         indent.add();
@@ -78,9 +86,10 @@ export class FunctionRef extends BaseRef {
         const returnStmt = getBreaker(this.node, this.node);
         const unrollCheck = Node.createIfStatement(Node.createBinaryExpression(73, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Failures", this.node.range), this.node.range), Node.createIntegerLiteralExpression(i64_zero, this.node.range), this.node.range), blockify(returnStmt), null, this.node.range);
         const replacementFunction = Node.createFunctionDeclaration(Node.createIdentifierExpression(this.node.name.text, this.node.name.range), this.node.decorators, this.node.flags, this.node.typeParameters, this.node.signature, this.cloneBody, this.node.arrowKind, this.node.range);
-        if (!this.tries.length)
+        const isAnonymous = this.node.name.text.length == 0;
+        if (!this.tries.length && !isAnonymous)
             this.node.name = Node.createIdentifierExpression("__try_" + this.node.name.text, this.node.name.range);
-        if (this.node.body && this.node.body.kind != 30) {
+        if (this.node.body && this.node.body.kind != NodeKind.Block) {
             this.node.body = blockify(this.node.body);
         }
         this.node.body.statements.unshift(unrollCheck);
@@ -115,4 +124,3 @@ export class FunctionRef extends BaseRef {
         return this;
     }
 }
-//# sourceMappingURL=functionref.js.map

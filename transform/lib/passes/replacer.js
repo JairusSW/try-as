@@ -1,6 +1,6 @@
 import { Node } from "assemblyscript/dist/assemblyscript.js";
 import { Visitor } from "../lib/visitor.js";
-import { replaceRef } from "../utils.js";
+import { cloneNode, replaceCallWithIsDefinedIf, replaceRef } from "../utils.js";
 import { toString } from "../lib/util.js";
 import { Globals } from "../globals/globals.js";
 const rawValue = process.env["DEBUG"];
@@ -84,7 +84,7 @@ export class ThrowReplacer extends Visitor {
         if (!parameters?.length)
             return;
         for (const parameter of parameters) {
-            if (parameter.name.kind != 6)
+            if (parameter.name.kind != 7)
                 continue;
             const name = parameter.name.text;
             this.rememberType(name, parameter.type ? toString(parameter.type) : null);
@@ -97,23 +97,29 @@ export class ThrowReplacer extends Visitor {
         const normalized = this.normalizeTypeName(className);
         if (!normalized.length)
             return false;
-        if (method.parent.name == normalized)
-            return true;
-        if (method.parent.qualifiedName == normalized)
-            return true;
-        if (method.parent.qualifiedName.endsWith("." + normalized))
-            return true;
+        let current = normalized;
+        const seen = new Set();
+        while (current != null && !seen.has(current)) {
+            if (method.parent.name == current)
+                return true;
+            if (method.parent.qualifiedName == current)
+                return true;
+            if (method.parent.qualifiedName.endsWith("." + current))
+                return true;
+            seen.add(current);
+            current = this.classExtends.get(current) || null;
+        }
         return false;
     }
     inferClassName(node) {
-        if (node.kind == 24) {
+        if (node.kind == 25) {
             return this.currentClass;
         }
-        if (node.kind == 17) {
+        if (node.kind == 18) {
             const target = node;
             return this.normalizeTypeName(toString(target.typeName));
         }
-        if (node.kind == 6) {
+        if (node.kind == 7) {
             const name = node.text;
             return this.resolveScopedType(name);
         }
@@ -122,25 +128,25 @@ export class ThrowReplacer extends Visitor {
     inferTypeNameFromExpression(node) {
         if (!node)
             return null;
-        if (node.kind == 17) {
+        if (node.kind == 18) {
             return this.normalizeTypeName(toString(node.typeName));
         }
-        if (node.kind == 7) {
+        if (node.kind == 8) {
             const assertion = node;
             if ((assertion.assertionKind == 1 || assertion.assertionKind == 0) && assertion.toType) {
                 return this.normalizeTypeName(toString(assertion.toType));
             }
             return this.inferTypeNameFromExpression(assertion.expression);
         }
-        if (node.kind == 20) {
+        if (node.kind == 21) {
             return this.inferTypeNameFromExpression(node.expression);
         }
         return null;
     }
     inferStaticIntent(node) {
-        if (node.kind == 24 || node.kind == 17)
+        if (node.kind == 25 || node.kind == 18)
             return false;
-        if (node.kind == 6) {
+        if (node.kind == 7) {
             const name = node.text;
             if (this.resolveScopedType(name))
                 return false;
@@ -151,7 +157,7 @@ export class ThrowReplacer extends Visitor {
             }
             return null;
         }
-        if (node.kind == 21) {
+        if (node.kind == 22) {
             const target = toString(node);
             for (const method of Globals.methods) {
                 if (method.parent.qualifiedName == target || method.parent.qualifiedName.endsWith("." + target)) {
@@ -162,7 +168,7 @@ export class ThrowReplacer extends Visitor {
         return null;
     }
     resolveMethodRef(node) {
-        if (node.expression.kind != 21)
+        if (node.expression.kind != 22)
             return null;
         const expression = node.expression;
         const name = expression.property.text;
@@ -220,14 +226,14 @@ export class ThrowReplacer extends Visitor {
         else if (node.initializer) {
             typeName = this.inferTypeNameFromExpression(node.initializer);
         }
-        if (node.name.kind == 6) {
+        if (node.name.kind == 7) {
             this.rememberType(node.name.text, typeName);
         }
         super.visitVariableDeclaration(node, ref);
     }
     visitCallExpression(node, ref = null) {
         const methRef = this.resolveMethodRef(node);
-        if ((!methRef && node.expression.kind != 21) || node.expression.kind != 21) {
+        if ((!methRef && node.expression.kind != 22) || node.expression.kind != 22) {
             return super.visitCallExpression(node, ref);
         }
         const target = node.expression;
@@ -242,13 +248,35 @@ export class ThrowReplacer extends Visitor {
             return;
         if (target.property.text.startsWith("__try_"))
             return;
-        target.property.text = "__try_" + target.property.text;
+        const decorators = methRef.node.decorators;
+        if (decorators) {
+            for (const dec of decorators) {
+                if (dec.name.kind == 7 && dec.name.text == "inline")
+                    return;
+            }
+        }
+        const range = node.range;
+        const originalName = target.property.text;
+        const renamedName = "__try_" + originalName;
+        const buildOriginalCall = () => cloneNode(node);
+        const buildRenamedCall = () => {
+            const renamedTarget = Node.createPropertyAccessExpression(cloneNode(target.expression), Node.createIdentifierExpression(renamedName, range), range);
+            return Node.createCallExpression(renamedTarget, node.typeArguments, node.args.map((arg) => cloneNode(arg)), range);
+        };
+        const buildIsDefinedArg = () => Node.createPropertyAccessExpression(cloneNode(target.expression), Node.createIdentifierExpression(renamedName, range), range);
+        const placedAsIf = replaceCallWithIsDefinedIf(node, buildIsDefinedArg(), buildRenamedCall(), buildOriginalCall(), ref);
+        if (placedAsIf) {
+            if (DEBUG > 1) {
+                console.log("Wrapped method call in isDefined-if: " + renamedName + " in " + node.range.source.internalPath);
+            }
+            return;
+        }
         if (DEBUG > 1) {
-            console.log("Rewrote method call to " + target.property.text + " in " + node.range.source.internalPath);
+            console.log("Skipped method-call wrap (expression position): " + originalName + " in " + node.range.source.internalPath);
         }
     }
     visitThrowStatement(node, ref = null) {
-        if (node.value.kind != 6)
+        if (node.value.kind != 7)
             return super.visitThrowStatement(node, ref);
         super.visitThrowStatement(node, ref);
         const thrown = node.value;
@@ -272,4 +300,3 @@ export class ThrowReplacer extends Visitor {
         }
     }
 }
-//# sourceMappingURL=replacer.js.map

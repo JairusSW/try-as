@@ -36,4 +36,3 @@ export class ClassRef extends BaseRef {
         indent.rm();
     }
 }
-//# sourceMappingURL=classref.js.map
