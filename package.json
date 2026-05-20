@@ -61,6 +61,7 @@
     "test:wasmtime": "wasmtime ./build/test.wasm",
     "test:wasmer": "wasmer ./build/test.wasm",
     "build:transform": "tsc -p ./transform",
+    "typecheck": "tsc -p ./transform --noEmit",
     "pack:dry-run": "NPM_CONFIG_CACHE=/tmp/try-as-npm-cache npm pack --dry-run",
     "bench:wasmer": "wasmer ./build/bench.wasm --llvm",
     "format": "prettier -w .",
