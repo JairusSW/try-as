@@ -87,6 +87,16 @@ function hasParsedSource(sources: Parser["sources"], targetPath: string): boolea
 
 export default class Transformer extends Transform {
   afterParse(parser: Parser): void {
+    // Clear all per-compilation state before touching anything. This module
+    // (and the `Globals` singleton) is loaded ONCE per process, but a single
+    // process can compile many modules back to back — e.g. as-test runs the
+    // compiler in-process inside a pooled build-worker that it reuses across
+    // every spec. Without this reset, `Globals.sources`/`methods`/etc. retain
+    // the previous build's ref graph; the next build then resolves call/throw
+    // sites to those stale, already-generated refs, so its throws never get
+    // lowered to `__ErrorState` and fire as raw (uncatchable) aborts instead.
+    Globals.reset();
+
     let sources = parser.sources;
 
     const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..");

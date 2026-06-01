@@ -65,6 +65,7 @@ function hasParsedSource(sources, targetPath) {
 }
 export default class Transformer extends Transform {
     afterParse(parser) {
+        Globals.reset();
         let sources = parser.sources;
         const baseDir = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..");
         const isLib = path.dirname(baseDir).endsWith("node_modules") || resolveFromConsumer("try-as/package.json", baseDir) != null;
