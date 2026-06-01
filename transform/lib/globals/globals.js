@@ -12,6 +12,7 @@ class _Globals {
     inInlineBuiltinArg = false;
     inlineBuiltinWrapper = null;
     stmtStack = [];
+    inheritanceClasses = new Set();
     reset() {
         this.sources = new Map();
         this.callStack = new Set();
@@ -25,6 +26,7 @@ class _Globals {
         this.inInlineBuiltinArg = false;
         this.inlineBuiltinWrapper = null;
         this.stmtStack = [];
+        this.inheritanceClasses = new Set();
     }
 }
 export const Globals = new _Globals();

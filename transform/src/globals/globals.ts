@@ -41,6 +41,15 @@ class _Globals {
   // throw mid-expression short-circuits the rest of the block instead of
   // letting the following statements run with Failures already set.
   public stmtStack: { node: Node; container: Node[] }[] = [];
+  // Names of classes that participate in an inheritance relationship — either
+  // they `extends` another class, or they are named as some other class's
+  // `extendsType`. Methods on such classes may be reached through a virtual
+  // (vtable) call, so renaming one to `__try_<name>` + re-adding a replacement
+  // breaks AS's override linkage (a subclass's override no longer lines up with
+  // the base slot, and the call dispatches to the wrong method body). Methods
+  // on these classes are therefore rewritten in place instead of renamed.
+  // Populated during the gather pass; consulted in MethodRef.generate.
+  public inheritanceClasses: Set<string> = new Set<string>();
 
   // Reset all per-compilation state. The transform module (and this singleton)
   // is loaded ONCE per process, but a single process can compile many modules
@@ -63,6 +72,7 @@ class _Globals {
     this.inInlineBuiltinArg = false;
     this.inlineBuiltinWrapper = null;
     this.stmtStack = [];
+    this.inheritanceClasses = new Set<string>();
   }
 }
 

@@ -471,6 +471,14 @@ export class SourceLinker extends Visitor {
       indent.add();
       const classRef = new ClassRef(node, ref, this.source, this.parentSpace as NamespaceRef | null);
       this.source.local.classes.push(classRef);
+      // Record the inheritance edge so MethodRef.generate can keep methods on
+      // either side of it (base or derived) at their original name — renaming a
+      // virtual method to `__try_<name>` breaks AS's vtable override linkage.
+      if (node.extendsType) {
+        const base = node.extendsType.name.identifier.text;
+        Globals.inheritanceClasses.add(node.name.text);
+        Globals.inheritanceClasses.add(base);
+      }
       super.visit(node.typeParameters, node);
       super.visit(node.extendsType, node);
       super.visit(node.implementsTypes, node);

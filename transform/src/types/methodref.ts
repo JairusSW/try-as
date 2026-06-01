@@ -8,6 +8,7 @@ import { ExceptionRef } from "./exceptionref";
 import { addAfter, blockify, cloneNode, getBreaker, getName } from "../utils.js";
 import { NamespaceRef } from "./namespaceref.js";
 import { indent } from "../globals/indent.js";
+import { Globals } from "../globals/globals.js";
 import { SourceRef } from "./sourceref.js";
 
 const rawValue = process.env["DEBUG"];
@@ -75,7 +76,15 @@ export class MethodRef extends BaseRef {
     // exception state, and the caller's checkpoint picks the failure up
     // after the `new` expression.
     const isCtor = Boolean(this.node.flags & CommonFlags.Constructor);
-    const cannotRename = isCtor || Boolean(this.node.flags & (CommonFlags.Get | CommonFlags.Set));
+    // A method on a class that participates in inheritance may be dispatched
+    // virtually (through the vtable). Renaming it to `__try_<name>` and adding a
+    // replacement under the original name breaks AS's override linkage — a
+    // subclass's override no longer aligns with the base slot, so a virtual call
+    // lands on the wrong body (e.g. a base `__SERIALIZE` runs instead of the
+    // subclass's). Rewrite these in place, like ctors/accessors, so the original
+    // name keeps its slot and the throw/abort sites still update exception state.
+    const isVirtualCandidate = Globals.inheritanceClasses.has(this.parent.name);
+    const cannotRename = isCtor || Boolean(this.node.flags & (CommonFlags.Get | CommonFlags.Set)) || isVirtualCandidate;
 
     const returnStmt = getBreaker(this.node, this.node);
     const unrollCheck = Node.createIfStatement(Node.createBinaryExpression(Token.GreaterThan, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Failures", this.node.range), this.node.range), Node.createIntegerLiteralExpression(i64_zero, this.node.range), this.node.range), blockify(returnStmt), null, this.node.range);

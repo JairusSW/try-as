@@ -3,6 +3,7 @@ import { NodeKind } from "../types.js";
 import { BaseRef } from "./baseref.js";
 import { addAfter, blockify, cloneNode, getBreaker, getName } from "../utils.js";
 import { indent } from "../globals/indent.js";
+import { Globals } from "../globals/globals.js";
 const rawValue = process.env["DEBUG"];
 const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 export class MethodRef extends BaseRef {
@@ -45,7 +46,8 @@ export class MethodRef extends BaseRef {
             console.log(indent + "Generating method " + this.qualifiedName);
         indent.add();
         const isCtor = Boolean(this.node.flags & 524288);
-        const cannotRename = isCtor || Boolean(this.node.flags & (2048 | 4096));
+        const isVirtualCandidate = Globals.inheritanceClasses.has(this.parent.name);
+        const cannotRename = isCtor || Boolean(this.node.flags & (2048 | 4096)) || isVirtualCandidate;
         const returnStmt = getBreaker(this.node, this.node);
         const unrollCheck = Node.createIfStatement(Node.createBinaryExpression(73, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Failures", this.node.range), this.node.range), Node.createIntegerLiteralExpression(i64_zero, this.node.range), this.node.range), blockify(returnStmt), null, this.node.range);
         const replacementMethod = Node.createMethodDeclaration(Node.createIdentifierExpression(this.node.name.text, this.node.name.range), this.node.decorators, this.node.flags, this.node.typeParameters, this.node.signature, this.cloneBody, this.node.range);

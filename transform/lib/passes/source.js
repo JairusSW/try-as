@@ -385,6 +385,11 @@ export class SourceLinker extends Visitor {
             indent.add();
             const classRef = new ClassRef(node, ref, this.source, this.parentSpace);
             this.source.local.classes.push(classRef);
+            if (node.extendsType) {
+                const base = node.extendsType.name.identifier.text;
+                Globals.inheritanceClasses.add(node.name.text);
+                Globals.inheritanceClasses.add(base);
+            }
             super.visit(node.typeParameters, node);
             super.visit(node.extendsType, node);
             super.visit(node.implementsTypes, node);
