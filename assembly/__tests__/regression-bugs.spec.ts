@@ -140,3 +140,213 @@ describe("Property getter abort is catchable", () => {
   }
   expect(caught.toString()).toBe("true");
 });
+
+// ---------------------------------------------------------------------------
+// REGRESSION 6: an EMPTY catch block still consumes the exception.  Previously
+// `try { throws } catch {}` only generated the lowered try loop when the catch
+// body was non-empty, so `__ExceptionState.Failures` was never decremented and
+// the "swallowed" exception leaked back out to the caller (and ultimately
+// trapped).  Fix: transform/src/types/tryref.ts generates the `shouldCatch`
+// guard + `Failures--` whenever a catch clause is present, empty or not.
+
+function swallows(): void {
+  try {
+    abort("swallowed");
+  } catch (e) {
+    // intentionally empty — should still clear the exception state
+  }
+}
+
+describe("Empty catch swallows the exception (no leak to caller)", () => {
+  let leaked = false;
+  try {
+    swallows();
+  } catch (e) {
+    leaked = true;
+  }
+  expect(leaked.toString()).toBe("false");
+});
+
+describe("Execution continues normally after an empty catch swallows", () => {
+  let reached = false;
+  swallows();
+  reached = true;
+  expect(reached.toString()).toBe("true");
+});
+
+// ---------------------------------------------------------------------------
+// REGRESSION 7: a call into a NESTED namespace function is resolved and
+// rewritten.  Previously nested namespaces were never registered under their
+// parent, so `findLocalNs` couldn't walk `Outer.Inner.boom` — the call was
+// left un-rewritten and the raw abort trapped the wasm module.
+// Fix: transform/src/passes/source.ts nests namespace refs under their parent.
+
+namespace Outer {
+  export namespace Inner {
+    export function boom(): void {
+      abort("nested-ns-abort");
+    }
+    export namespace Deeper {
+      export function boom(): void {
+        abort("deeper-ns-abort");
+      }
+    }
+  }
+}
+
+describe("Call into a nested namespace function is catchable", () => {
+  let caught = false;
+  try {
+    Outer.Inner.boom();
+  } catch (e) {
+    caught = true;
+    expect((e as Exception).toString()).toBe("abort: nested-ns-abort");
+  }
+  expect(caught.toString()).toBe("true");
+});
+
+describe("Call into a three-level nested namespace function is catchable", () => {
+  let caught = false;
+  try {
+    Outer.Inner.Deeper.boom();
+  } catch (e) {
+    caught = true;
+    expect((e as Exception).toString()).toBe("abort: deeper-ns-abort");
+  }
+  expect(caught.toString()).toBe("true");
+});
+
+// ---------------------------------------------------------------------------
+// REGRESSION 8: a function literal passed to ANY higher-order call is a
+// deferred value, so the receiver is not marked exception-bearing (never
+// renamed to a never-generated `__try_<name>`) merely because the closure it
+// receives can throw — the closure runs only when later invoked. This is the
+// general root-cause fix; it is NOT special-cased to test matchers like
+// `expect` / `describe`. A non-matcher `deferClosure` that just stores and
+// returns the closure must compile and stay opaque, while the closure's own
+// body is still rewritten so invoking it later is catchable.
+// Fix: transform/src/passes/source.ts (visitFunctionDeclaration walks each
+// function-literal body in an isolated exception-stack scope).
+
+function deferClosure(fn: () => void): () => void {
+  // returns the closure WITHOUT invoking it
+  return fn;
+}
+
+describe("Deferred closure does not make its non-matcher receiver throw", () => {
+  let reached = false;
+  const held = deferClosure((): void => {
+    abort("deferred-abort");
+  });
+  // deferClosure never called the closure, so nothing threw and we get here.
+  reached = true;
+  expect(reached.toString()).toBe("true");
+
+  // Invoking the held closure DOES throw, and the rewritten body is catchable.
+  let caught = false;
+  try {
+    held();
+  } catch (e) {
+    caught = true;
+    expect((e as Exception).toString()).toBe("abort: deferred-abort");
+  }
+  expect(caught.toString()).toBe("true");
+});
+
+// ---------------------------------------------------------------------------
+// REGRESSION 9: a throwing call passed as an EAGER argument to a clean
+// (non-throwing) callee must NOT rename that callee to `__try_<name>`. The
+// shadow is only generated for a callee that throws on its own, so renaming a
+// clean receiver dangles — and at EXPRESSION position there is no `isDefined`
+// fallback, so it fails to compile (`Cannot find name '__try_wrap'`). This is
+// the `expect(JSON.parse(bad)).toBe(x)` shape from json-as, generalized: the
+// throwing arg is rewritten on its own and the enclosing checkpoint catches
+// the failure; the clean callee site stays as-is.
+// Fix: transform/src/types/callref.ts (gate the rewrite on the callee itself
+// throwing — `this.calling.hasException`).
+
+function throwingArg(): i32 {
+  abort("eager-arg-abort");
+  return 0;
+}
+
+class Wrapped {
+  constructor(public value: i32) {}
+  // never throws on its own
+  read(): i32 {
+    return this.value;
+  }
+}
+
+// clean factory (does not throw) — mirrors as-test's `expect(...)`
+function wrap(v: i32): Wrapped {
+  return new Wrapped(v);
+}
+
+describe("Throwing eager arg to a clean callee at expression position is catchable", () => {
+  let caught = false;
+  try {
+    // `wrap(...)` sits at expression position (receiver of `.read()`) with a
+    // throwing eager argument — `wrap` must stay un-renamed and compile.
+    const r = wrap(throwingArg()).read();
+    if (r != 0) expect(r.toString()).toBe("never-reached");
+  } catch (e) {
+    caught = true;
+    expect((e as Exception).toString()).toBe("abort: eager-arg-abort");
+  }
+  expect(caught.toString()).toBe("true");
+});
+
+// ---------------------------------------------------------------------------
+// REGRESSION 10: a throw mid-expression (a throwing call in an ARGUMENT or a
+// variable initializer) must SHORT-CIRCUIT the rest of the block — the
+// statements after it must not run with `__ExceptionState.Failures` already
+// set. A throwing call in a non-statement slot has no statement `ref` of its
+// own to anchor an unroll check to, so without help the following statements
+// executed. Fix: the linker tracks the enclosing block-level statement
+// (transform/src/passes/source.ts, transform/src/globals/globals.ts) and
+// CallRef anchors `if (Failures > 0) <breaker>` after it
+// (transform/src/types/callref.ts).
+
+function throwsI32(): i32 {
+  abort("midexpr-abort");
+  return 0;
+}
+function take2(a: i32, b: i32): i32 {
+  return a + b;
+}
+
+let regr10SideEffect = 0;
+function regr10Bump(): i32 {
+  regr10SideEffect = 99;
+  return 1;
+}
+
+describe("Throw in an argument short-circuits the following statement", () => {
+  regr10SideEffect = 0;
+  let caught = false;
+  try {
+    take2(1, throwsI32()); // throws mid-argument
+    regr10Bump(); // must be skipped
+  } catch (e) {
+    caught = true;
+    expect((e as Exception).toString()).toBe("abort: midexpr-abort");
+  }
+  expect(caught.toString()).toBe("true");
+  expect(regr10SideEffect.toString()).toBe("0"); // 0 => the following statement was skipped
+});
+
+describe("Throw in a variable initializer short-circuits the following statement", () => {
+  regr10SideEffect = 0;
+  let caught = false;
+  try {
+    const v = take2(1, throwsI32()); // throws in initializer
+    regr10Bump(); // must be skipped
+    if (v != 0) regr10Bump();
+  } catch (e) {
+    caught = true;
+    expect((e as Exception).toString()).toBe("abort: midexpr-abort");
+  }
+  expect(caught.toString()).toBe("true");
+  expect(regr10SideEffect.toString()).toBe("0");
+});

@@ -205,14 +205,17 @@ export class SourceLinker extends Visitor {
     visitCallExpression(node, ref = null) {
         if (this.state == "gather")
             return super.visitCallExpression(node, ref);
-        if (this.state != "postprocess" && !Globals.lastFn && !Globals.lastTry)
+        if (this.state != "postprocess" && !Globals.lastFn && !Globals.lastTry && !Globals.parentFn)
             return super.visitCallExpression(node, ref);
         const fnName = getName(node.expression);
         if (fnName == "inline.always" || fnName == "inline.never" || fnName == "unchecked") {
             const wasInBuiltin = Globals.inInlineBuiltinArg;
+            const savedWrapper = Globals.inlineBuiltinWrapper;
             Globals.inInlineBuiltinArg = true;
+            Globals.inlineBuiltinWrapper = { node, ref };
             const result = super.visitCallExpression(node, ref);
             Globals.inInlineBuiltinArg = wasInBuiltin;
+            Globals.inlineBuiltinWrapper = savedWrapper;
             return result;
         }
         if (fnName == "unreachable" || fnName == "abort") {
@@ -235,6 +238,7 @@ export class SourceLinker extends Visitor {
             return super.visitCallExpression(node, ref);
         const callRef = new CallRef(node, ref, fnRef, this.source, Globals.parentFn);
         callRef.inInlineBuiltinArg = Globals.inInlineBuiltinArg;
+        callRef.inlineWrapper = Globals.inlineBuiltinWrapper;
         Globals.refStack.add(callRef);
         fnRef?.callers.push(callRef);
         if (DEBUG > 0)
@@ -251,6 +255,10 @@ export class SourceLinker extends Visitor {
         }
         if (fnRef.hasException || fnRef.visited)
             return super.visitCallExpression(node, ref);
+        const savedInlineArg = Globals.inInlineBuiltinArg;
+        const savedInlineWrapper = Globals.inlineBuiltinWrapper;
+        Globals.inInlineBuiltinArg = false;
+        Globals.inlineBuiltinWrapper = null;
         if (fnSrc.node.internalPath != this.node.internalPath)
             fnSrc.linker.link();
         if (fnRef instanceof FunctionRef)
@@ -258,6 +266,8 @@ export class SourceLinker extends Visitor {
         else
             fnSrc.linker.linkMethodRef(fnRef);
         super.visitCallExpression(node, ref);
+        Globals.inInlineBuiltinArg = savedInlineArg;
+        Globals.inlineBuiltinWrapper = savedInlineWrapper;
         if (fnRef.hasException || callRef.hasException) {
             if (DEBUG > 0)
                 console.log("Adding call to " + fnRef.qualifiedName);
@@ -279,17 +289,6 @@ export class SourceLinker extends Visitor {
             return super.visitThrowStatement(node, ref);
         if (this.state != "postprocess" && !Globals.lastTry && !Globals.parentFn)
             return super.visitThrowStatement(node, ref);
-        if (this.state != "postprocess" && !Globals.lastTry && Globals.parentFn) {
-            const parentNode = Globals.parentFn.node;
-            const decorators = parentNode.decorators;
-            if (decorators) {
-                for (const dec of decorators) {
-                    if (dec.name.kind == 7 && dec.name.text == "inline") {
-                        return super.visitThrowStatement(node, ref);
-                    }
-                }
-            }
-        }
         if (DEBUG > 0)
             console.log(indent + "Found exception " + toString(node));
         Globals.foundException = true;
@@ -618,6 +617,50 @@ export class SourceLinker extends Visitor {
             const entrySourceRef = Globals.sources.get(entrySource.internalPath);
             entrySourceRef.linker.gather();
             entrySourceRef.linker.link(true);
+        }
+        const allRefs = [];
+        const pushNs = (ns) => {
+            for (const fn of ns.functions)
+                allRefs.push(fn);
+            for (const cls of ns.classes)
+                for (const m of cls.methods)
+                    allRefs.push(m);
+            for (const child of ns.namespaces)
+                pushNs(child);
+        };
+        for (const src of Globals.sources.values()) {
+            for (const fn of src.local.functions)
+                allRefs.push(fn);
+            for (const cls of src.local.classes)
+                for (const m of cls.methods)
+                    allRefs.push(m);
+            for (const ns of src.local.namespaces)
+                pushNs(ns);
+        }
+        for (const m of Globals.methods)
+            allRefs.push(m);
+        let propagated = true;
+        while (propagated) {
+            propagated = false;
+            for (const callee of allRefs) {
+                if (!callee.hasException)
+                    continue;
+                for (const callRef of callee.callers) {
+                    if (callRef.hasException)
+                        continue;
+                    const parent = callRef.parent;
+                    if (!parent)
+                        continue;
+                    if (parent.tries.length)
+                        continue;
+                    callRef.hasException = true;
+                    propagated = true;
+                    if (!parent.exceptions.includes(callRef))
+                        parent.exceptions.push(callRef);
+                    if (!parent.hasException)
+                        parent.hasException = true;
+                }
+            }
         }
         for (const entrySource of entrySources) {
             if (DEBUG > 0)

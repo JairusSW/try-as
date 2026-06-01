@@ -42,10 +42,12 @@ export class FunctionRef extends BaseRef {
             return;
         if (this.node.name.text.startsWith("__try_"))
             return;
+        let isInline = false;
         if (this.node.decorators) {
             for (const dec of this.node.decorators) {
                 if (dec.name.kind == NodeKind.Identifier && dec.name.text == "inline") {
-                    return;
+                    isInline = true;
+                    break;
                 }
             }
         }
@@ -86,6 +88,9 @@ export class FunctionRef extends BaseRef {
         const returnStmt = getBreaker(this.node, this.node);
         const unrollCheck = Node.createIfStatement(Node.createBinaryExpression(73, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Failures", this.node.range), this.node.range), Node.createIntegerLiteralExpression(i64_zero, this.node.range), this.node.range), blockify(returnStmt), null, this.node.range);
         const replacementFunction = Node.createFunctionDeclaration(Node.createIdentifierExpression(this.node.name.text, this.node.name.range), this.node.decorators, this.node.flags, this.node.typeParameters, this.node.signature, this.cloneBody, this.node.arrowKind, this.node.range);
+        if (isInline && this.node.decorators) {
+            this.node.decorators = this.node.decorators.filter((d) => !(d.name.kind == NodeKind.Identifier && d.name.text == "inline"));
+        }
         const isAnonymous = this.node.name.text.length == 0;
         if (!this.tries.length && !isAnonymous)
             this.node.name = Node.createIdentifierExpression("__try_" + this.node.name.text, this.node.name.range);

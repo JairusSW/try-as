@@ -6,6 +6,7 @@ import { toString } from "../lib/util.js";
 import { BaseRef } from "./baseref.js";
 import { MethodRef } from "./methodref.js";
 import { SourceRef } from "./sourceref.js";
+import { Globals } from "../globals/globals.js";
 
 const rawValue = process.env["DEBUG"];
 const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
@@ -24,6 +25,19 @@ export class CallRef extends BaseRef {
   // skips the `__try_` rename for these — see Globals.inInlineBuiltinArg.
   public inInlineBuiltinArg: boolean = false;
 
+  // When this call IS the direct argument of an `inline.always(...)` /
+  // `unchecked(...)` builtin, the wrapper call (and its container ref) so
+  // generate() can drop the wrapper and call the `__try_` shadow normally.
+  public inlineWrapper: { node: CallExpression; ref: Node | Node[] | null } | null = null;
+
+  // The statement this call is nested inside, and the array holding it,
+  // captured from Globals.stmtStack at construction. Used to anchor an unroll
+  // check after the whole statement when the call sits in a non-statement
+  // expression slot (a variable initializer, method-chain receiver, or
+  // argument) that has no statement `ref` of its own.
+  public enclosingStmt: Node | null;
+  public enclosingStmtContainer: Node[] | null;
+
   private generated: boolean = false;
   constructor(node: CallExpression, ref: Node | Node[] | null, calling: FunctionRef | MethodRef, source: SourceRef, parent: FunctionRef | MethodRef | null) {
     super();
@@ -34,19 +48,30 @@ export class CallRef extends BaseRef {
     this.parent = parent;
 
     this.name = getName(node.expression);
+
+    const top = Globals.stmtStack[Globals.stmtStack.length - 1];
+    this.enclosingStmt = top ? top.node : null;
+    this.enclosingStmtContainer = top ? top.container : null;
   }
   generate(): void {
     if (!this.hasException) return;
     if (this.generated) return;
     this.generated = true;
 
-    // Don't rename calls that sit in `inline.always(...)` / `inline.never(...)`
-    // / `unchecked(...)` arg slots. AS's builtin handler inlines the callee
-    // body directly into the builtin's expression position; the renamed
-    // `__try_<name>` version starts with an `if (Failures > 0) return;`
-    // unroll-check, and AS's compileExpression / compileCommaExpression
-    // assert when statements land in expression position.
-    if (this.inInlineBuiltinArg) return;
+    // Calls in `inline.always(...)` / `inline.never(...)` / `unchecked(...)`
+    // arg slots can't simply be renamed to `__try_<name>`: AS inlines the
+    // callee body into the builtin's expression position, and the shadow's
+    // leading `if (Failures > 0) return;` unroll-check is a statement that
+    // `compileExpression` / `compileCommaExpression` assert on.
+    //
+    // But if the callee THROWS, inlining its raw original means a deep throw
+    // stays a raw abort (uncatchable) — the whole point of try-as is lost for
+    // that path. So when this call is the builtin's DIRECT throwing argument,
+    // drop the builtin wrapper and call the `__try_` shadow normally below
+    // (trading the forced inline for catchability). Otherwise keep the old
+    // behavior and leave the call alone.
+    const isInlineUnwrap = this.inInlineBuiltinArg && this.calling.hasException && this.inlineWrapper != null && this.inlineWrapper.node.args.length == 1 && this.inlineWrapper.node.args[0] == this.node;
+    if (this.inInlineBuiltinArg && !isInlineUnwrap) return;
 
     const breaker = getBreaker(this.node, this.parent?.node);
     const range = this.node.range;
@@ -75,17 +100,12 @@ export class CallRef extends BaseRef {
     // needed at this site.
     if (this.calling.tries.length) return;
 
-    // @inline callees get their body inlined at the call site by AS, so the
-    // ternary wrap (which replaces the call expression itself) ends up inside
-    // AS's inliner and trips a compiler assert. Skip them — the inlined body
-    // is rewritten in place by the callee's FunctionRef.generate anyway, so
-    // exception-state updates still happen even without a renamed call site.
-    const decorators = this.calling.node.decorators;
-    if (decorators) {
-      for (const dec of decorators) {
-        if (dec.name.kind == NodeKind.Identifier && (dec.name as IdentifierExpression).text == "inline") return;
-      }
-    }
+    // A throwing @inline callee now gets a NON-inline `__try_<name>` shadow
+    // (see FunctionRef.generate). Redirect this call to it via the usual
+    // isDefined-guarded rename: the shadow is a real function, so the call is a
+    // plain call (no inlining into expression position), and the original
+    // `@inline` still serves non-exception callers. The `isDefined(__try_X)`
+    // guard keeps this safe even if no shadow was emitted for a given callee.
 
     const renamedName = "__try_" + originalName;
 
@@ -116,6 +136,23 @@ export class CallRef extends BaseRef {
     }
     const unrollCheck = Node.createIfStatement(Node.createBinaryExpression(Token.GreaterThan, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", range), Node.createIdentifierExpression("Failures", range), range), Node.createIntegerLiteralExpression(i64_zero, range), range), blockify(breaker), null, range);
 
+    // inline.always(...) direct-arg unwrap: replace the whole builtin call with
+    // the now-renamed `__try_<name>(...)` call, and anchor an unroll-check after
+    // the enclosing statement so a failure short-circuits the rest of the block.
+    if (isInlineUnwrap) {
+      replaceCallExpression(this.inlineWrapper!.node, this.node, this.inlineWrapper!.ref);
+      // Anchor an unroll-check after the enclosing statement ONLY when control
+      // can fall through to the next statement. After a `return`, control
+      // already leaves — an extra trailing statement is dead AND breaks AS when
+      // the enclosing function is itself inline-compiled (a statement can't sit
+      // in the resulting comma/expression position).
+      if (this.enclosingStmt && this.enclosingStmtContainer && this.enclosingStmt.kind != NodeKind.Return) {
+        addAfter(this.enclosingStmt, unrollCheck, this.enclosingStmtContainer);
+      }
+      if (DEBUG > 0) console.log(indent + "Unwrapped inline builtin for " + originalName + " -> " + renamedName);
+      return;
+    }
+
     // Add the unroll-check anchored to `this.node` BEFORE we swap — addAfter
     // looks the call up by stripExpr and would miss it after replacement.
     const wasStatement = isRefStatement(this.node, this.ref);
@@ -131,15 +168,48 @@ export class CallRef extends BaseRef {
       return;
     }
 
-    // Expression position: we can't inject a trailing isDefined-if statement
-    // here, but we leave the renamed `__try_X` call in place. The transformed
-    // callee writes __ExceptionState.Failures on failure, so propagation
-    // still works — the next statement-level checkpoint (another rewritten
-    // call, the surrounding try's do/while break, or the function's exit
-    // path) picks up the failure. Reverting to the original (un-transformed)
-    // name here would call the raw abort/throw and trap the wasm module.
-    // We don't wrap with a ternary because AS builtins like `inline.always`
-    // require a plain CallExpression argument.
+    // Expression position — no statement slot for an isDefined-if guard.
+    //
+    // Two sub-cases, distinguished by whether the CALLEE itself throws:
+    //
+    //  • Callee throws (`this.calling.hasException`) — a `__try_<name>` shadow
+    //    IS generated, so leave the bare renamed `__try_X` call in place. The
+    //    transformed callee writes `__ExceptionState.Failures` on failure and
+    //    the next statement-level checkpoint picks it up. Reverting to the
+    //    original name here would call the raw abort/throw and trap.
+    //
+    //  • Callee is clean and was only flagged because an ARGUMENT throws
+    //    (`expect(JSON.parse(bad))`, `wrap(a, thisThrows())` used as a
+    //    sub-expression) — there is NO `__try_<name>` shadow to call (a shadow
+    //    is only emitted when the callee itself throws), and with no isDefined
+    //    guard here the bare rename dangles (`Cannot find name '__try_expect'`).
+    //    Revert this site to the original call; the throwing ARGUMENT has its
+    //    own CallRef that is rewritten independently, and the enclosing
+    //    checkpoint catches the failure. (At STATEMENT position this branch
+    //    isn't reached — `replaceCallWithIsDefinedIf` above handles it, folding
+    //    `isDefined(__try_X)` to the original AND adding the trailing unroll
+    //    check that short-circuits the rest of the block.)
+    if (!this.calling.hasException) {
+      if (isPropertyAccess) {
+        (this.node.expression as PropertyAccessExpression).property.text = originalName;
+      } else {
+        (this.node.expression as IdentifierExpression).text = originalName;
+      }
+      if (DEBUG > 0) console.log(indent + "Reverted rename (clean callee, expression position) for " + originalName);
+      return;
+    }
+
+    // The throwing callee stays renamed to `__try_X` and writes
+    // `__ExceptionState.Failures` on failure. But because it sits in an
+    // expression slot (a variable initializer, a method-chain receiver, an
+    // argument), there's no statement `ref` of its own to anchor a trailing
+    // unroll check — so without help the statements AFTER this one would run
+    // with Failures already set (`const r = f(a, throws()); next();` ran
+    // `next()`). Anchor the unroll check after the whole ENCLOSING statement
+    // instead, so a throw mid-expression short-circuits the rest of the block.
+    if (this.enclosingStmt && this.enclosingStmtContainer && !isRefStatement(this.node, this.ref)) {
+      addAfter(this.enclosingStmt, unrollCheck, this.enclosingStmtContainer);
+    }
     if (DEBUG > 0) console.log(indent + "Kept rename (expression position) for " + originalName + " -> " + renamedName);
   }
   update(ref: this): this {

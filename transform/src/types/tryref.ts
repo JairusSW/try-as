@@ -77,10 +77,15 @@ export class TryRef extends BaseRef {
             .join("\n" + indent),
       );
 
-    if (this.node.catchStatements?.length) {
-      const catchRange = new Range(this.node.catchStatements[0].range.start, this.node.catchStatements[this.node.catchStatements.length - 1].range.end);
-
-      const catchVar = Node.createVariableStatement(null, [Node.createVariableDeclaration(this.node.catchVariable!, null, CommonFlags.Let, null, Node.createNewExpression(Node.createSimpleTypeName("__Exception", this.node.range), null, [Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Type", this.node.range), this.node.range)], this.node.range), this.node.range)], this.node.range);
+    // A catch clause is present whenever `catchStatements` is non-null — even
+    // when the body is empty (`catch {}` / `catch (e) {}`). An empty catch
+    // still has to consume the exception (decrement `__ExceptionState.Failures`
+    // under the `shouldCatch` guard); gating on `.length` skipped that and let
+    // a swallowed exception leak back out to the caller and trap. A try with no
+    // catch at all (try/finally) leaves `catchStatements` null and is unchanged.
+    if (this.node.catchStatements) {
+      const hasCatchBody = this.node.catchStatements.length > 0;
+      const catchRange = hasCatchBody ? new Range(this.node.catchStatements[0].range.start, this.node.catchStatements[this.node.catchStatements.length - 1].range.end) : this.node.range;
 
       const stateReset = Node.createExpressionStatement(Node.createUnaryPostfixExpression(Token.Minus_Minus, Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Failures", this.node.range), this.node.range), this.node.range));
       const catchCondition = Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("shouldCatch", this.node.range), this.node.range), null, [SimpleParser.parseExpression("<i32>" + this.catchMask.toString())], this.node.range);
@@ -91,7 +96,16 @@ export class TryRef extends BaseRef {
       // and skipping the trailing finally block.
       const catchBodyLoop = Node.createDoStatement(Node.createBlockStatement(cloneNode(this.node.catchStatements), catchRange), Node.createFalseExpression(this.node.range), catchRange);
 
-      this.catchBlock = Node.createIfStatement(catchCondition, Node.createBlockStatement([catchVar, stateReset, catchBodyLoop], this.node.range), null, this.node.range);
+      // Only bind the catch variable (`let e = new __Exception(...)`) when the
+      // source actually named one; `catch {}` has no `catchVariable`.
+      const catchBodyStmts = [];
+      if (this.node.catchVariable) {
+        const catchVar = Node.createVariableStatement(null, [Node.createVariableDeclaration(this.node.catchVariable, null, CommonFlags.Let, null, Node.createNewExpression(Node.createSimpleTypeName("__Exception", this.node.range), null, [Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ExceptionState", this.node.range), Node.createIdentifierExpression("Type", this.node.range), this.node.range)], this.node.range), this.node.range)], this.node.range);
+        catchBodyStmts.push(catchVar);
+      }
+      catchBodyStmts.push(stateReset, catchBodyLoop);
+
+      this.catchBlock = Node.createIfStatement(catchCondition, Node.createBlockStatement(catchBodyStmts, this.node.range), null, this.node.range);
       if (DEBUG > 0)
         console.log(
           indent +

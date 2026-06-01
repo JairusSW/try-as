@@ -14,6 +14,7 @@ export class NamespaceRef extends BaseRef {
     functions = [];
     namespaces = [];
     classes = [];
+    generated = false;
     constructor(node, ref, source, parent) {
         super();
         this.node = node;
@@ -27,6 +28,9 @@ export class NamespaceRef extends BaseRef {
     generate() {
         if (!this.hasException)
             return;
+        if (this.generated)
+            return;
+        this.generated = true;
         if (DEBUG > 0)
             console.log(indent + "Generating namespace " + this.name);
         indent.add();

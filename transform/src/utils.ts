@@ -229,6 +229,21 @@ export function removeExtension(filePath: string): string {
   return path.join(parsed.dir, parsed.name);
 }
 
+// The expression-position counterpart of getBreaker: a type-appropriate
+// default VALUE for `parentFn`'s return type, for when an abort/unreachable
+// sits in a value slot (e.g. `return (cover, unreachable())` produced by a
+// coverage transform). Returns null when no value is needed (void/never
+// return, or no parent) — the caller then keeps the bare void state-call.
+//   isBoolean<RT>() ? false : (isInteger<RT>() || isFloat<RT>() ? 0 : changetype<RT>(0))
+export function getBreakerValue(node: Node, parentFn: FunctionDeclaration | MethodDeclaration | null = null): Expression | null {
+  if (!parentFn || parentFn.flags & CommonFlags.Constructor) return null;
+  if (!parentFn.signature || !parentFn.signature.returnType) return null;
+  const rt = toString(parentFn.signature.returnType);
+  if (rt == "" || rt == "void" || rt == "never") return null;
+  const T = parentFn.signature.returnType;
+  return Node.createTernaryExpression(Node.createCallExpression(Node.createIdentifierExpression("isBoolean", node.range), [T], [], node.range), Node.createFalseExpression(node.range), Node.createTernaryExpression(Node.createBinaryExpression(Token.Bar_Bar, Node.createCallExpression(Node.createIdentifierExpression("isInteger", node.range), [T], [], node.range), Node.createCallExpression(Node.createIdentifierExpression("isFloat", node.range), [T], [], node.range), node.range), Node.createIntegerLiteralExpression(i64_zero, node.range), Node.createCallExpression(Node.createIdentifierExpression("changetype", node.range), [T], [Node.createIntegerLiteralExpression(i64_zero, node.range)], node.range), node.range), node.range);
+}
+
 export function getBreaker(node: Node, parentFn: FunctionDeclaration | MethodDeclaration | null = null): ReturnStatement | BreakStatement | IfStatement {
   let breakStmt: ReturnStatement | BreakStatement | IfStatement = Node.createBreakStatement(null, node.range);
 

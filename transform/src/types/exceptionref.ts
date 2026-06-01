@@ -1,7 +1,7 @@
 import { CallExpression, ExpressionStatement, Node, ThrowStatement } from "assemblyscript/dist/assemblyscript.js";
 import { NodeKind } from "../types.js";
 import { FunctionRef } from "./functionref.js";
-import { cloneNode, getBreaker, getName, isRefStatement, replaceRef } from "../utils.js";
+import { cloneNode, getBreaker, getBreakerValue, getName, isRefStatement, replaceRef } from "../utils.js";
 import { toString } from "../lib/util.js";
 import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
@@ -37,13 +37,36 @@ export class ExceptionRef extends BaseRef {
       const node = this.node as CallExpression;
       // console.log(indent + "Is Statement: " + isRefStatement(node, this.ref));
       const fnName = getName(node.expression);
-      const newException = fnName == "abort" ? Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__AbortState", node.range), Node.createIdentifierExpression("abort", node.range), node.range), null, node.args, node.range)) : Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__UnreachableState", node.range), Node.createIdentifierExpression("unreachable", node.range), node.range), null, node.args, node.range));
+      const stateCall = fnName == "abort" ? Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__AbortState", node.range), Node.createIdentifierExpression("abort", node.range), node.range), null, node.args, node.range) : Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__UnreachableState", node.range), Node.createIdentifierExpression("unreachable", node.range), node.range), null, node.args, node.range);
+      const newException = Node.createExpressionStatement(stateCall);
 
       const breaker = getBreaker(node, this.parent?.node);
 
       if (DEBUG > 0) console.log(indent + "Added Exception: " + toString(newException));
-      if (isRefStatement(node, this.ref)) replaceRef(this.node, [newException, breaker], this.ref);
-      else replaceRef(this.node, newException, this.ref);
+      // `replaceRef([stateCall, breaker], ...)` splices two statements — valid
+      // only where the call is a statement. `isRefStatement` is true whenever
+      // the REF is a statement, which misclassifies the call being the DIRECT
+      // value of a `return` (`return abort()` / `return unreachable()`): there
+      // replaceRef would set `return.value` to the statement ARRAY, emitting
+      // malformed `return X()if (…) …` that AS asserts on. Route that case to
+      // the value path below (it sets `return.value` to a single comma
+      // expression). Coverage's `return (__COVER, abort())` is NOT this case —
+      // there the return's value is the comma, not the call — so it is
+      // unaffected and keeps its existing handling.
+      const refNode = Array.isArray(this.ref) ? null : (this.ref as { kind: number; value?: Node } | null);
+      const isReturnValue = refNode != null && refNode.kind == NodeKind.Return && refNode.value == this.node;
+      if (isRefStatement(node, this.ref) && !isReturnValue) {
+        replaceRef(this.node, [newException, breaker], this.ref);
+      } else {
+        // Expression position (the coverage transform's `(__COVER, abort())`, or
+        // a direct `return abort()`): the call's result is used as a value, so a
+        // bare void state-call would put `void` in a value slot and trip AS's
+        // compileCommaExpression. Yield `(stateCall, <typed default>)` so the
+        // slot stays type-correct (or the bare void call when no value is needed).
+        const value = getBreakerValue(node, this.parent?.node ?? null);
+        if (value) replaceRef(this.node, Node.createCommaExpression([stateCall, value], node.range), this.ref);
+        else replaceRef(this.node, stateCall, this.ref);
+      }
     } else if (this.node.kind == NodeKind.Throw) {
       const node = this.node as ThrowStatement;
       const newException: ExpressionStatement = Node.createExpressionStatement(Node.createCallExpression(Node.createPropertyAccessExpression(Node.createIdentifierExpression("__ErrorState", node.range), Node.createIdentifierExpression("error", node.range), node.range), null, [cloneNode(node.value), Node.createStringLiteralExpression(node.range.source.normalizedPath, node.range), Node.createIntegerLiteralExpression(i64_new(node.range.source.lineAt(node.range.start)), node.range), Node.createIntegerLiteralExpression(i64_new(node.range.source.columnAt()), node.range)], node.range));

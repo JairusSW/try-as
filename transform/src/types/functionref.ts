@@ -56,18 +56,22 @@ export class FunctionRef extends BaseRef {
   generate(): void {
     if (!this.hasException) return;
     if (this.node.name.text.startsWith("__try_")) return;
-    // @inline functions get substituted at every call site by AS — emitting
-    // a `__try_<name>` shadow is wasted (AS still inlines the original) and
-    // worse, the rename forces callers to look up a name AS may not have in
-    // scope. Leave @inline functions at their original name; their body's
-    // throws stay raw, so exception propagation through them is lost, but
-    // compilation succeeds. Acceptable tradeoff — @inline is overwhelmingly
-    // used for small leaf helpers where exception propagation isn't
-    // load-bearing.
+    // @inline throwing functions need special care. AS substitutes the body at
+    // every call site, and a body carrying our lowered throw (state-update +
+    // `return` breaker) is control flow that AS can't inline into an expression
+    // slot (e.g. `out.push(f(x))`, or a coverage `return (__COVER, f(x))`).
+    // Rather than leave the throw raw (uncatchable abort), keep the ORIGINAL
+    // `@inline` function for non-exception callers (they still inline at full
+    // speed) and emit a NON-inline `__try_<name>` shadow for exception-context
+    // callers: a real function call sidesteps the inliner entirely, so its
+    // breakers are legal and the throw is catchable. The only cost is the lost
+    // inline at try-as-traced call sites, and only when try-as is active.
+    let isInline = false;
     if (this.node.decorators) {
       for (const dec of this.node.decorators) {
         if (dec.name.kind == NodeKind.Identifier && (dec.name as IdentifierExpression).text == "inline") {
-          return;
+          isInline = true;
+          break;
         }
       }
     }
@@ -115,6 +119,15 @@ export class FunctionRef extends BaseRef {
     // );
 
     const replacementFunction = Node.createFunctionDeclaration(Node.createIdentifierExpression(this.node.name.text, this.node.name.range), this.node.decorators, this.node.flags, this.node.typeParameters, this.node.signature, this.cloneBody, this.node.arrowKind, this.node.range);
+
+    // The kept original (replacementFunction, above) keeps `@inline` — it serves
+    // non-exception callers. The `__try_` shadow (this.node) must NOT be inline:
+    // its lowered-throw control flow can't be inlined into an expression slot.
+    // Reassign to a filtered array (don't mutate the shared one the original
+    // now references) so only the shadow loses `@inline`.
+    if (isInline && this.node.decorators) {
+      this.node.decorators = this.node.decorators.filter((d) => !(d.name.kind == NodeKind.Identifier && (d.name as IdentifierExpression).text == "inline"));
+    }
 
     // Anonymous arrow callbacks (`(): void => { … }`) have an empty
     // `name.text`. Renaming them to `__try_` would trip the AST-builder

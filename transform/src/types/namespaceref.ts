@@ -22,6 +22,7 @@ export class NamespaceRef extends BaseRef {
   public functions: FunctionRef[] = [];
   public namespaces: NamespaceRef[] = [];
   public classes: ClassRef[] = [];
+  private generated: boolean = false;
   constructor(node: NamespaceDeclaration, ref: Node | Node[] | null, source: SourceRef, parent: NamespaceRef | null) {
     super();
     this.node = node;
@@ -35,6 +36,10 @@ export class NamespaceRef extends BaseRef {
   }
   generate(): void {
     if (!this.hasException) return;
+    // A nested namespace is now reachable from both the source-level list and
+    // its parent's `namespaces`; guard so its members aren't generated twice.
+    if (this.generated) return;
+    this.generated = true;
     if (DEBUG > 0) console.log(indent + "Generating namespace " + this.name);
     indent.add();
     for (const fn of this.functions) {

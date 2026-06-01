@@ -234,7 +234,14 @@ export class SourceLinker extends Visitor {
 
   visitCallExpression(node: CallExpression, ref: Node | Node[] | null = null): void {
     if (this.state == "gather") return super.visitCallExpression(node, ref);
-    if (this.state != "postprocess" && !Globals.lastFn && !Globals.lastTry) return super.visitCallExpression(node, ref);
+    // Trace calls whenever we're inside ANY tracked body — a named function
+    // (`lastFn`), a try region (`lastTry`), OR an anonymous arrow / callback
+    // body (`parentFn`). Anonymous arrows deliberately don't set `lastFn` (it
+    // governs try-attachment), but their call chains must still be followed:
+    // `expect((): void => { lib.parse(bad) }).toThrow()` has to walk into
+    // `parse`'s deep (cross-module, generic) call graph so a reject-throw down
+    // there is lowered to catchable state instead of staying a raw abort.
+    if (this.state != "postprocess" && !Globals.lastFn && !Globals.lastTry && !Globals.parentFn) return super.visitCallExpression(node, ref);
 
     const fnName = getName(node.expression);
     // `inline.always(X)` / `inline.never(X)` / `unchecked(X)` and friends
@@ -247,9 +254,12 @@ export class SourceLinker extends Visitor {
     // CallRef.generate can skip the rename for them.
     if (fnName == "inline.always" || fnName == "inline.never" || fnName == "unchecked") {
       const wasInBuiltin = Globals.inInlineBuiltinArg;
+      const savedWrapper = Globals.inlineBuiltinWrapper;
       Globals.inInlineBuiltinArg = true;
+      Globals.inlineBuiltinWrapper = { node, ref };
       const result = super.visitCallExpression(node, ref);
       Globals.inInlineBuiltinArg = wasInBuiltin;
+      Globals.inlineBuiltinWrapper = savedWrapper;
       return result;
     }
 
@@ -274,6 +284,7 @@ export class SourceLinker extends Visitor {
     if (!fnRef || !fnSrc) return super.visitCallExpression(node, ref);
     const callRef = new CallRef(node, ref, fnRef, this.source, Globals.parentFn);
     callRef.inInlineBuiltinArg = Globals.inInlineBuiltinArg;
+    callRef.inlineWrapper = Globals.inlineBuiltinWrapper;
     Globals.refStack.add(callRef);
     fnRef?.callers.push(callRef);
 
@@ -293,11 +304,23 @@ export class SourceLinker extends Visitor {
 
     // if (fnRef.hasException) return super.visitCallExpression(node, ref);
 
+    // `inInlineBuiltinArg` marks ONLY the direct argument call of an
+    // `inline.always(...)` / `unchecked(...)` builtin (already captured onto
+    // this CallRef above). It must NOT leak into the callee's body: the calls
+    // *inside* deserializeArray are ordinary calls, not builtin-arg slots, and
+    // leaving the flag set would make CallRef.generate skip redirecting them —
+    // so a throw deep inside an inline.always'd function stays a raw abort.
+    const savedInlineArg = Globals.inInlineBuiltinArg;
+    const savedInlineWrapper = Globals.inlineBuiltinWrapper;
+    Globals.inInlineBuiltinArg = false;
+    Globals.inlineBuiltinWrapper = null;
     if (fnSrc.node.internalPath != this.node.internalPath) fnSrc.linker.link();
     if (fnRef instanceof FunctionRef) fnSrc.linker.linkFunctionRef(fnRef);
     else fnSrc.linker.linkMethodRef(fnRef);
 
     super.visitCallExpression(node, ref);
+    Globals.inInlineBuiltinArg = savedInlineArg;
+    Globals.inlineBuiltinWrapper = savedInlineWrapper;
 
     if (fnRef.hasException || callRef.hasException) {
       if (DEBUG > 0) console.log("Adding call to " + fnRef.qualifiedName);
@@ -326,24 +349,11 @@ export class SourceLinker extends Visitor {
     // `expect((): void => { throw ... }).toThrow()` keeps the raw throw and
     // aborts at runtime.
     if (this.state != "postprocess" && !Globals.lastTry && !Globals.parentFn) return super.visitThrowStatement(node, ref);
-    // Skip throws inside @inline parentFns. AS inlines the body wholesale
-    // at every call site, and our rewritten form (state-update + breaker)
-    // doesn't survive AS's compileCommaExpression / inliner machinery when
-    // the call site sits inside coverage-transform's `return (__COVER, …)`
-    // pattern. Leaving these throws raw means they abort at runtime — which
-    // is the same as not having try-as at all for these specific calls —
-    // but compilation succeeds.
-    if (this.state != "postprocess" && !Globals.lastTry && Globals.parentFn) {
-      const parentNode = Globals.parentFn.node;
-      const decorators = parentNode.decorators;
-      if (decorators) {
-        for (const dec of decorators) {
-          if (dec.name.kind == NodeKind.Identifier && (dec.name as unknown as { text: string }).text == "inline") {
-            return super.visitThrowStatement(node, ref);
-          }
-        }
-      }
-    }
+    // Throws inside @inline parentFns ARE rewritten now: FunctionRef.generate
+    // emits a non-inline `__try_<name>` shadow for throwing @inline functions
+    // (keeping the original @inline for non-exception callers), so the lowered
+    // throw lives in a real function and never has to inline into an expression
+    // slot. (Previously these throws were left raw — uncatchable.)
     if (DEBUG > 0) console.log(indent + "Found exception " + toString(node));
     Globals.foundException = true;
     const newException = new ExceptionRef(node, ref, this.source, Globals.parentFn);
@@ -702,6 +712,52 @@ export class SourceLinker extends Visitor {
       const entrySourceRef = Globals.sources.get(entrySource.internalPath)!;
       entrySourceRef.linker.gather();
       entrySourceRef.linker.link(true);
+    }
+
+    // -----------------------------------------------------------------------
+    // Exception-propagation fixpoint (order-independence).
+    //
+    // `link()` marks a call site for `__try_` redirection only if the callee
+    // was ALREADY known to throw when that call was visited. A callee first
+    // resolved via one path leaves call sites in OTHER callers (visited
+    // earlier) un-redirected — generate() then leaves them calling the raw
+    // throwing original, which traps. This bites dispatcher chains: a `f<T>()`
+    // that branches on a compile-time constant and returns one of several
+    // throwing helpers (branch visit-order vs. helper first-resolution is not
+    // guaranteed). Close the gap structurally: propagate `callee.hasException`
+    // to every caller's CallRef until stable, so every call into a throwing
+    // function is redirected regardless of visit order. Try-owning parents are
+    // left as link decided them (their lowered try/catch governs escape); a
+    // try-less parent can only propagate.
+    const allRefs: (FunctionRef | MethodRef)[] = [];
+    const pushNs = (ns: NamespaceRef): void => {
+      for (const fn of ns.functions) allRefs.push(fn);
+      for (const cls of ns.classes) for (const m of cls.methods) allRefs.push(m);
+      for (const child of ns.namespaces) pushNs(child);
+    };
+    for (const src of Globals.sources.values()) {
+      for (const fn of src.local.functions) allRefs.push(fn);
+      for (const cls of src.local.classes) for (const m of cls.methods) allRefs.push(m);
+      for (const ns of src.local.namespaces) pushNs(ns);
+    }
+    for (const m of Globals.methods) allRefs.push(m);
+
+    let propagated = true;
+    while (propagated) {
+      propagated = false;
+      for (const callee of allRefs) {
+        if (!callee.hasException) continue;
+        for (const callRef of callee.callers) {
+          if (callRef.hasException) continue;
+          const parent = callRef.parent;
+          if (!parent) continue;
+          if (parent.tries.length) continue;
+          callRef.hasException = true;
+          propagated = true;
+          if (!parent.exceptions.includes(callRef)) parent.exceptions.push(callRef);
+          if (!parent.hasException) parent.hasException = true;
+        }
+      }
     }
 
     for (const entrySource of entrySources) {

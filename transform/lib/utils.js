@@ -200,6 +200,17 @@ export function removeExtension(filePath) {
     const parsed = path.parse(filePath);
     return path.join(parsed.dir, parsed.name);
 }
+export function getBreakerValue(node, parentFn = null) {
+    if (!parentFn || parentFn.flags & 524288)
+        return null;
+    if (!parentFn.signature || !parentFn.signature.returnType)
+        return null;
+    const rt = toString(parentFn.signature.returnType);
+    if (rt == "" || rt == "void" || rt == "never")
+        return null;
+    const T = parentFn.signature.returnType;
+    return Node.createTernaryExpression(Node.createCallExpression(Node.createIdentifierExpression("isBoolean", node.range), [T], [], node.range), Node.createFalseExpression(node.range), Node.createTernaryExpression(Node.createBinaryExpression(98, Node.createCallExpression(Node.createIdentifierExpression("isInteger", node.range), [T], [], node.range), Node.createCallExpression(Node.createIdentifierExpression("isFloat", node.range), [T], [], node.range), node.range), Node.createIntegerLiteralExpression(i64_zero, node.range), Node.createCallExpression(Node.createIdentifierExpression("changetype", node.range), [T], [Node.createIntegerLiteralExpression(i64_zero, node.range)], node.range), node.range), node.range);
+}
 export function getBreaker(node, parentFn = null) {
     let breakStmt = Node.createBreakStatement(null, node.range);
     if (parentFn) {
