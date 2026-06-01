@@ -1,5 +1,5 @@
 import { Node } from "assemblyscript/dist/assemblyscript.js";
-import { addAfter, blockify, cloneNode, getBreaker, getName, isRefStatement, replaceCallExpression, replaceCallWithIsDefinedIf } from "../utils.js";
+import { addAfter, addUnrollCheckAfter, blockify, cloneNode, getBreaker, getName, isRefStatement, replaceCallExpression, replaceCallWithIsDefinedIf, stripExpr } from "../utils.js";
 import { indent } from "../globals/indent.js";
 import { BaseRef } from "./baseref.js";
 import { Globals } from "../globals/globals.js";
@@ -107,8 +107,9 @@ export class CallRef extends BaseRef {
                 console.log(indent + "Reverted rename (clean callee, expression position) for " + originalName);
             return;
         }
-        if (this.enclosingStmt && this.enclosingStmtContainer && !isRefStatement(this.node, this.ref)) {
-            addAfter(this.enclosingStmt, unrollCheck, this.enclosingStmtContainer);
+        const callIsWholeStmt = this.enclosingStmt != null && stripExpr(this.enclosingStmt) == this.node;
+        if (this.enclosingStmt && this.enclosingStmtContainer && !callIsWholeStmt && this.enclosingStmt.kind != 44) {
+            addUnrollCheckAfter(this.enclosingStmt, unrollCheck, this.enclosingStmtContainer);
         }
         if (DEBUG > 0)
             console.log(indent + "Kept rename (expression position) for " + originalName + " -> " + renamedName);

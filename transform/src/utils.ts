@@ -1,4 +1,4 @@
-import { BlockStatement, BreakStatement, CommonFlags, Expression, ExpressionStatement, FunctionDeclaration, IdentifierExpression, IfStatement, MethodDeclaration, Node, PropertyAccessExpression, ReturnStatement, Statement, Token } from "assemblyscript/dist/assemblyscript.js";
+import { BinaryExpression, BlockStatement, BreakStatement, CommonFlags, Expression, ExpressionStatement, FunctionDeclaration, IdentifierExpression, IfStatement, MethodDeclaration, Node, PropertyAccessExpression, ReturnStatement, Statement, Token } from "assemblyscript/dist/assemblyscript.js";
 import { NodeKind } from "./types.js";
 import { toString } from "./lib/util.js";
 import path from "path";
@@ -64,6 +64,65 @@ export function addAfter(node: Node, additions: Node | Node[], ref: Node | Node[
         }
       }
     }
+  }
+}
+
+// Structural match for an `if (__ExceptionState.Failures > 0) <breaker>`
+// unroll-check, so callers can avoid stacking a second identical guard after
+// the same statement (e.g. when both an enclosing call AND a throwing argument
+// inside it try to anchor a trailing check after the same statement).
+export function isUnrollCheck(node: Node | null | undefined): boolean {
+  if (!node || node.kind != NodeKind.If) return false;
+  const cond = (node as IfStatement).condition;
+  if (!cond || cond.kind != NodeKind.Binary) return false;
+  const bin = cond as BinaryExpression;
+  if (bin.operator != Token.GreaterThan || bin.left.kind != NodeKind.PropertyAccess) return false;
+  const left = bin.left as PropertyAccessExpression;
+  return left.property.text == "Failures" && left.expression.kind == NodeKind.Identifier && (left.expression as IdentifierExpression).text == "__ExceptionState";
+}
+
+// True for the node kinds that appear DIRECTLY as members of a statement list
+// (a block / source / switch-case body) and after which a trailing unroll-check
+// is meaningful. Deliberately tighter than `isRefStatement`, which also accepts
+// declaration FRAGMENTS (VariableDeclaration, FieldDeclaration, ImportDeclaration,
+// …) that live in their own sub-arrays — splicing a guard into those corrupts
+// the AST. Declaration-statements (class/function/enum/namespace) are omitted
+// too: a throw in their initializer position has no sensible trailing slot.
+export function isStmtListMember(node: Node | null | undefined): boolean {
+  if (!node) return false;
+  switch (node.kind) {
+    case NodeKind.Block:
+    case NodeKind.Break:
+    case NodeKind.Continue:
+    case NodeKind.Do:
+    case NodeKind.Empty:
+    case NodeKind.Expression:
+    case NodeKind.For:
+    case NodeKind.ForOf:
+    case NodeKind.If:
+    case NodeKind.Return:
+    case NodeKind.Switch:
+    case NodeKind.Throw:
+    case NodeKind.Try:
+    case NodeKind.Variable:
+    case NodeKind.Void:
+    case NodeKind.While:
+      return true;
+    default:
+      return false;
+  }
+}
+
+// Anchor an unroll-check immediately after `stmt` in `container`, unless one is
+// already there. Idempotent so repeated attempts (from different refs sharing
+// the same enclosing statement) collapse to a single guard.
+export function addUnrollCheckAfter(stmt: Node, unrollCheck: Node, container: Node[]): void {
+  const target = stripExpr(stmt);
+  for (let i = 0; i < container.length; i++) {
+    if (stripExpr(container[i]) != target) continue;
+    if (isUnrollCheck(container[i + 1])) return;
+    container.splice(i + 1, 0, unrollCheck);
+    return;
   }
 }
 

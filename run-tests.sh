@@ -2,6 +2,17 @@
 
 set -euo pipefail
 
+# Portable millisecond timer. `date +%s%3N` is GNU-only; BSD/macOS date emits a
+# literal "N", which then breaks the arithmetic below and silently aborts the
+# loop, making the script report success without running any tests.
+now_ms() {
+  if command -v perl >/dev/null 2>&1; then
+    perl -MTime::HiRes=time -e 'printf("%d\n", time()*1000)'
+  else
+    echo $(( $(date +%s) * 1000 ))
+  fi
+}
+
 mkdir -p ./build
 
 mapfile -t spec_files < <(find ./assembly/__tests__ -type f -name "*.spec.ts" ! -path "./assembly/__tests__/lib/*" | sort)
@@ -16,9 +27,9 @@ for file in "${spec_files[@]}"; do
   output="./build/${rel_path%.ts}.wasm"
   mkdir -p "$(dirname "$output")"
 
-  start_time=$(date +%s%3N)
+  start_time=$(now_ms)
   DEBUG=0 WRITE="$file,./assembly/__tests__/imports.ts" npx asc "$file" --transform ./transform -o "$output" || { echo "Tests failed"; exit 1; }
-  end_time=$(date +%s%3N)
+  end_time=$(now_ms)
 
   build_time=$((end_time - start_time))
 

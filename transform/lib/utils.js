@@ -70,6 +70,54 @@ export function addAfter(node, additions, ref) {
         }
     }
 }
+export function isUnrollCheck(node) {
+    if (!node || node.kind != NodeKind.If)
+        return false;
+    const cond = node.condition;
+    if (!cond || cond.kind != NodeKind.Binary)
+        return false;
+    const bin = cond;
+    if (bin.operator != 73 || bin.left.kind != NodeKind.PropertyAccess)
+        return false;
+    const left = bin.left;
+    return left.property.text == "Failures" && left.expression.kind == NodeKind.Identifier && left.expression.text == "__ExceptionState";
+}
+export function isStmtListMember(node) {
+    if (!node)
+        return false;
+    switch (node.kind) {
+        case NodeKind.Block:
+        case NodeKind.Break:
+        case NodeKind.Continue:
+        case NodeKind.Do:
+        case NodeKind.Empty:
+        case NodeKind.Expression:
+        case NodeKind.For:
+        case NodeKind.ForOf:
+        case NodeKind.If:
+        case NodeKind.Return:
+        case NodeKind.Switch:
+        case NodeKind.Throw:
+        case NodeKind.Try:
+        case NodeKind.Variable:
+        case NodeKind.Void:
+        case NodeKind.While:
+            return true;
+        default:
+            return false;
+    }
+}
+export function addUnrollCheckAfter(stmt, unrollCheck, container) {
+    const target = stripExpr(stmt);
+    for (let i = 0; i < container.length; i++) {
+        if (stripExpr(container[i]) != target)
+            continue;
+        if (isUnrollCheck(container[i + 1]))
+            return;
+        container.splice(i + 1, 0, unrollCheck);
+        return;
+    }
+}
 export function replaceAfter(node, replacement, ref) {
     if (!node || !ref)
         return;

@@ -3,7 +3,7 @@ import { SourceRef } from "../types/sourceref.js";
 import { Visitor } from "../lib/visitor.js";
 import { indent } from "../globals/indent.js";
 import { FunctionRef } from "../types/functionref.js";
-import { blockify, getName } from "../utils.js";
+import { blockify, getName, isStmtListMember } from "../utils.js";
 import { ExceptionRef } from "../types/exceptionref.js";
 import { CallRef } from "../types/callref.js";
 import { TryRef } from "../types/tryref.js";
@@ -65,6 +65,26 @@ export class SourceLinker extends Visitor {
 
   public visitedFns: Set<FunctionRef | MethodRef> = new Set();
 
+  // Track the nearest enclosing statement (and the array holding it) as we
+  // descend, so a CallRef constructed deep in an expression slot (a variable
+  // initializer, argument, or method-chain receiver) can anchor a trailing
+  // unroll-check after the WHOLE statement. Pushed only for genuine statement-
+  // list members (`isStmtListMember`): argument/param/declaration sub-arrays
+  // hold expressions or declaration fragments, so they never push — splicing a
+  // guard there would corrupt the AST.
+  visit(node: Node | Node[] | null, ref: Node | Node[] | null = null): void {
+    if (Array.isArray(node)) {
+      for (const n of node) {
+        const isStmt = isStmtListMember(n);
+        if (isStmt) Globals.stmtStack.push({ node: n, container: node });
+        this._visit(n, node);
+        if (isStmt) Globals.stmtStack.pop();
+      }
+      return;
+    }
+    super.visit(node, ref);
+  }
+
   constructor(sourceRef: SourceRef) {
     super();
     this.source = sourceRef;
@@ -124,7 +144,7 @@ export class SourceLinker extends Visitor {
       if (this.source.node.sourceKind == SourceKind.UserEntry && node.is(CommonFlags.Export)) {
         const fnRef = this.source.local.functions.find((v) => v.node == node) ?? null;
         if (fnRef && !fnRef.parent) {
-          console.log(indent + "Found entry function " + fnRef.qualifiedName);
+          if (DEBUG > 0) console.log(indent + "Found entry function " + fnRef.qualifiedName);
           this.source.functions.push(fnRef!);
           Globals.refStack.add(fnRef!);
 
@@ -298,11 +318,9 @@ export class SourceLinker extends Visitor {
       // scope. Nothing to attribute the exception to, just walk on.
       else return super.visitCallExpression(node, ref);
       this.smashStack();
+      // Callee throws and this site is registered — walk the args and stop.
+      return super.visitCallExpression(node, ref);
     }
-
-    if (fnRef.hasException || fnRef.visited) return super.visitCallExpression(node, ref);
-
-    // if (fnRef.hasException) return super.visitCallExpression(node, ref);
 
     // `inInlineBuiltinArg` marks ONLY the direct argument call of an
     // `inline.always(...)` / `unchecked(...)` builtin (already captured onto
@@ -314,9 +332,22 @@ export class SourceLinker extends Visitor {
     const savedInlineWrapper = Globals.inlineBuiltinWrapper;
     Globals.inInlineBuiltinArg = false;
     Globals.inlineBuiltinWrapper = null;
-    if (fnSrc.node.internalPath != this.node.internalPath) fnSrc.linker.link();
-    if (fnRef instanceof FunctionRef) fnSrc.linker.linkFunctionRef(fnRef);
-    else fnSrc.linker.linkMethodRef(fnRef);
+    // Re-link the callee body only the FIRST time it's resolved (`visited`
+    // guards redundant work and recursion). But a throwing ARGUMENT can flag
+    // THIS call site on any visit — `smashStack` marks the CallRef while it
+    // sits on `refStack` — so we must still walk the arguments below and run
+    // the post-argument registration regardless of `visited`. The old
+    // `|| fnRef.visited` early return skipped that registration, orphaning
+    // 2nd+ call sites of an already-visited (non-throwing) callee that took a
+    // throwing argument: the CallRef was flagged hasException but never pushed
+    // into the enclosing function's `exceptions`, so it was never rewritten —
+    // no `isDefined`-if redirect, no trailing unroll-check, and statements
+    // after the throwing call ran with `__ExceptionState.Failures` already set.
+    if (!fnRef.visited) {
+      if (fnSrc.node.internalPath != this.node.internalPath) fnSrc.linker.link();
+      if (fnRef instanceof FunctionRef) fnSrc.linker.linkFunctionRef(fnRef);
+      else fnSrc.linker.linkMethodRef(fnRef);
+    }
 
     super.visitCallExpression(node, ref);
     Globals.inInlineBuiltinArg = savedInlineArg;
@@ -456,6 +487,13 @@ export class SourceLinker extends Visitor {
     indent.add();
     const namespaceRef = new NamespaceRef(node, ref, this.source, this.parentSpace as NamespaceRef | null);
     this.source.local.namespaces.push(namespaceRef);
+    // Also nest under the parent namespace so `findLocalNs` can walk a dotted
+    // path like `Outer.Inner.boom`: it recurses through each parent's
+    // `.namespaces`, and without this a nested namespace only ever lived in the
+    // flat source-level list — leaving `Outer.namespaces` empty so the walk
+    // dead-ended and the call into it was never redirected (raw abort trapped).
+    // NamespaceRef.generate guards against the resulting double-reachability.
+    if (this.parentSpace instanceof NamespaceRef) this.parentSpace.namespaces.push(namespaceRef);
     const parentSpace = this.parentSpace;
     this.parentSpace = namespaceRef;
     super.visitNamespaceDeclaration(node, isDefault, ref);

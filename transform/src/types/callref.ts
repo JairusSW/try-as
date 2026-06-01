@@ -1,6 +1,6 @@
 import { CallExpression, Expression, IdentifierExpression, Node, NodeKind, PropertyAccessExpression, Token } from "assemblyscript/dist/assemblyscript.js";
 import { FunctionRef } from "./functionref.js";
-import { addAfter, blockify, cloneNode, getBreaker, getName, isRefStatement, replaceCallExpression, replaceCallWithIsDefinedIf, replaceRef } from "../utils.js";
+import { addAfter, addUnrollCheckAfter, blockify, cloneNode, getBreaker, getName, isRefStatement, replaceCallExpression, replaceCallWithIsDefinedIf, replaceRef, stripExpr } from "../utils.js";
 import { indent } from "../globals/indent.js";
 import { toString } from "../lib/util.js";
 import { BaseRef } from "./baseref.js";
@@ -207,8 +207,18 @@ export class CallRef extends BaseRef {
     // with Failures already set (`const r = f(a, throws()); next();` ran
     // `next()`). Anchor the unroll check after the whole ENCLOSING statement
     // instead, so a throw mid-expression short-circuits the rest of the block.
-    if (this.enclosingStmt && this.enclosingStmtContainer && !isRefStatement(this.node, this.ref)) {
-      addAfter(this.enclosingStmt, unrollCheck, this.enclosingStmtContainer);
+    // Reaching here means `replaceCallWithIsDefinedIf` already declined (the
+    // call is NOT at statement position — it's a variable initializer,
+    // method-chain receiver, or argument). Anchor the trailing unroll-check
+    // after the whole enclosing statement so the rest of the block is
+    // short-circuited. Skip only when the call IS that statement (nothing to
+    // anchor around) or control already leaves via `return` (the check would
+    // be dead and breaks AS if the enclosing fn is inline-compiled).
+    // `addUnrollCheckAfter` dedupes, so an enclosing call that also anchored a
+    // check here doesn't produce a doubled guard.
+    const callIsWholeStmt = this.enclosingStmt != null && stripExpr(this.enclosingStmt) == this.node;
+    if (this.enclosingStmt && this.enclosingStmtContainer && !callIsWholeStmt && this.enclosingStmt.kind != NodeKind.Return) {
+      addUnrollCheckAfter(this.enclosingStmt, unrollCheck, this.enclosingStmtContainer);
     }
     if (DEBUG > 0) console.log(indent + "Kept rename (expression position) for " + originalName + " -> " + renamedName);
   }

@@ -54,6 +54,8 @@ const TRANSFORM_OPTIONS = {
     diagnostics: envBool("TRY_AS_DIAGNOSTICS", false),
 };
 let WRITE = process.env["WRITE"];
+const rawValue = process.env["DEBUG"];
+const DEBUG = rawValue == "true" ? 1 : rawValue == "false" || rawValue == "" ? 0 : isNaN(Number(rawValue)) ? 0 : Number(rawValue);
 function hasParsedSource(sources, targetPath) {
     const normalizedTarget = targetPath.replaceAll("\\", "/");
     const withoutExtension = removeExtension(normalizedTarget).replaceAll("\\", "/");
@@ -100,16 +102,19 @@ export default class Transformer extends Transform {
         }
         ThrowReplacer.replace(sources);
         if (WRITE) {
-            console.log("\n======WRITING======\n");
+            if (DEBUG > 0)
+                console.log("\n======WRITING======\n");
             for (let file of WRITE.split(",")) {
-                console.log("Writing " + file);
+                if (DEBUG > 0)
+                    console.log("Writing " + file);
                 file = removeExtension(file);
                 const source = parser.sources.find((v) => v.normalizedPath.includes(file));
                 if (source) {
                     fs.writeFileSync(path.join(process.cwd(), this.baseDir, file.replace("~lib/", "./node_modules/") + ".tmp.ts"), toString(source));
                 }
             }
-            console.log("\n");
+            if (DEBUG > 0)
+                console.log("\n");
         }
     }
 }

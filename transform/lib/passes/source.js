@@ -3,7 +3,7 @@ import { SourceRef } from "../types/sourceref.js";
 import { Visitor } from "../lib/visitor.js";
 import { indent } from "../globals/indent.js";
 import { FunctionRef } from "../types/functionref.js";
-import { blockify, getName } from "../utils.js";
+import { blockify, getName, isStmtListMember } from "../utils.js";
 import { ExceptionRef } from "../types/exceptionref.js";
 import { CallRef } from "../types/callref.js";
 import { TryRef } from "../types/tryref.js";
@@ -49,6 +49,20 @@ export class SourceLinker extends Visitor {
     entryFns = [];
     entryFn = null;
     visitedFns = new Set();
+    visit(node, ref = null) {
+        if (Array.isArray(node)) {
+            for (const n of node) {
+                const isStmt = isStmtListMember(n);
+                if (isStmt)
+                    Globals.stmtStack.push({ node: n, container: node });
+                this._visit(n, node);
+                if (isStmt)
+                    Globals.stmtStack.pop();
+            }
+            return;
+        }
+        super.visit(node, ref);
+    }
     constructor(sourceRef) {
         super();
         this.source = sourceRef;
@@ -117,7 +131,8 @@ export class SourceLinker extends Visitor {
             if (this.source.node.sourceKind == 1 && node.is(2)) {
                 const fnRef = this.source.local.functions.find((v) => v.node == node) ?? null;
                 if (fnRef && !fnRef.parent) {
-                    console.log(indent + "Found entry function " + fnRef.qualifiedName);
+                    if (DEBUG > 0)
+                        console.log(indent + "Found entry function " + fnRef.qualifiedName);
                     this.source.functions.push(fnRef);
                     Globals.refStack.add(fnRef);
                     this.entryFns.push(fnRef);
@@ -252,19 +267,20 @@ export class SourceLinker extends Visitor {
             else
                 return super.visitCallExpression(node, ref);
             this.smashStack();
-        }
-        if (fnRef.hasException || fnRef.visited)
             return super.visitCallExpression(node, ref);
+        }
         const savedInlineArg = Globals.inInlineBuiltinArg;
         const savedInlineWrapper = Globals.inlineBuiltinWrapper;
         Globals.inInlineBuiltinArg = false;
         Globals.inlineBuiltinWrapper = null;
-        if (fnSrc.node.internalPath != this.node.internalPath)
-            fnSrc.linker.link();
-        if (fnRef instanceof FunctionRef)
-            fnSrc.linker.linkFunctionRef(fnRef);
-        else
-            fnSrc.linker.linkMethodRef(fnRef);
+        if (!fnRef.visited) {
+            if (fnSrc.node.internalPath != this.node.internalPath)
+                fnSrc.linker.link();
+            if (fnRef instanceof FunctionRef)
+                fnSrc.linker.linkFunctionRef(fnRef);
+            else
+                fnSrc.linker.linkMethodRef(fnRef);
+        }
         super.visitCallExpression(node, ref);
         Globals.inInlineBuiltinArg = savedInlineArg;
         Globals.inlineBuiltinWrapper = savedInlineWrapper;
@@ -368,6 +384,8 @@ export class SourceLinker extends Visitor {
         indent.add();
         const namespaceRef = new NamespaceRef(node, ref, this.source, this.parentSpace);
         this.source.local.namespaces.push(namespaceRef);
+        if (this.parentSpace instanceof NamespaceRef)
+            this.parentSpace.namespaces.push(namespaceRef);
         const parentSpace = this.parentSpace;
         this.parentSpace = namespaceRef;
         super.visitNamespaceDeclaration(node, isDefault, ref);
